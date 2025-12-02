@@ -1,0 +1,10 @@
+[workspace]
+  members = []
+  build-members = []
+  test-members = []
+  compile-option = ""
+  override-compile-option = ""
+  link-option = ""
+  target-dir = ""
+
+[dependencies]
