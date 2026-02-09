@@ -5,7 +5,7 @@ main(args: Array<String>) {
     let stage = args[0]
     match (stage) {
         case "pre-build" => onPreBuild()
-        case "pre-clean" => onPostClean()
+        case "pre-clean" => onPreClean()
         case _ => ()
     }
 }
@@ -27,7 +27,7 @@ func onPreBuild(): Unit {
 
 class CangjieStdxPathEnvNotFoundException <: Exception {}
 
-func onPostClean(): Unit {
+func onPreClean(): Unit {
     let localStdxPath = getLocalStdxPath()
     removeIfExists(localStdxPath.parent, recursive: true)
 }

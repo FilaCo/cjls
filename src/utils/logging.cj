@@ -6,7 +6,8 @@ import stdx.logger.SimpleLogger
 
 public func initGlobalLogger(): Unit {
     let logger = SimpleLogger(getStdErr())
-    logger.level = getVariable("CJLS_LOG_LEVEL").flatMap(LogLevel.tryParse).getOrDefault {=> LogLevel.ERROR}
+    const CJLS_LOG_LEVEL_ENV = "CJLS_LOG_LEVEL"
+    logger.level = getVariable(CJLS_LOG_LEVEL_ENV).flatMap(LogLevel.tryParse).getOrDefault {=> LogLevel.ERROR}
     setGlobalLogger(logger)
 }
 
