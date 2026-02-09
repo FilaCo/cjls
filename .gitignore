@@ -1,7 +1,10 @@
 .cache
 .vscode
 build-script-cache
+cov_output
 node_modules
-/target
+target
 /third_party
+*.gcda
 *.macrocall
+*.flag
