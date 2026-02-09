@@ -1,2 +1,5 @@
+.cache
 node_modules
 /target
+/third_party
+.macrocall

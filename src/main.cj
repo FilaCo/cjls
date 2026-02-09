@@ -1,6 +1,12 @@
 package cjls
 
+import stdx.log.getGlobalLogger
+
+import cjls.utils.initGlobalLogger
+
 main(): Int64 {
-    println("hello world")
-    return 0
+    initGlobalLogger()
+    let logger = getGlobalLogger([("name", "main")])
+    logger.info("starting language server")
+    0
 }
