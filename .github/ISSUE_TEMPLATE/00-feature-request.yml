@@ -1,8 +1,8 @@
 name: 🚀 Feature Request
 description: If you have a feature request 💡
 title: "[Feature]: "
-labels: ["feature-request"]
-projects: ["https://github.com/users/FilaCo/projects/4"]
+labels: ["enhancement"]
+projects: ["FilaCo/4"]
 assignees:
   - FilaCo
 body:
@@ -11,32 +11,28 @@ body:
       value: |
         Thanks for taking the time to fill out this feature request!
   - type: textarea
-    id: context
     attributes:
       label: Context
       description: What are you trying to do and how would you want to do it differently? Is it something you currently you cannot do? Is this related to an issue/problem?
     validations:
       required: true
   - type: textarea
-    id: alternatives
     attributes:
       label: Alternatives
       description: Can you achieve the same result doing it in an alternative way? Is the alternative considerable?
     validations:
       required: true
   - type: textarea
-    id: previous-feature-requests
     attributes:
       label: Has the feature been requested before?
       description: Please provide a link to the issue.
     validations:
       required: false
   - type: dropdown
-    id: pr
     attributes:
       label: If the feature request is approved, would you be willing to submit a PR?
       description: |
-        _Help can be provided if you need assistance submitting a PR_
+        Help can be provided if you need assistance submitting a PR
       options:
         - 'Yes'
         - 'No'
