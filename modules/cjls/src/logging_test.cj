@@ -1,11 +1,9 @@
 package cjls
 
-import std.unittest.* // cjlint-ignore !G.PKG.01
-import std.unittest.testmacro.* // cjlint-ignore !G.PKG.01
 import stdx.log.LogLevel
 
 @Test
-class LogLevelExtensionTest {
+class LogLevelExtendTest {
     @TestCase[pairs in [ 
 ("OFF", LogLevel.OFF), 
 ("FATAL", LogLevel.FATAL), 

@@ -4,10 +4,23 @@ import std.env.{getStdErr, getVariable}
 import stdx.log.{setGlobalLogger, LogLevel}
 import stdx.logger.SimpleLogger
 
-protected func initGlobalLogger(): Unit {
+@Frozen
+func initGlobalLogger(): Unit {
     let logger = SimpleLogger(getStdErr())
     const CJLS_LOG_LEVEL_ENV = "CJLS_LOG_LEVEL"
-    logger.level = getVariable(CJLS_LOG_LEVEL_ENV).flatMap(LogLevel.tryParse).getOrDefault {=> LogLevel.ERROR}
+    if (let Some(logLevelStr) <- getVariable(CJLS_LOG_LEVEL_ENV)) {
+        try {
+            logger.level = LogLevel.parse(logLevelStr)
+        } catch (_: UnknownLogLevelException) {
+            logger.level = LogLevel.INFO
+            logger.warn("Unknown log level ${logLevelStr}")
+            logger.info("Log level was not provided, setting INFO as default")
+        }
+    } else {
+        logger.level = LogLevel.INFO
+        logger.info("Log level was not provided, setting INFO as default")
+    }
+
     setGlobalLogger(logger)
 }
 
@@ -15,6 +28,7 @@ extend LogLevel /* <: Parsable<LogLevel> */ {
     /**
      * @throws UnknownLogLevelException - If provided value doesn't match to any known LogLevel
      */
+    @Frozen
     static func parse(value: String): LogLevel {
         match (value.toAsciiUpper()) {
             case "OFF" => LogLevel.OFF
@@ -28,17 +42,9 @@ extend LogLevel /* <: Parsable<LogLevel> */ {
             case _ => throw UnknownLogLevelException(value)
         }
     }
-
-    static func tryParse(value: String): ?LogLevel {
-        try {
-            Some(parse(value))
-        } catch (_) {
-            None
-        }
-    }
 }
 
-public class UnknownLogLevelException <: Exception {
+class UnknownLogLevelException <: Exception {
     protected UnknownLogLevelException(value: String) {
         super("Unknown log level: ${value}")
     }

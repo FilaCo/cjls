@@ -1,5 +1,5 @@
 [package]
-cjc-version = "1.1.0"
+cjc-version = "1.2.0"
 name = "cjls"
 organization = ""
 description = "nothing here"
@@ -12,8 +12,6 @@ override-compile-option = ""
 link-option = ""
 package-configuration = {}
 
-[dependencies]
-lsp = { path = "../lsp" }
 
 [target]
 [target.x86_64-unknown-linux-gnu]
