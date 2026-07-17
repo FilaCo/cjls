@@ -21,7 +21,7 @@ class LogLevelExtendTest {
         // act
         let actual = LogLevel.parse(input)
         // assert
-        @PowerAssert(expected == actual)
+        @PowerAssert(expected, actual)
     }
 
     @TestCase

@@ -1,35 +1,36 @@
 package cjls
 
-import stdx.log.{getGlobalLogger, Logger}
+import stdx.log.Logger
 import std.env.getStdIn
+import std.io.{InputStream, BufferedInputStream}
 
-// const CONTENT_LENGTH_FIELD_NAME = "Content-Length"
-// const CONTENT_TYPE_FIELD_NAME = "Content-Type"
-// let FIELD_NAMES = [CONTENT_LENGTH_FIELD_NAME, CONTENT_TYPE_FIELD_NAME]
-// let FIELDS_COUNT = FIELD_NAMES.size
-// let VALID_ENCODINGS = ["utf-8", "utf8"]
-// const LF = r'\n'
-// const CR = r'\r'
-// const COLON = r':'
-// const SEMI = r';'
-// const SPACE = r' '
-// const EQ = r'='
-// let NL = "${CR}${LF}"
-// let FIELD_SEPARATOR = "${COLON}${SPACE}"
-// let CONTENT_TYPE_SEPARATOR = "${SEMI}${SPACE}"
-const BUF_SIZE = 4096;
+private const EXIT_CODE_SUCCESS = 0
+private const EXIT_CODE_FAILURE = 1
 
 @Frozen
 func runServer() {
-    let logger = getGlobalLogger()
-    let buf = Array<Byte>(BUF_SIZE, repeat: 0)
+    let logger = initGlobalLogger()
+    let input = BufferedInputStream(getStdIn())
     logger.info("cjls is running")
-    while (true) {
-        let size = getStdIn().read(buf)
-        
-    }
+    mainLoop(logger, input)
 }
 
-struct LSPHeader {}
+@Frozen
+private func mainLoop<T>(logger: Logger, input: BufferedInputStream<T>) where T <: InputStream {
+    while (true) {
+        let header = try {
+            if (let Some(header) <- LSPHeader.parse(input)) {
+                logger.debug("parsed request header:\n${header}")
+                header
+            } else {
+                logger.info("got EOF while parsing header")
+                break
+            }
+        } catch (e: LSPHeaderException) {
+            logger.error("Unable to parse request header", ("error", e.message))
+            return EXIT_CODE_FAILURE
+        }
+    }
 
-func parseHeader(buf: Array<Byte>, size: Int64) {}
+    EXIT_CODE_SUCCESS
+}

@@ -1,6 +1,5 @@
 package cjls
 
-main() {
-    initGlobalLogger()
+main(): Int64 {
     runServer()
 }

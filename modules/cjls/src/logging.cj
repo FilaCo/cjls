@@ -1,11 +1,11 @@
 package cjls // cjlint-ignore !G.NAM.02
 
 import std.env.{getStdErr, getVariable}
-import stdx.log.{setGlobalLogger, LogLevel}
+import stdx.log.{setGlobalLogger, LogLevel, Logger}
 import stdx.logger.SimpleLogger
 
 @Frozen
-func initGlobalLogger(): Unit {
+func initGlobalLogger(): Logger {
     let logger = SimpleLogger(getStdErr())
     const CJLS_LOG_LEVEL_ENV = "CJLS_LOG_LEVEL"
     if (let Some(logLevelStr) <- getVariable(CJLS_LOG_LEVEL_ENV)) {
@@ -22,6 +22,7 @@ func initGlobalLogger(): Unit {
     }
 
     setGlobalLogger(logger)
+    logger
 }
 
 extend LogLevel /* <: Parsable<LogLevel> */ {
@@ -45,7 +46,7 @@ extend LogLevel /* <: Parsable<LogLevel> */ {
 }
 
 class UnknownLogLevelException <: Exception {
-    protected UnknownLogLevelException(value: String) {
+    UnknownLogLevelException(value: String) {
         super("Unknown log level: ${value}")
     }
 
