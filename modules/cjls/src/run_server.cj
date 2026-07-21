@@ -1,8 +1,10 @@
 package cjls
 
-import stdx.log.Logger
 import std.env.getStdIn
-import std.io.{InputStream, BufferedInputStream}
+import std.io.{InputStream, BufferedInputStream, ByteBuffer}
+import stdx.log.Logger
+import stdx.encoding.json.stream.{JsonDeserializable, JsonSerializable, JsonReader, JsonWriter, JsonToken}
+import lsp.{Header, HeaderException, Message}
 
 private const EXIT_CODE_SUCCESS = 0
 private const EXIT_CODE_FAILURE = 1
@@ -18,18 +20,6 @@ func runServer() {
 @Frozen
 private func mainLoop<T>(logger: Logger, input: BufferedInputStream<T>) where T <: InputStream {
     while (true) {
-        let header = try {
-            if (let Some(header) <- LSPHeader.parse(input)) {
-                logger.debug("parsed request header:\n${header}")
-                header
-            } else {
-                logger.info("got EOF while parsing header")
-                break
-            }
-        } catch (e: LSPHeaderException) {
-            logger.error("Unable to parse request header", ("error", e.message))
-            return EXIT_CODE_FAILURE
-        }
     }
 
     EXIT_CODE_SUCCESS

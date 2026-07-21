@@ -12,8 +12,5 @@ override-compile-option = ""
 link-option = ""
 package-configuration = {}
 
-
-[target]
-[target.x86_64-unknown-linux-gnu]
-[target.x86_64-unknown-linux-gnu.bin-dependencies]
-path-option = ["../../third_party/stdx"]
+[dependencies]
+lsp = { path = "../lsp" }

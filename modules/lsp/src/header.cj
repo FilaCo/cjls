@@ -1,17 +1,20 @@
-package cjls
+package lsp
 
 import std.collection.ArrayList
 import std.io.{InputStream, BufferedInputStream}
 import std.convert.Parsable
 
-struct LSPHeader <: Parsable<LSPHeader> & ToString {
-    static const CONTENT_TYPE_DEFAULT = "application/vscode-jsonrpc; charset=utf-8"
+public struct Header <: Parsable<Header> {
+    public static const CONTENT_TYPE_DEFAULT: String = "application/vscode-jsonrpc; charset=utf-8"
 
     @Frozen
-    LSPHeader(let contentLength: Int64, let contentType!: String = CONTENT_TYPE_DEFAULT) {}
+    public Header(public let contentLength: Int64, public let contentType!: String = CONTENT_TYPE_DEFAULT) {}
 
+    /**
+     * @note: caller should trim a header terminator ("\r\n\r\n") from `str`.
+     */
     @Frozen
-    public static func parse(str: String): LSPHeader {
+    public static func parse(str: String): Header {
         let fieldsSplitted = str.split("\r\n", removeEmpty: true)
         var contentLength = None<Int64>
         var contentType = CONTENT_TYPE_DEFAULT
@@ -24,9 +27,9 @@ struct LSPHeader <: Parsable<LSPHeader> & ToString {
                 case "Content-Length" => contentLength = try {
                     Int64.parse(fieldParts[1])
                 } catch (e: IllegalArgumentException) {
-                    throw LSPHeaderContentLengthInvalidException(e)
+                    throw HeaderContentLengthInvalidException(e)
                 }
-                // even though cjls only supports utf-8 charsets we don't validate it here, because the header field syntax is correct
+                // even though we only support utf-8 charsets we don't validate it here, because the header field syntax is correct
                 case "Content-Type" => contentType = fieldParts[1]
                 // unknown field branch
                 case _ => continue
@@ -34,14 +37,14 @@ struct LSPHeader <: Parsable<LSPHeader> & ToString {
         }
 
         match (contentLength) {
-            case None => throw LSPHeaderContentLengthMissingException()
-            case Some(v) where v < 0 => throw LSPHeaderContentLengthNegativeException()
-            case Some(v) => LSPHeader(v, contentType: contentType)
+            case None => throw HeaderContentLengthMissingException()
+            case Some(v) where v < 0 => throw HeaderContentLengthNegativeException()
+            case Some(v) => Header(v, contentType: contentType)
         }
     }
 
     @Frozen
-    public static func tryParse(str: String): ?LSPHeader {
+    public static func tryParse(str: String): ?Header {
         try {
             parse(str)
         } catch (_: Exception) {
@@ -50,12 +53,7 @@ struct LSPHeader <: Parsable<LSPHeader> & ToString {
     }
 
     @Frozen
-    public func toString(): String {
-        "Content-Length: ${contentLength}\r\nContent-Type: ${contentType}\r\n"
-    }
-
-    @Frozen
-    static func parse<T>(input: BufferedInputStream<T>): ?LSPHeader where T <: InputStream {
+    public static func parse<T>(input: BufferedInputStream<T>): ?Header where T <: InputStream {
         const HEADER_TERMINATOR: VArray<Byte, $4> = [b'\r', b'\n', b'\r', b'\n']
         let fieldsBuf = ArrayList<Byte>()
         var terminated = false
@@ -85,42 +83,30 @@ struct LSPHeader <: Parsable<LSPHeader> & ToString {
         }
 
         let fieldsStr = String.fromUtf8(fieldsBuf[..fieldsBuf.size - HEADER_TERMINATOR.size].toArray())
-        LSPHeader.parse(fieldsStr)
+        Header.parse(fieldsStr)
     }
 }
 
-sealed abstract class LSPHeaderException <: Exception {
+sealed abstract class HeaderException <: Exception {
     init(str: String) {
         super(str)
     }
 }
 
-class LSPHeaderContentLengthMissingException <: LSPHeaderException {
-    LSPHeaderContentLengthMissingException() {
+public class HeaderContentLengthMissingException <: HeaderException {
+    HeaderContentLengthMissingException() {
         super("Required field \"Content-Length\" is missing")
     }
-
-    protected func getClassName() {
-        "LSPHeaderContentLengthMissingException"
-    }
 }
 
-class LSPHeaderContentLengthNegativeException <: LSPHeaderException {
-    LSPHeaderContentLengthNegativeException() {
+public class HeaderContentLengthNegativeException <: HeaderException {
+    HeaderContentLengthNegativeException() {
         super("\"Content-Length\" must be non-negative")
     }
-
-    protected func getClassName() {
-        "LSPHeaderContentLengthInvalidException"
-    }
 }
 
-class LSPHeaderContentLengthInvalidException <: LSPHeaderException {
-    LSPHeaderContentLengthInvalidException(cause: Exception) {
+public class HeaderContentLengthInvalidException <: HeaderException {
+    HeaderContentLengthInvalidException(cause: Exception) {
         super("\"Content-Length\" value is invalid\nCause:${cause}")
-    }
-
-    protected func getClassName() {
-        "LSPHeaderContentLengthInvalidException"
     }
 }

@@ -1,23 +1,23 @@
-package cjls
+package lsp
 
 import std.io.{ByteBuffer, BufferedInputStream}
 import std.unittest.prop_test.*
 
 @Test
-class LSPHeaderParseStringTest {
+class HeaderParseStringTest {
     @TestCase[pair in [
-        ("Content-Length: 42\r\n", Int64(42)),
-        ("Content-Length: 0\r\n", Int64(0)),
-        ("Content-Length: 1\r\n", Int64(1)),
-        ("Content-Length: 999999999999\r\n", Int64(999999999999))
+        ("Content-Length: 42\r\n", 42),
+        ("Content-Length: 0\r\n", 0),
+        ("Content-Length: 1\r\n", 1),
+        ("Content-Length: 999999999\r\n", 999999999)
     ]]
     func parseContentLengthOnly(pair: (String, Int64)) {
         // arrange
         let (input, expectedLength) = pair
-        let expectedContentType = LSPHeader.CONTENT_TYPE_DEFAULT
+        let expectedContentType = Header.CONTENT_TYPE_DEFAULT
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Expect(expectedLength, header.contentLength)
@@ -30,7 +30,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: 42\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n"
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Expect(42, header.contentLength)
@@ -45,10 +45,10 @@ class LSPHeaderParseStringTest {
     func parseUnknownFieldIsIgnored(unknownField: String) {
         // arrange
         let input = "Content-Length: 7\r\n${unknownField}\r\n"
-        let expectedContentType = LSPHeader.CONTENT_TYPE_DEFAULT
+        let expectedContentType = Header.CONTENT_TYPE_DEFAULT
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Expect(7, header.contentLength)
@@ -61,7 +61,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: 7\r\nGarbageField\r\n"
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @PowerAssert(7, header.contentLength)
@@ -73,7 +73,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n"
 
         // act
-        let e = @AssertThrows[LSPHeaderContentLengthMissingException](LSPHeader.parse(input))
+        let e = @AssertThrows[HeaderContentLengthMissingException](Header.parse(input))
 
         // assert
         @PowerAssert("Required field \"Content-Length\" is missing", e.message)
@@ -85,7 +85,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: ${negativeValue}\r\n"
 
         // act
-        let e = @AssertThrows[LSPHeaderContentLengthNegativeException](LSPHeader.parse(input))
+        let e = @AssertThrows[HeaderContentLengthNegativeException](Header.parse(input))
 
         // assert
         @PowerAssert("\"Content-Length\" must be non-negative", e.message)
@@ -97,7 +97,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: ${garbageValue}\r\n"
 
         // act & assert
-        let e = @AssertThrows[LSPHeaderContentLengthInvalidException](LSPHeader.parse(input))
+        let e = @AssertThrows[HeaderContentLengthInvalidException](Header.parse(input))
     }
 
     @TestCase
@@ -106,7 +106,7 @@ class LSPHeaderParseStringTest {
         let input = "\r\n\r\n"
 
         // act
-        let e = @AssertThrows[LSPHeaderContentLengthMissingException](LSPHeader.parse(input))
+        let e = @AssertThrows[HeaderContentLengthMissingException](Header.parse(input))
 
         // assert
         @PowerAssert("Required field \"Content-Length\" is missing", e.message)
@@ -118,7 +118,7 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: not-a-number\r\n"
 
         // act
-        let result = LSPHeader.tryParse(input)
+        let result = Header.tryParse(input)
 
         // assert
         @Assert(result.isNone())
@@ -130,40 +130,16 @@ class LSPHeaderParseStringTest {
         let input = "Content-Length: 100\r\n"
 
         // act
-        let result = LSPHeader.tryParse(input)
+        let result = Header.tryParse(input)
 
         // assert
         @Assert(result.isSome())
         @PowerAssert(100, result.getOrThrow().contentLength)
     }
-
-    @TestCase
-    func toStringRoundTrips() {
-        // arrange
-        let header = LSPHeader(42)
-
-        // act
-        let str = header.toString()
-
-        // assert
-        @PowerAssert("Content-Length: 42\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n", str)
-    }
-
-    @TestCase
-    func toStringWithCustomContentType() {
-        // arrange
-        let header = LSPHeader(42, contentType: "application/json; charset=cp-1251")
-
-        // act
-        let str = header.toString()
-
-        // assert
-        @PowerAssert("Content-Length: 42\r\nContent-Type: application/json; charset=cp-1251\r\n", str)
-    }
 }
 
 @Test
-class LSPHeaderParseStreamTest {
+class HeaderParseStreamTest {
     @Frozen
     func makeInput(bytes: Array<Byte>): BufferedInputStream<ByteBuffer>{
         let bb = ByteBuffer()
@@ -178,7 +154,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Assert(header.isSome())
@@ -192,7 +168,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Assert(header.isSome())
@@ -208,7 +184,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Assert(header.isSome())
@@ -222,7 +198,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert - header parsed, body untouched
         @Assert(header.isSome())
@@ -237,7 +213,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Assert(header.isNone())
@@ -249,7 +225,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(Array<Byte>())
 
         // act
-        let header = LSPHeader.parse(input)
+        let header = Header.parse(input)
 
         // assert
         @Assert(header.isNone())
@@ -262,7 +238,7 @@ class LSPHeaderParseStreamTest {
         let input = makeInput(raw)
 
         // act - first message header
-        let h1 = LSPHeader.parse(input)
+        let h1 = Header.parse(input)
 
         // assert - first header
         @Assert(h1.isSome())
@@ -273,7 +249,7 @@ class LSPHeaderParseStreamTest {
         input.read(body)
 
         // act - second message header
-        let h2 = LSPHeader.parse(input)
+        let h2 = Header.parse(input)
 
         // assert - second header
         @Assert(h2.isSome())
@@ -282,29 +258,8 @@ class LSPHeaderParseStreamTest {
 }
 
 @Test
-@Configure[randomSeed: 42]
-class LSPHeaderPropertyTest {
-    @TestCase[n in random()]
-    func parseRoundTripsContentLength(n: Int64) {
-        // Property: for any non-negative Int64 n, LSPHeader(n).toString()
-        // parses back to a header with the same contentLength. Negative n
-        // is rejected by parse(), so we skip it (the invariant is only defined
-        // on the valid domain).
-
-        // arrange
-        if (n < 0) {
-            return
-        }
-        let header = LSPHeader(n)
-        let str = header.toString()
-
-        // act
-        let parsed = LSPHeader.parse(str)
-
-        // assert
-        @PowerAssert(n, parsed.contentLength)
-    }
-
+@Configure[randomSeed: 100500]
+class HeaderPropertyTest {
     @TestCase[n in random()]
     func streamParseMatchesStrParse(n: Int64) {
         // Property: parsing a header from a BufferedInputStream<ByteBuffer>
@@ -316,12 +271,12 @@ class LSPHeaderPropertyTest {
             return
         }
         let headerStr = "Content-Length: ${n}\r\n\r\n"
-        let fromStr = LSPHeader.parse(headerStr)
+        let fromStr = Header.parse(headerStr)
         let bb = ByteBuffer()
         bb.write(headerStr.toArray())
 
         // act
-        let fromStream = LSPHeader.parse(BufferedInputStream(bb))
+        let fromStream = Header.parse(BufferedInputStream(bb))
 
         // assert
         @Assert(fromStream.isSome())

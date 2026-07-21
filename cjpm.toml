@@ -1,5 +1,5 @@
 [workspace]
-members = ["modules/cjls"]
+members = ["modules/cjls", "modules/lsp"]
 build-members = []
 test-members = []
 compile-option = ""
@@ -9,3 +9,8 @@ target-dir = ""
 script-dir = ""
 
 [dependencies]
+
+[target]
+[target.x86_64-unknown-linux-gnu]
+[target.x86_64-unknown-linux-gnu.bin-dependencies]
+path-option = ["third_party/stdx"]
