@@ -1,6 +1,7 @@
 package lsp
 
 import stdx.encoding.json.stream.*
+import stdxx.deriving.*
 
 public type RequestId = IntegerOrString
 
@@ -11,22 +12,71 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> {
 
     @Frozen
     public static func fromJson(r: JsonReader): Message {
-        // r.peek().map { tok => }.getOrThrow()
+        if (let Some(tok) <- r.peek() && tok == BeginObject) {
+            var id = None<RequestId>
+            var method = None<String>
+            var params = None<LspAny>
+            var responseResult = None<LspAny>
+            var responseError = None<ResponseError>
+            r.startObject()
+            while (r.peek() != EndObject) {
+                match (r.readName()) {
+                    case "id" => id = r.readValue()
+                    case "method" => method = r.readValue()
+                    case "params" => params = r.readValue()
+                    case "result" => responseResult = r.readValue()
+                    case "error" => responseError = r.readValue()
+                    case _ => r.skip()
+                }
+            }
+            r.endObject()
+            if (let Some(id) <- id) {
+                match ((responseResult, responseError)) {
+                    case (Some(_), Some(_)) => throw IllegalStateException("malformed response message")
+                    case (Some(result), None) => return Response(ResponseMessage(id, Ok(result)))
+                    case (None, Some(error)) => return Response(ResponseMessage(id, Err(error)))
+                    case _ => return Request(RequestMessage(id, method.getOrThrow(), params: params))
+                }
+            }
 
-        throw Exception()
+            return Notification(NotificationMessage(method.getOrThrow(), params: params))
+        }
+
+        throw IllegalStateException("unable to deserialize Message")
     }
 
     @Frozen
     public func toJson(w: JsonWriter): Unit {
+        w.startObject()
+        w.writeJsonRpcField()
+
         match (this) {
-            case Request(req) => w.writeValue(req)
-            case Notification(n) => w.writeValue(n)
-            case Response(res) => w.writeValue(res)
+            case Request(req) =>
+                w.writeName("id").writeValue(req.id).writeName("method").writeValue(req.method)
+
+                if (let Some(p) <- req.params) {
+                    w.writeName("params").writeValue(p)
+                }
+            case Notification(n) =>
+                w.writeName("method").writeValue(n.method)
+
+                if (let Some(p) <- n.params) {
+                    w.writeName("params").writeValue(p)
+                }
+            case Response(res) =>
+                w.writeName("id").writeValue(res.id)
+
+                match (res.resultOrError) {
+                    case Ok(v) => w.writeName("result").writeValue(v)
+                    case Err(err) => w.writeName("error").writeValue(err)
+                }
         }
+
+        w.endObject()
     }
 }
 
-public struct RequestMessage <: JsonSerializable & JsonDeserializable<RequestMessage> {
+public struct RequestMessage {
     @Frozen
     public RequestMessage(
         public let id: RequestId,
@@ -36,30 +86,13 @@ public struct RequestMessage <: JsonSerializable & JsonDeserializable<RequestMes
         public let method: String,
         /**
          * The method's params.
+         * @note optional field
          */
         public let params!: ?LspAny = None
     ) {}
-
-    @Frozen
-    public static func fromJson(r: JsonReader): RequestMessage {
-        throw Exception()
-    }
-
-    @Frozen
-    public func toJson(w: JsonWriter): Unit {
-        w.startObject()
-        w.writeJsonRpcField()
-        w.writeName("id").writeValue(id).writeName("method").writeValue(method)
-
-        if (let Some(p) <- params) {
-            w.writeName("params").writeValue(p)
-        }
-
-        w.endObject()
-    }
 }
 
-public struct NotificationMessage <: JsonSerializable & JsonDeserializable<NotificationMessage> {
+public struct NotificationMessage {
     @Frozen
     public NotificationMessage(
         /**
@@ -71,30 +104,20 @@ public struct NotificationMessage <: JsonSerializable & JsonDeserializable<Notif
          */
         public let params!: ?LspAny = None
     ) {}
-
-    @Frozen
-    public static func fromJson(r: JsonReader): NotificationMessage {
-        throw Exception()
-    }
-
-    @Frozen
-    public func toJson(w: JsonWriter): Unit {}
 }
 
-public struct ResponseMessage <: JsonSerializable & JsonDeserializable<ResponseMessage> {
+public struct ResponseMessage {
     @Frozen
-    public ResponseMessage(public let id: ?RequestId) {}
-
-    @Frozen
-    public static func fromJson(r: JsonReader): ResponseMessage {
-        throw Exception()
-    }
-
-    @Frozen
-    public func toJson(w: JsonWriter): Unit {}
+    public ResponseMessage(public let id: ?RequestId, public let resultOrError: ResponseResult) {}
 }
 
-public struct ResponseError <: JsonSerializable & JsonDeserializable<ResponseMessage> {
+public enum ResponseResult {
+    | Ok(LspAny)
+    | Err(ResponseError)
+}
+
+@DeriveExt[Json]
+public struct ResponseError {
     public ResponseError(
         /**
          * A number indicating the error type that occurred.
@@ -109,21 +132,6 @@ public struct ResponseError <: JsonSerializable & JsonDeserializable<ResponseMes
          * information about the error. Can be omitted.
          */
         public let data!: ?LspAny = None) {}
-
-    @Frozen
-    public static func fromJson(r: JsonReader): ResponseMessage {
-        throw Exception()
-    }
-
-    @Frozen
-    public func toJson(w: JsonWriter): Unit {
-        w.startObject()
-        w.writeName("code").writeValue(code).writeName("message").writeValue(message)
-        if (let Some(d) <- data) {
-            w.writeName("data").writeValue(d)
-        }
-        w.endObject()
-    }
 }
 
 public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> {
@@ -147,13 +155,11 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> {
 
     @Frozen
     public static func fromJson(r: JsonReader): ErrorCode {
-        r.peek().map {
-            tok =>
-                if (tok == JsonNumber) {
-                    return fromInteger(r.readValue<Int64>()) // TODO: custom exception
-                }
-                throw Exception() // TODO: custom exception
-        }.getOrThrow() // TODO: custom exception
+        if (let Some(tok) <- r.peek() && tok == JsonNumber) {
+            return fromInteger(r.readValue<Int64>())
+        }
+
+        throw IllegalStateException("unable to deserialize error code")
     }
 
     @Frozen

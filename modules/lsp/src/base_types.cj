@@ -13,10 +13,13 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
     | LspArray(Array<LspAny>)
     | LspObject(HashMap<String, LspAny>)
 
+    /**
+     * @throws IllegalStateException
+     */
     @Frozen
     public static func fromJson(r: JsonReader): LspAny {
-        r.peek().map {
-            tok => match (tok) {
+        if (let Some(tok) <- r.peek()) {
+            match (tok) {
                 case JsonNull =>
                     r.skip()
                     LspNull
@@ -41,9 +44,11 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
                     }
                     r.endObject()
                     LspObject(items)
-                case _ => throw Exception() // TODO: custom exception
+                case _ => throw IllegalStateException("malformed JSON")
             }
-        }.getOrThrow() // TODO: custom exception
+        }
+
+        throw IllegalStateException("expected LspAny, found EOF")
     }
 
     @Frozen
@@ -73,17 +78,19 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
     | String(String)
 
     /**
-     * @throws IllegalArgumentException - If input is empty, or not either a string or integer
+     * @throws IllegalStateException - If input is empty, or not either a string or integer
      */
     @Frozen
     public static func fromJson(r: JsonReader): IntegerOrString {
-        r.peek().map {
-            v: JsonToken => match (v) {
+        if (let Some(tok) <- r.peek()) {
+            match (tok) {
                 case JsonNumber => IntegerOrString.Integer(Int64.parse(r.readValue()))
                 case JsonString => IntegerOrString.String(r.readValue())
-                case _ => throw IllegalArgumentException("expected string or integer")
+                case _ => throw IllegalStateException("expected integer or string")
             }
-        }.getOrThrow {=> IllegalArgumentException("expected json token")}
+        }
+
+        throw IllegalStateException("expected integer or string, found EOF")
     }
 
     @Frozen

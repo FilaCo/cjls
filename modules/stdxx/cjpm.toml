@@ -1,6 +1,6 @@
 [package]
 cjc-version = "1.2.0"
-name = "lsp"
+name = "stdxx"
 organization = ""
 description = "nothing here"
 version = "1.0.0"
@@ -13,4 +13,3 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-stdxx = { path = "../stdxx" }

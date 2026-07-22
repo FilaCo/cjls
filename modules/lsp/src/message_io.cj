@@ -6,7 +6,7 @@ import stdx.encoding.json.stream.{JsonReader, JsonWriter}
 extend Message {
     @Frozen
     public static func read<T>(input: BufferedInputStream<T>): ?Message where T <: InputStream {
-        Header.parse(input).map {header => readContent(input, Int64(header.contentLength))}.map {
+        Header.parse(input).map {header => readContent(input, header.contentLength)}.map {
             content =>
                 let bb = ByteBuffer(content)
                 let jr = JsonReader(bb)
@@ -29,7 +29,7 @@ extend Message {
 
 @Frozen
 private func readContent<T>(input: BufferedInputStream<T>, size: Int64): Array<Byte> where T <: InputStream {
-    let res = Array<Byte>(Int64(size), repeat: 0)
+    let res = Array<Byte>(size, repeat: 0)
     var readBytes = input.read(res)
     while (readBytes < size && let Some(b) <- input.readByte()) {
         res[readBytes] = b

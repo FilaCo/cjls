@@ -1,5 +1,5 @@
 [workspace]
-members = ["modules/cjls", "modules/lsp"]
+members = ["modules/cjls", "modules/lsp", "modules/stdxx"]
 build-members = []
 test-members = []
 compile-option = ""
