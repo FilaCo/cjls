@@ -73,7 +73,7 @@ private func extendJsonDeserializable(genericParam: Tokens, ident: Token, generi
                     r.endObject()
                     return $pcdCallExpr
                 }
-                throw IllegalStateException()
+                throw IllegalStateException("expected JSON object, found EOF")
             }
         }
     )

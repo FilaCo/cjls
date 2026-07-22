@@ -1,6 +1,7 @@
 package lsp
 
 import std.collection.{HashMap, ArrayList}
+import std.io.ByteBuffer
 import std.deriving.*
 import stdx.encoding.json.stream.*
 
@@ -13,7 +14,7 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
     | LspObject(HashMap<String, LspAny>)
 
     /**
-     * @throws IllegalStateException
+     * @throws IllegalStateException - if EOF met or faced malformed JSON
      */
     @Frozen
     public static func fromJson(r: JsonReader): LspAny {
@@ -69,10 +70,42 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
 }
 
 /**
+ * TODO: is it possible to get rid of this ugly round-trip?
+ */
+@Frozen
+public func toLspAny<T>(v: T): LspAny where T <: JsonSerializable {
+    let bb = ByteBuffer()
+    let jw = JsonWriter(bb)
+    v.toJson(jw)
+    jw.flush()
+    let jr = JsonReader(bb)
+    LspAny.fromJson(jr)
+}
+
+@Frozen
+public func fromLspAny<T>(v: LspAny): T where T <: JsonDeserializable<T> {
+    let bb = ByteBuffer()
+    let jw = JsonWriter(bb)
+    v.toJson(jw)
+    jw.flush()
+    let jr = JsonReader(bb)
+    T.fromJson(jr)
+}
+
+@Frozen
+public func toJsonString<T>(v: T): String where T <: JsonSerializable {
+    let bb = ByteBuffer()
+    let jw = JsonWriter(bb)
+    v.toJson(jw)
+    jw.flush()
+    String.fromUtf8(bb.bytes())
+}
+
+/**
  * `integer | string` type.
  */
 @Derive[Equatable]
-public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrString> {
+public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrString> & ToString {
     | Integer(Int64)
     | String(String)
 
@@ -98,5 +131,19 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
             case Integer(v) => w.writeValue(v)
             case String(v) => w.writeValue(v)
         }
+    }
+
+    @Frozen
+    public func toString(): String {
+        toJsonString(this)
+    }
+}
+
+sealed abstract class LspException <: Exception {
+    LspException() {
+    }
+
+    init(str: String) {
+        super(str)
     }
 }

@@ -7,7 +7,6 @@ import std.unittest.prop_test.*
 
 @Test
 class MessageSerializeTest {
-    @Frozen
     func serialize(msg: Message): String {
         let bb = ByteBuffer()
         let jw = JsonWriter(bb)
@@ -137,7 +136,6 @@ class MessageSerializeTest {
 
 @Test
 class MessageDeserializeTest {
-    @Frozen
     func deserialize(json: String): Message {
         let jr = JsonReader(ByteBuffer(json.toArray()))
         Message.fromJson(jr)
@@ -339,7 +337,7 @@ class MessageDeserializeTest {
         let json = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":42,\"error\":{\"code\":-32700,\"message\":\"x\"}}"
 
         // act & assert
-        @AssertThrows[IllegalStateException](deserialize(json))
+        @AssertThrows[JsonRpcProtocolException](deserialize(json))
     }
 
     @TestCase
@@ -348,13 +346,12 @@ class MessageDeserializeTest {
         let json = "42"
 
         // act & assert
-        @AssertThrows[IllegalStateException](deserialize(json))
+        @AssertThrows[JsonRpcProtocolException](deserialize(json))
     }
 }
 
 @Test
 class MessageRoundtripTest {
-    @Frozen
     func roundtrip(msg: Message): Message {
         let bb = ByteBuffer()
         let jw = JsonWriter(bb)
@@ -425,7 +422,6 @@ class MessageRoundtripTest {
 
 @Test
 class ResponseErrorDeriveTest {
-    @Frozen
     func serialize(err: ResponseError): String {
         let bb = ByteBuffer()
         let jw = JsonWriter(bb)
@@ -434,7 +430,6 @@ class ResponseErrorDeriveTest {
         String.fromUtf8(bb.bytes())
     }
 
-    @Frozen
     func deserialize(json: String): ResponseError {
         let jr = JsonReader(ByteBuffer(json.toArray()))
         ResponseError.fromJson(jr)
@@ -537,7 +532,6 @@ class ResponseErrorDeriveTest {
 @Test
 @Configure[randomSeed: 100500]
 class MessagePropertyTest {
-    @Frozen
     func roundtrip(msg: Message): Message {
         let bb = ByteBuffer()
         let jw = JsonWriter(bb)

@@ -140,7 +140,6 @@ class HeaderParseStringTest {
 
 @Test
 class HeaderParseStreamTest {
-    @Frozen
     func makeInput(bytes: Array<Byte>): BufferedInputStream<ByteBuffer>{
         let bb = ByteBuffer()
         bb.write(bytes)

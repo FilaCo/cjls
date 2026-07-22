@@ -47,7 +47,7 @@ public struct Header <: Parsable<Header> {
     public static func tryParse(str: String): ?Header {
         try {
             parse(str)
-        } catch (_: Exception) {
+        } catch (_: HeaderException) {
             None
         }
     }
@@ -87,7 +87,10 @@ public struct Header <: Parsable<Header> {
     }
 }
 
-sealed abstract class HeaderException <: Exception {
+sealed abstract class HeaderException <: LspException {
+    HeaderException() {
+    }
+
     init(str: String) {
         super(str)
     }
