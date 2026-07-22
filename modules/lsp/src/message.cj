@@ -13,6 +13,7 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> {
     @Frozen
     public static func fromJson(r: JsonReader): Message {
         if (let Some(tok) <- r.peek() && tok == BeginObject) {
+            var idSet = false
             var id = None<RequestId>
             var method = None<String>
             var params = None<LspAny>
@@ -21,21 +22,26 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> {
             r.startObject()
             while (r.peek() != EndObject) {
                 match (r.readName()) {
-                    case "id" => id = r.readValue()
-                    case "method" => method = r.readValue()
-                    case "params" => params = r.readValue()
-                    case "result" => responseResult = r.readValue()
-                    case "error" => responseError = r.readValue()
+                    case "id" =>
+                        id = r.readValue()
+                        idSet = true
+                    case "method" => method = r.readValue<String>()
+                    case "params" =>
+                        params = r.readValue()
+                    case "result" =>
+                        responseResult = r.readValue()
+                    case "error" =>
+                        responseError = r.readValue<ResponseError>()
                     case _ => r.skip()
                 }
             }
             r.endObject()
-            if (let Some(id) <- id) {
+            if (idSet) {
                 match ((responseResult, responseError)) {
                     case (Some(_), Some(_)) => throw IllegalStateException("malformed response message")
                     case (Some(result), None) => return Response(ResponseMessage(id, Ok(result)))
                     case (None, Some(error)) => return Response(ResponseMessage(id, Err(error)))
-                    case _ => return Request(RequestMessage(id, method.getOrThrow(), params: params))
+                    case _ => return Request(RequestMessage(id.getOrThrow(), method.getOrThrow(), params: params))
                 }
             }
 

@@ -13,7 +13,7 @@ func deriveJsonSerializable(decl: Decl): Tokens {
 }
 
 private func deriveJsonSerializableWithStructDecl(sd: StructDecl): Tokens {
-    match (primaryCtorOf(sd)) {
+    match (sd.getPrimaryCtor()) {
         case Some(pcd) => deriveJsonSerializableWithStructDecl(sd, pcd)
         case None =>
             diagReport(ERROR, sd.toTokens(), "unable to derive JsonSerializable with ${sd.identifier.value}",
@@ -35,13 +35,14 @@ private func deriveJsonSerializableWithStructDecl(sd: StructDecl, pcd: PrimaryCt
             quote(w.writeName($(name.value)).writeValue($(name));)
         }
     }
-    let (genericParam, genericConstraint) = genericFragments(sd)
+    let (genericParam, genericConstraint) = sd.getGenericFragments()
     extendJsonSerializable(genericParam, sd.identifier, genericConstraint, toJsonBody)
 }
 
 private func extendJsonSerializable(genericParam: Tokens, ident: Token, genericConstraint: Tokens, toJsonBody: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam $genericConstraint <: JsonSerializable {
+            @Frozen
             public func toJson(w: JsonWriter): Unit {
                 w.startObject()
                 $toJsonBody

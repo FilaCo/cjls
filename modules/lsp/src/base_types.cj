@@ -1,7 +1,6 @@
 package lsp
 
 import std.collection.{HashMap, ArrayList}
-import std.convert.Parsable
 import std.deriving.*
 import stdx.encoding.json.stream.*
 
@@ -19,7 +18,7 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
     @Frozen
     public static func fromJson(r: JsonReader): LspAny {
         if (let Some(tok) <- r.peek()) {
-            match (tok) {
+            return match (tok) {
                 case JsonNull =>
                     r.skip()
                     LspNull
@@ -83,8 +82,8 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
     @Frozen
     public static func fromJson(r: JsonReader): IntegerOrString {
         if (let Some(tok) <- r.peek()) {
-            match (tok) {
-                case JsonNumber => IntegerOrString.Integer(Int64.parse(r.readValue()))
+            return match (tok) {
+                case JsonNumber => IntegerOrString.Integer(r.readValue())
                 case JsonString => IntegerOrString.String(r.readValue())
                 case _ => throw IllegalStateException("expected integer or string")
             }

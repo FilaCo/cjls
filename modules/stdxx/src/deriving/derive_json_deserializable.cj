@@ -13,7 +13,7 @@ func deriveJsonDeserializable(decl: Decl): Tokens {
 }
 
 private func deriveJsonDeserializableWithStructDecl(sd: StructDecl): Tokens {
-    match (primaryCtorOf(sd)) {
+    match (sd.getPrimaryCtor()) {
         case Some(pcd) => deriveJsonDeserializableWithStructDecl(sd, pcd)
         case None =>
             diagReport(ERROR, sd.toTokens(), "unable to derive JsonDeserializable with ${sd.identifier.value}",
@@ -33,7 +33,7 @@ private func deriveJsonDeserializableWithStructDecl(sd: StructDecl, pcd: Primary
 
         if (hasDefault) {
             varDecls += quote(var $(ident): $(ty) = $(param.expr);)
-            varCases += quote(case $(ident.value) => $(ident) = r.readValue();)
+            varCases += quote(case $(ident.value) => $(ident) = r.readValue<$(ty)>();)
             pcdCallArgs += if (param.not.kind != ILLEGAL) {
                 quote($(ident): $(ident),)
             } else {
@@ -41,7 +41,7 @@ private func deriveJsonDeserializableWithStructDecl(sd: StructDecl, pcd: Primary
             }
         } else {
             varDecls += quote(var $(ident) = None<$(ty)>;)
-            varCases += quote(case $(ident.value) => $(ident) = r.readValue();)
+            varCases += quote(case $(ident.value) => $(ident) = r.readValue<$(ty)>();)
             pcdCallArgs += if (param.not.kind != ILLEGAL) {
                 quote($(ident): $(ident).getOrThrow(),)
             } else {
@@ -50,7 +50,7 @@ private func deriveJsonDeserializableWithStructDecl(sd: StructDecl, pcd: Primary
         }
     }
 
-    let (genericParam, genericConstraint) = genericFragments(sd)
+    let (genericParam, genericConstraint) = sd.getGenericFragments()
     let pcdCallExpr = quote($(sd.identifier)$(genericParam)($pcdCallArgs))
     extendJsonDeserializable(genericParam, sd.identifier, genericConstraint, varDecls, varCases, pcdCallExpr)
 }
@@ -59,22 +59,19 @@ private func extendJsonDeserializable(genericParam: Tokens, ident: Token, generi
     varCases: Tokens, pcdCallExpr: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam <: JsonDeserializable<$ident $genericParam> $genericConstraint {
+            @Frozen
             public static func fromJson(r: JsonReader): $ident $genericParam {
-                while (let Some(tag) <- r.peek()) {
-                    match (tag) {
-                        case BeginObject =>
-                            $varDecls
-                            r.startObject()
-                            while (r.peek() != EndObject) {
-                                match (r.readName()) {
-                                    $varCases
-                                    case _ => r.skip()
-                                }
-                            }
-                            r.endObject()
-                            return $pcdCallExpr
-                        case _ => throw IllegalStateException()
+                if (let Some(tok) <- r.peek() && tok == BeginObject) {
+                    $varDecls
+                    r.startObject()
+                    while (r.peek() != EndObject) {
+                        match (r.readName()) {
+                            $varCases
+                            case _ => r.skip()
+                        }
                     }
+                    r.endObject()
+                    return $pcdCallExpr
                 }
                 throw IllegalStateException()
             }

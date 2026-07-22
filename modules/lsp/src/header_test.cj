@@ -21,7 +21,7 @@ class HeaderParseStringTest {
 
         // assert
         @Expect(expectedLength, header.contentLength)
-        @PowerAssert(expectedContentType, header.contentType)
+        @Expect(expectedContentType, header.contentType)
     }
 
     @TestCase
@@ -34,7 +34,7 @@ class HeaderParseStringTest {
 
         // assert
         @Expect(42, header.contentLength)
-        @PowerAssert("application/vscode-jsonrpc; charset=utf-8", header.contentType)
+        @Expect("application/vscode-jsonrpc; charset=utf-8", header.contentType)
     }
 
     @TestCase[unknownField in [
@@ -52,7 +52,7 @@ class HeaderParseStringTest {
 
         // assert
         @Expect(7, header.contentLength)
-        @PowerAssert(expectedContentType, header.contentType)
+        @Expect("application/vscode-jsonrpc; charset=utf-8", header.contentType)
     }
 
     @TestCase
@@ -64,7 +64,7 @@ class HeaderParseStringTest {
         let header = Header.parse(input)
 
         // assert
-        @PowerAssert(7, header.contentLength)
+        @Expect(7, header.contentLength)
     }
 
     @TestCase
@@ -76,7 +76,7 @@ class HeaderParseStringTest {
         let e = @AssertThrows[HeaderContentLengthMissingException](Header.parse(input))
 
         // assert
-        @PowerAssert("Required field \"Content-Length\" is missing", e.message)
+        @Expect("Required field \"Content-Length\" is missing", e.message)
     }
 
     @TestCase[negativeValue in ["-1", "-5", "-999"]]
@@ -88,7 +88,7 @@ class HeaderParseStringTest {
         let e = @AssertThrows[HeaderContentLengthNegativeException](Header.parse(input))
 
         // assert
-        @PowerAssert("\"Content-Length\" must be non-negative", e.message)
+        @Expect("\"Content-Length\" must be non-negative", e.message)
     }
 
     @TestCase[garbageValue in ["abc", "", "3.14", "true"]]
@@ -109,7 +109,7 @@ class HeaderParseStringTest {
         let e = @AssertThrows[HeaderContentLengthMissingException](Header.parse(input))
 
         // assert
-        @PowerAssert("Required field \"Content-Length\" is missing", e.message)
+        @Expect("Required field \"Content-Length\" is missing", e.message)
     }
 
     @TestCase
@@ -134,7 +134,7 @@ class HeaderParseStringTest {
 
         // assert
         @Assert(result.isSome())
-        @PowerAssert(100, result.getOrThrow().contentLength)
+        @Expect(100, result.getOrThrow().contentLength)
     }
 }
 
@@ -158,7 +158,7 @@ class HeaderParseStreamTest {
 
         // assert
         @Assert(header.isSome())
-        @PowerAssert(42, header.getOrThrow().contentLength)
+        @Expect(42, header.getOrThrow().contentLength)
     }
 
     @TestCase
@@ -174,7 +174,7 @@ class HeaderParseStreamTest {
         @Assert(header.isSome())
         let h = header.getOrThrow()
         @Expect(7, h.contentLength)
-        @PowerAssert("application/xml; charset=utf-16", h.contentType)
+        @Expect("application/xml; charset=utf-16", h.contentType)
     }
 
     @TestCase
@@ -188,7 +188,7 @@ class HeaderParseStreamTest {
 
         // assert
         @Assert(header.isSome())
-        @PowerAssert(7, header.getOrThrow().contentLength)
+        @Expect(7, header.getOrThrow().contentLength)
     }
 
     @TestCase
@@ -202,8 +202,8 @@ class HeaderParseStreamTest {
 
         // assert - header parsed, body untouched
         @Assert(header.isSome())
-        @PowerAssert(5, header.getOrThrow().contentLength)
-        @PowerAssert(Some(b'h'), input.readByte())
+        @Expect(5, header.getOrThrow().contentLength)
+        @Expect(Some(b'h'), input.readByte())
     }
 
     @TestCase
@@ -253,7 +253,7 @@ class HeaderParseStreamTest {
 
         // assert - second header
         @Assert(h2.isSome())
-        @PowerAssert(4, h2.getOrThrow().contentLength)
+        @Expect(4, h2.getOrThrow().contentLength)
     }
 }
 
@@ -280,6 +280,6 @@ class HeaderPropertyTest {
 
         // assert
         @Assert(fromStream.isSome())
-        @PowerAssert(fromStr.contentLength, fromStream.getOrThrow().contentLength)
+        @Expect(fromStr.contentLength, fromStream.getOrThrow().contentLength)
     }
 }
