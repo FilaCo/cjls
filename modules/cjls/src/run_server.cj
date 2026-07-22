@@ -52,10 +52,24 @@ struct Connection<I, O> where I <: InputStream, O <: OutputStream {
         initializeStartWhile {=> true}
     }
 
+    /**
+     * @throws ProtocolStateException - if lsp invariants are broken
+     */
     @Frozen
     func initializeStartWhile(running: () -> Bool): (RequestId, LspAny) {
         while (running()) {
-            let msg = Message.read(input) ?? throw Exception() // TODO: custom exception
+            let msg = try {
+                Message.read(input) ?? throw ProtocolStateException(
+                    "connection closed before receiving initialize request")
+            } catch (e: JsonRpcProtocolException) {
+                let resp = ResponseMessage(None, Err(ResponseError(ParseError, "Parse error: ${e.message}")))
+                resp.write(output)
+                continue
+            } catch (e: JsonRpcContentTruncatedException) {
+                let resp = ResponseMessage(None, Err(ResponseError(ParseError, "Content truncated: ${e.message}")))
+                resp.write(output)
+                continue
+            }
 
             match (msg) {
                 case Request(req) where req.isInitialize => return (req.id, req.params.getOrDefault {=> LspNull})
@@ -65,13 +79,16 @@ struct Connection<I, O> where I <: InputStream, O <: OutputStream {
                     resp.write(output)
                     continue
                 case Notification(note) where !note.isExit => continue
-                case msg => throw Exception() // TODO: custom exception
+                case msg => throw ProtocolStateException("unexpected message during initialize handshake: ${msg}")
             }
         }
 
-        throw Exception() //TODO: custom exception
+        throw ProtocolStateException("initialize handshake interrupted")
     }
 
+    /**
+     * @throws ProtocolStateException - if client doesn't send `initialized` notification
+     */
     @Frozen
     func initializeFinish(id: RequestId, initializeResult: LspAny): Unit {
         let response = ResponseMessage.initOk(id, initializeResult)
@@ -79,13 +96,15 @@ struct Connection<I, O> where I <: InputStream, O <: OutputStream {
 
         match (Message.read(input)) {
             case Some(Notification(note)) where note.isInitialized => ()
-            case Some(msg) => throw Exception() //TODO: custom exception
-            case None => throw Exception() // TODO: Exception
+            case Some(msg) => throw ProtocolStateException(
+                "expected 'initialized' notification after initialize response, got: ${msg}")
+            case None => throw ProtocolStateException("connection closed before receiving 'initialized' notification")
         }
     }
 
     /**
      * If `req` is `Shutdown`, respond to it and return `true`, otherwise return `false`
+     * @throws ProtocolStateException - if connection is closed before exit notification is sent or got an incorrect message
      */
     @Frozen
     func handleShutdown(req: RequestMessage): Bool {
@@ -94,17 +113,23 @@ struct Connection<I, O> where I <: InputStream, O <: OutputStream {
         }
         let resp = ResponseMessage.initOk(req.id, LspNull)
         resp.write(output)
-        let msg = Message.read(input) ?? throw Exception() // TODO: custom exception
+        let msg = Message.read(input) ?? throw ProtocolStateException(
+            "connection closed before receiving 'exit' notification after shutdown")
         match (msg) {
             case Notification(note) where note.isExit => ()
-            case msg => throw Exception() // TODO: custom exception
+            case msg => throw ProtocolStateException("expected 'exit' notification after shutdown, got: ${msg}")
         }
 
         true
     }
 }
 
-class ProtocolStateException <: Exception {}
+class ProtocolStateException <: Exception {
+    @Frozen
+    ProtocolStateException(msg: String) {
+        super(msg)
+    }
+}
 
 private func handleRequest<I, O>(conn: Connection<I, O>, req: RequestMessage, docs: Documents): Unit where I <: InputStream,
     O <: OutputStream {}
