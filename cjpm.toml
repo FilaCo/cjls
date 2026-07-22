@@ -10,7 +10,8 @@ script-dir = ""
 
 [dependencies]
 
-[target]
-[target.x86_64-unknown-linux-gnu]
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
+path-option = ["third_party/stdx"]
+
+[target.aarch64-apple-darwin.bin-dependencies]
 path-option = ["third_party/stdx"]
