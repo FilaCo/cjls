@@ -3,6 +3,7 @@ package cjls
 import std.env.{getStdIn, getStdOut}
 import std.io.*
 import lsp.*
+import cjls.lsp_types.*
 
 @Frozen
 func runServer(): Unit {

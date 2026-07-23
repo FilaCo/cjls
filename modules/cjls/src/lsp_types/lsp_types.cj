@@ -1,4 +1,4 @@
-package cjls
+package cjls.lsp_types
 
 import std.io.{InputStream, OutputStream}
 import stdx.encoding.json.stream.*
@@ -59,6 +59,12 @@ public struct InitializeParams {
 }
 
 @DeriveExt[Json]
+public struct InitializeResult {
+    @Frozen
+    public InitializeResult(public let capabilities: ServerCapabilities, public let serverInfo!: ?ServerInfo = None) {}
+}
+
+@DeriveExt[Json]
 public struct ClientInfo {
     @Frozen
     public ClientInfo(
@@ -77,12 +83,6 @@ public struct ClientInfo {
 public struct ClientCapabilities {
     @Frozen
     public ClientCapabilities() {}
-}
-
-@DeriveExt[Json]
-public struct InitializeResult {
-    @Frozen
-    public InitializeResult(public let capabilities: ServerCapabilities, public let serverInfo!: ?ServerInfo = None) {}
 }
 
 public enum TraceValue <: JsonSerializable & JsonDeserializable<TraceValue> {
@@ -146,6 +146,9 @@ public struct Uri <: JsonSerializable & JsonDeserializable<Uri> {
     @Frozen
     private Uri(private let inner: URL) {}
 
+    /**
+     * @throws IllegalStateException - if unable to deserialize Uri
+     */
     @Frozen
     public static func fromJson(r: JsonReader): Uri {
         if (let Some(tok) <- r.peek() && tok == JsonString) {
@@ -160,4 +163,15 @@ public struct Uri <: JsonSerializable & JsonDeserializable<Uri> {
     public func toJson(w: JsonWriter): Unit {
         w.writeValue(inner.toString())
     }
+}
+
+@DeriveExt[Json]
+public struct TextDocumentItem {
+    @Frozen
+    public TextDocumentItem(
+        public let uri: Uri,
+        public let languageId: String,
+        public let version: Int64,
+        public let text: String
+    ) {}
 }
