@@ -1,3 +1,3 @@
-package cjls
+package cjls.server
 
 public class GlobalContext {}
