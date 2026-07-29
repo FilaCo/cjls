@@ -15,3 +15,6 @@ path-option = ["third_party/stdx"]
 
 [target.aarch64-apple-darwin.bin-dependencies]
 path-option = ["third_party/stdx"]
+
+[target.x86_64-w64-mingw32.bin-dependencies]
+path-option = ["third_party/stdx"]

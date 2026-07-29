@@ -6,7 +6,7 @@ import cjls.lsp_types.*
 import cjls.macros.*
 import lsp.*
 
-@LspRequest[method: "initialize", params: InitializeParams, result: InitializeResult]
+@LspRequest["initialize", params: InitializeParams, result: InitializeResult]
 public struct Initialize {
     @LspHandle
     public static func handle(params: InitializeParams): InitializeResult {

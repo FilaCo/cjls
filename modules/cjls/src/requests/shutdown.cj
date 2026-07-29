@@ -6,7 +6,7 @@ import cjls.lsp_types.*
 import cjls.macros.*
 import lsp.*
 
-@LspRequest[method: "shutdown"]
+@LspRequest["shutdown"]
 public struct Shutdown {
     @LspHandle
     public static func handle(): Unit {

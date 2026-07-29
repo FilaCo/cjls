@@ -6,7 +6,7 @@ import cjls.lsp_types.*
 import cjls.macros.*
 import lsp.*
 
-@LspNotification[method: "exit"]
+@LspNotification["exit"]
 public struct Exit {
     @LspHandle
     public static func handle(): Unit {

@@ -6,7 +6,7 @@ import cjls.lsp_types.*
 import cjls.macros.*
 import lsp.*
 
-@LspNotification[method: "initialized"]
+@LspNotification["initialized"]
 public struct Initialized {
     @LspHandle
     public static func handle(): Unit {
