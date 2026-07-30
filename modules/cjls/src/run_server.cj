@@ -5,7 +5,6 @@ import std.io.*
 import lsp.*
 import cjls.lsp_types.*
 
-@Frozen
 func runServer(): Unit {
     logInfo("starting server")
     // let connection = Connection.stdio()
@@ -15,7 +14,7 @@ func runServer(): Unit {
     logInfo("shutting down server")
 }
 
-// @Frozen
+// 
 // func mainLoop<I, O>(conn: Connection<I, O>, initParams: LspAny): Unit where I <: InputStream, O <: OutputStream {
 //     let _ = fromLspAny<InitializeParams>(initParams)
 //     let docs = Documents()
@@ -33,22 +32,22 @@ func runServer(): Unit {
 // }
 
 // struct Connection<I, O> where I <: InputStream, O <: OutputStream {
-//     @Frozen
+//     
 //     Connection(let input: BufferedInputStream<I>, let output: BufferedOutputStream<O>) {}
 
-//     @Frozen
+//     
 //     static func stdio() {
 //         Connection(BufferedInputStream(getStdIn()), BufferedOutputStream(getStdOut()))
 //     }
 
-//     @Frozen
+//     
 //     func initialize(serverCaps: LspAny): LspAny {
 //         let (id, params) = initializeStart()
 //         initializeFinish(id, serverCaps)
 //         params
 //     }
 
-//     @Frozen
+//     
 //     func initializeStart(): (RequestId, LspAny) {
 //         initializeStartWhile {=> true}
 //     }
@@ -56,7 +55,7 @@ func runServer(): Unit {
 //     /**
 //      * @throws ProtocolStateException - if lsp invariants are broken
 //      */
-//     @Frozen
+//     
 //     func initializeStartWhile(running: () -> Bool): (RequestId, LspAny) {
 //         while (running()) {
 //             let msg = try {
@@ -90,7 +89,7 @@ func runServer(): Unit {
 //     /**
 //      * @throws ProtocolStateException - if client doesn't send `initialized` notification
 //      */
-//     @Frozen
+//     
 //     func initializeFinish(id: RequestId, initializeResult: LspAny): Unit {
 //         let response = ResponseMessage.initOk(id, initializeResult)
 //         response.write(output)
@@ -107,7 +106,7 @@ func runServer(): Unit {
 //      * If `req` is `Shutdown`, respond to it and return `true`, otherwise return `false`
 //      * @throws ProtocolStateException - if connection is closed before exit notification is sent or got an incorrect message
 //      */
-//     @Frozen
+//     
 //     func handleShutdown(req: RequestMessage): Bool {
 //         if (!req.isShutdown) {
 //             return false
@@ -126,7 +125,6 @@ func runServer(): Unit {
 // }
 
 class ProtocolStateException <: Exception {
-    @Frozen
     ProtocolStateException(msg: String) {
         super(msg)
     }

@@ -5,12 +5,12 @@ import std.unittest.prop_test.*
 
 @Test
 class HeaderParseStringTest {
-    @TestCase[pair in [
-        ("Content-Length: 42\r\n", 42),
-        ("Content-Length: 0\r\n", 0),
-        ("Content-Length: 1\r\n", 1),
-        ("Content-Length: 999999999\r\n", 999999999)
-    ]]
+    @TestCase[pair in [ 
+("Content-Length: 42\r\n", 42), 
+("Content-Length: 0\r\n", 0), 
+("Content-Length: 1\r\n", 1), 
+("Content-Length: 999999999\r\n", 999999999) 
+ ]]
     func parseContentLengthOnly(pair: (String, Int64)) {
         // arrange
         let (input, expectedLength) = pair
@@ -37,11 +37,11 @@ class HeaderParseStringTest {
         @Expect("application/vscode-jsonrpc; charset=utf-8", header.contentType)
     }
 
-    @TestCase[unknownField in [
-        "X-Custom: whatever",
-        "Trace-Id: abc-123",
-        "Authorization: Bearer token"
-    ]]
+    @TestCase[unknownField in [ 
+ "X-Custom: whatever", 
+ "Trace-Id: abc-123", 
+ "Authorization: Bearer token" 
+ ]]
     func parseUnknownFieldIsIgnored(unknownField: String) {
         // arrange
         let input = "Content-Length: 7\r\n${unknownField}\r\n"
@@ -79,7 +79,7 @@ class HeaderParseStringTest {
         @Expect("Required field \"Content-Length\" is missing", e.message)
     }
 
-    @TestCase[negativeValue in ["-1", "-5", "-999"]]
+    @TestCase[negativeValue in [ "-1", "-5", "-999" ]]
     func parseNegativeContentLengthThrows(negativeValue: String) {
         // arrange
         let input = "Content-Length: ${negativeValue}\r\n"
@@ -91,7 +91,7 @@ class HeaderParseStringTest {
         @Expect("\"Content-Length\" must be non-negative", e.message)
     }
 
-    @TestCase[garbageValue in ["abc", "", "3.14", "true"]]
+    @TestCase[garbageValue in [ "abc", "", "3.14", "true" ]]
     func parseNonNumericContentLengthThrows(garbageValue: String) {
         // arrange
         let input = "Content-Length: ${garbageValue}\r\n"
@@ -140,7 +140,7 @@ class HeaderParseStringTest {
 
 @Test
 class HeaderParseStreamTest {
-    func makeInput(bytes: Array<Byte>): BufferedInputStream<ByteBuffer>{
+    func makeInput(bytes: Array<Byte>): BufferedInputStream<ByteBuffer> {
         let bb = ByteBuffer()
         bb.write(bytes)
         BufferedInputStream(bb)

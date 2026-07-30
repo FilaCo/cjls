@@ -4,7 +4,6 @@ import std.io.{InputStream, OutputStream, BufferedInputStream, ByteBuffer}
 import stdx.encoding.json.stream.{JsonReader, JsonWriter}
 
 extend Message {
-    @Frozen
     public static func read<T>(input: BufferedInputStream<T>): ?Message where T <: InputStream {
         let header = Header.parse(input) ?? return None
         let content = readContent(input, header.contentLength)
@@ -13,7 +12,6 @@ extend Message {
         Message.fromJson(jr)
     }
 
-    @Frozen
     public func write<T>(output: T): Unit where T <: OutputStream {
         let bb = ByteBuffer()
         let jw = JsonWriter(bb)
@@ -27,15 +25,14 @@ extend Message {
 }
 
 extend ResponseMessage {
-    @Frozen
     public func write<T>(output: T): Unit where T <: OutputStream {
         Response(this).write(output)
     }
 }
 
 /**
-* @throws JsonRpcContentTruncatedException - if read less bytes than declared
-*/
+ * @throws JsonRpcContentTruncatedException - if read less bytes than declared
+ */
 private func readContent<T>(input: BufferedInputStream<T>, size: Int64): Array<Byte> where T <: InputStream {
     let res = Array<Byte>(size, repeat: 0)
     var readBytes = input.read(res)
@@ -52,7 +49,6 @@ private func readContent<T>(input: BufferedInputStream<T>, size: Int64): Array<B
 }
 
 public class JsonRpcContentTruncatedException <: LspException {
-    @Frozen
     JsonRpcContentTruncatedException(expected: Int64, actual: Int64) {
         super("JSON-RPC content truncated: expected ${expected} bytes, got ${actual}")
     }

@@ -8,7 +8,6 @@ import lsp.*
 
 @DeriveExt[Json]
 public struct ClientInfo {
-    @Frozen
     public ClientInfo(
         /**
          * The name of the client as defined by the client.
@@ -23,7 +22,6 @@ public struct ClientInfo {
 
 @DeriveExt[Json]
 public struct ClientCapabilities {
-    @Frozen
     public ClientCapabilities() {}
 }
 
@@ -32,7 +30,6 @@ public enum TraceValue <: JsonSerializable & JsonDeserializable<TraceValue> {
     | Messages
     | Verbose
 
-    @Frozen
     public static func fromJson(r: JsonReader): TraceValue {
         if (let Some(tok) <- r.peek() && tok == JsonString) {
             return match (r.readValue<String>()) {
@@ -45,7 +42,6 @@ public enum TraceValue <: JsonSerializable & JsonDeserializable<TraceValue> {
         throw IllegalStateException("unable to deserialize TraceValue")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         let str = match (this) {
             case Off => "off"
@@ -64,7 +60,6 @@ public enum TraceValue <: JsonSerializable & JsonDeserializable<TraceValue> {
  */
 @DeriveExt[Json]
 public struct ServerInfo {
-    @Frozen
     public ServerInfo(
         /**
          * The name of the server as defined by the server.
@@ -78,13 +73,11 @@ public struct ServerInfo {
 
 @DeriveExt[Json]
 public struct ServerCapabilities {
-    @Frozen
     public ServerCapabilities() {}
 }
 
 @DeriveExt[Json]
 public struct WorkspaceFolder {
-    @Frozen
     public WorkspaceFolder(
         /**
          * The associated Uri for this workspace folder.
@@ -98,13 +91,11 @@ public struct WorkspaceFolder {
 }
 
 public struct Uri <: JsonSerializable & JsonDeserializable<Uri> {
-    @Frozen
     private Uri(private let inner: URL) {}
 
     /**
      * @throws IllegalStateException - if unable to deserialize Uri
      */
-    @Frozen
     public static func fromJson(r: JsonReader): Uri {
         if (let Some(tok) <- r.peek() && tok == JsonString) {
             let inner = URL.parse(r.readValue<String>())
@@ -114,7 +105,6 @@ public struct Uri <: JsonSerializable & JsonDeserializable<Uri> {
         throw IllegalStateException("unable to deserialize Uri")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         w.writeValue(inner.toString())
     }
@@ -122,7 +112,6 @@ public struct Uri <: JsonSerializable & JsonDeserializable<Uri> {
 
 @DeriveExt[Json]
 public struct TextDocumentItem {
-    @Frozen
     public TextDocumentItem(
         public let uri: Uri,
         public let languageId: String,

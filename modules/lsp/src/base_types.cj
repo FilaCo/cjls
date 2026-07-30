@@ -16,7 +16,6 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
     /**
      * @throws IllegalStateException - if EOF met or faced malformed JSON
      */
-    @Frozen
     public static func fromJson(r: JsonReader): LspAny {
         if (let Some(tok) <- r.peek()) {
             return match (tok) {
@@ -51,7 +50,6 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
         throw IllegalStateException("expected LspAny, found EOF")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         match (this) {
             case LspNull => w.writeNullValue()
@@ -72,7 +70,6 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
 /**
  * TODO: is it possible to get rid of this ugly round-trip?
  */
-@Frozen
 public func toLspAny<T>(v: T): LspAny where T <: JsonSerializable {
     let bb = ByteBuffer()
     let jw = JsonWriter(bb)
@@ -82,7 +79,6 @@ public func toLspAny<T>(v: T): LspAny where T <: JsonSerializable {
     LspAny.fromJson(jr)
 }
 
-@Frozen
 public func fromLspAny<T>(v: LspAny): T where T <: JsonDeserializable<T> {
     let bb = ByteBuffer()
     let jw = JsonWriter(bb)
@@ -92,7 +88,6 @@ public func fromLspAny<T>(v: LspAny): T where T <: JsonDeserializable<T> {
     T.fromJson(jr)
 }
 
-@Frozen
 public func toJsonString<T>(v: T): String where T <: JsonSerializable {
     let bb = ByteBuffer()
     let jw = JsonWriter(bb)
@@ -112,7 +107,6 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
     /**
      * @throws IllegalStateException - If input is empty, or not either a string or integer
      */
-    @Frozen
     public static func fromJson(r: JsonReader): IntegerOrString {
         if (let Some(tok) <- r.peek()) {
             return match (tok) {
@@ -125,7 +119,6 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
         throw IllegalStateException("expected integer or string, found EOF")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         match (this) {
             case Integer(v) => w.writeValue(v)
@@ -133,7 +126,6 @@ public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrSt
         }
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }

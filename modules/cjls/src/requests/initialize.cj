@@ -16,7 +16,6 @@ public struct Initialize {
 
 @DeriveExt[Json]
 public struct InitializeParams {
-    @Frozen
     public InitializeParams(
         /**
          * The process Id of the parent process that started the server. Is None if
@@ -68,7 +67,6 @@ public struct InitializeParams {
 
 @DeriveExt[Json]
 public struct InitializeResult {
-    @Frozen
     public InitializeResult(
         /**
          * The capabilities the language server provides.

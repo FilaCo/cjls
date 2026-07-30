@@ -4,7 +4,6 @@ import std.env.{getStdErr, getVariable}
 import stdx.log.{getGlobalLogger, setGlobalLogger, LogLevel, Logger}
 import stdx.logger.SimpleLogger
 
-@Frozen
 func initGlobalLogger(): Unit {
     let logger = SimpleLogger(getStdErr())
     setGlobalLogger(logger)
@@ -27,27 +26,22 @@ func initGlobalLogger(): Unit {
 
 private const PREFIX = "[cjls] "
 
-@Frozen
 func logFatal(msg: String) {
     getGlobalLogger().fatal(PREFIX + msg)
 }
 
-@Frozen
 func logError(msg: String) {
     getGlobalLogger().error(PREFIX + msg)
 }
 
-@Frozen
 func logWarning(msg: String) {
     getGlobalLogger().warn(PREFIX + msg)
 }
 
-@Frozen
 func logInfo(msg: String) {
     getGlobalLogger().info(PREFIX + msg)
 }
 
-@Frozen
 func logDebug(msg: String) {
     getGlobalLogger().debug(PREFIX + msg)
 }
@@ -56,7 +50,6 @@ extend LogLevel /* <: Parsable<LogLevel> */ {
     /**
      * @throws UnknownLogLevelException - If provided value doesn't match to any known LogLevel
      */
-    @Frozen
     static func parse(value: String): LogLevel {
         match (value.toAsciiUpper()) {
             case "OFF" => LogLevel.OFF
@@ -73,7 +66,6 @@ extend LogLevel /* <: Parsable<LogLevel> */ {
 }
 
 class UnknownLogLevelException <: Exception {
-    @Frozen
     UnknownLogLevelException(value: String) {
         super("Unknown log level: ${value}")
     }

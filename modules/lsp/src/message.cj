@@ -19,7 +19,6 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> & ToString
     /**
      * @throws JsonRpcProtocolException - if got a malformed JSON
      */
-    @Frozen
     public static func fromJson(r: JsonReader): Message {
         if (let Some(tok) <- r.peek() && tok == BeginObject) {
             var idSet = false
@@ -57,7 +56,6 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> & ToString
         throw JsonRpcProtocolException("unable to deserialize Message")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         // DO NOT use variant data structures `toJson` implementation - it will lead to an infinite recursion
         w.startObject()
@@ -88,14 +86,12 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> & ToString
         w.endObject()
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }
 }
 
 public struct RequestMessage <: JsonSerializable & ToString {
-    @Frozen
     public RequestMessage(
         public let id: RequestId,
         /**
@@ -108,31 +104,26 @@ public struct RequestMessage <: JsonSerializable & ToString {
         public let params!: ?LspAny = None
     ) {}
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         Request(this).toJson(w)
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }
 
-    @Frozen
     public prop isInitialize: Bool {
         get() {
             method == "initialize"
         }
     }
 
-    @Frozen
     public prop isShutdown: Bool {
         get() {
             method == "shutdown"
         }
     }
 
-    @Frozen
     public func enveloped(): Message {
         Request(this)
     }
@@ -140,7 +131,6 @@ public struct RequestMessage <: JsonSerializable & ToString {
     /**
      * @throws MethodMistmatchException
      */
-    @Frozen
     public func extract<P>(method: String): P where P <: JsonDeserializable<P> {
         if (this.method != method) {
             throw MethodMismatchException(this.method, method)
@@ -150,7 +140,6 @@ public struct RequestMessage <: JsonSerializable & ToString {
 }
 
 public struct NotificationMessage <: JsonSerializable & ToString {
-    @Frozen
     public NotificationMessage(
         /**
          * The method to be invoked.
@@ -162,31 +151,26 @@ public struct NotificationMessage <: JsonSerializable & ToString {
         public let params!: ?LspAny = None
     ) {}
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         Notification(this).toJson(w)
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }
 
-    @Frozen
     public prop isInitialized: Bool {
         get() {
             method == "initialized"
         }
     }
 
-    @Frozen
     public prop isExit: Bool {
         get() {
             method == "exit"
         }
     }
 
-    @Frozen
     public func enveloped(): Message {
         Notification(this)
     }
@@ -194,7 +178,6 @@ public struct NotificationMessage <: JsonSerializable & ToString {
     /**
      * @throws MethodMistmatchException
      */
-    @Frozen
     public func extract<P>(method: String): P where P <: JsonDeserializable<P> {
         if (this.method != method) {
             throw MethodMismatchException(this.method, method)
@@ -204,38 +187,31 @@ public struct NotificationMessage <: JsonSerializable & ToString {
 }
 
 public class MethodMismatchException <: LspException {
-    @Frozen
     public MethodMismatchException(expectedMethod: String, actualMethod: String) {
         super("Unable to extract params, expected method: `${expectedMethod}`, got: ${actualMethod}")
     }
 }
 
 public struct ResponseMessage <: JsonSerializable & ToString {
-    @Frozen
     public ResponseMessage(public let id: ?RequestId, public let resultOrError: ResponseResult) {}
 
-    @Frozen
     public static func initOk<R>(id: RequestId, result: R): ResponseMessage where R <: JsonSerializable {
         ResponseMessage(id, Ok(toLspAny(result)))
     }
 
-    @Frozen
     public static func initErr(id: RequestId, code: ErrorCode, message: String): ResponseMessage {
         let error = ResponseError(code, message)
         ResponseMessage(id, Err(error))
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         Response(this).toJson(w)
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }
 
-    @Frozen
     public func enveloped(): Message {
         Response(this)
     }
@@ -263,7 +239,6 @@ public struct ResponseError <: ToString {
          */
         public let data!: ?LspAny = None) {}
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }
@@ -283,7 +258,6 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> & ToSt
     | ServerNotInitialized
     | UnknownErrorCode
 
-    @Frozen
     public static func fromInteger(v: Int64): ErrorCode {
         match (v) {
             case -32700 => ParseError
@@ -296,7 +270,6 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> & ToSt
         }
     }
 
-    @Frozen
     public func toInteger(): Int64 {
         match (this) {
             case ParseError => -32700
@@ -309,7 +282,6 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> & ToSt
         }
     }
 
-    @Frozen
     public static func fromJson(r: JsonReader): ErrorCode {
         if (let Some(tok) <- r.peek() && tok == JsonNumber) {
             return fromInteger(r.readValue<Int64>())
@@ -318,12 +290,10 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> & ToSt
         throw IllegalStateException("unable to deserialize error code")
     }
 
-    @Frozen
     public func toJson(w: JsonWriter): Unit {
         w.writeValue(toInteger())
     }
 
-    @Frozen
     public func toString(): String {
         toJsonString(this)
     }

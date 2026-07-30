@@ -86,14 +86,14 @@ func extendLspNotification(genericParam: Tokens, ident: Token, paramTy: Tokens, 
     methodExpr: Expr, handleCall: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam <: LspNotification<$paramTy> $genericConstraint {
-            @Frozen
+            
             public static prop METHOD: String {
                 get() {
                     $methodExpr
                 }
             }
 
-            @Frozen
+            
             public static func handle(params: $paramTy, ctx: GlobalContext): Unit {
                 $handleCall
             }

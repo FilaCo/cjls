@@ -7,13 +7,11 @@ import std.convert.Parsable
 public struct Header <: Parsable<Header> {
     public static const CONTENT_TYPE_DEFAULT: String = "application/vscode-jsonrpc; charset=utf-8"
 
-    @Frozen
     public Header(public let contentLength: Int64, public let contentType!: String = CONTENT_TYPE_DEFAULT) {}
 
     /**
      * @note: caller should trim a header terminator ("\r\n\r\n") from `str`.
      */
-    @Frozen
     public static func parse(str: String): Header {
         let fieldsSplitted = str.split("\r\n", removeEmpty: true)
         var contentLength = None<Int64>
@@ -43,7 +41,6 @@ public struct Header <: Parsable<Header> {
         }
     }
 
-    @Frozen
     public static func tryParse(str: String): ?Header {
         try {
             parse(str)
@@ -52,7 +49,6 @@ public struct Header <: Parsable<Header> {
         }
     }
 
-    @Frozen
     public static func parse<T>(input: BufferedInputStream<T>): ?Header where T <: InputStream {
         const HEADER_TERMINATOR: VArray<Byte, $4> = [b'\r', b'\n', b'\r', b'\n']
         let fieldsBuf = ArrayList<Byte>()

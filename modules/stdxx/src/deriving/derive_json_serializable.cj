@@ -42,7 +42,7 @@ private func deriveJsonSerializableWithStructDecl(sd: StructDecl, pcd: PrimaryCt
 private func extendJsonSerializable(genericParam: Tokens, ident: Token, genericConstraint: Tokens, toJsonBody: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam $genericConstraint <: JsonSerializable {
-            @Frozen
+            
             public func toJson(w: JsonWriter): Unit {
                 w.startObject()
                 $toJsonBody

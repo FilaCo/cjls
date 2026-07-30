@@ -16,7 +16,7 @@ public interface LspHandlers {
 @LspHandlers[
     requests: [
         Initialize,
-        Shutdown,
+        Shutdown
     ],
     notifications: [
         Initialized,

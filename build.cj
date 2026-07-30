@@ -20,13 +20,11 @@ func onPreBuild(): Unit {
         Directory.create(localStdxPath.parent, recursive: true)
     }
 
-    // const CANGJIE_STDX_PATH_ENV = "CANGJIE_STDX_PATH"
-    // if (let Some(globalStdxPath) <- getVariable(CANGJIE_STDX_PATH_ENV)) {
-    //     SymbolicLink.create(localStdxPath, to: Path(globalStdxPath))
-    // }
+    const CANGJIE_STDX_PATH_ENV = "CANGJIE_STDX_PATH"
+    if (let Some(globalStdxPath) <- getVariable(CANGJIE_STDX_PATH_ENV)) {
+        SymbolicLink.create(localStdxPath, to: Path(globalStdxPath))
+    }
 }
-
-class CangjieStdxPathEnvNotFoundException <: Exception {}
 
 func onPreClean(): Unit {
     let localStdxPath = getLocalStdxPath()

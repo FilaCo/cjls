@@ -59,7 +59,7 @@ private func extendJsonDeserializable(genericParam: Tokens, ident: Token, generi
     varCases: Tokens, pcdCallExpr: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam <: JsonDeserializable<$ident $genericParam> $genericConstraint {
-            @Frozen
+            
             public static func fromJson(r: JsonReader): $ident $genericParam {
                 if (let Some(tok) <- r.peek() && tok == BeginObject) {
                     $varDecls
