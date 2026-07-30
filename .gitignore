@@ -8,4 +8,5 @@ target
 *.gcda
 *.macrocall
 *.flag
-*.macros.dylib
+*.dylib
+*.cjo
