@@ -33,10 +33,10 @@ public enum Message <: JsonSerializable & JsonDeserializable<Message> & ToString
                     case "id" =>
                         id = r.readValue()
                         idSet = true
-                    case "method" => method = r.readValue<String>()
+                    case "method" => method = r.readValue()
                     case "params" => params = r.readValue()
                     case "result" => responseResult = r.readValue()
-                    case "error" => responseError = r.readValue<ResponseError>()
+                    case "error" => responseError = r.readValue()
                     case _ => r.skip()
                 }
             }
@@ -112,30 +112,8 @@ public struct RequestMessage <: JsonSerializable & ToString {
         toJsonString(this)
     }
 
-    public prop isInitialize: Bool {
-        get() {
-            method == "initialize"
-        }
-    }
-
-    public prop isShutdown: Bool {
-        get() {
-            method == "shutdown"
-        }
-    }
-
     public func enveloped(): Message {
         Request(this)
-    }
-
-    /**
-     * @throws MethodMistmatchException
-     */
-    public func extract<P>(method: String): P where P <: JsonDeserializable<P> {
-        if (this.method != method) {
-            throw MethodMismatchException(this.method, method)
-        }
-        fromLspAny(params.getOrDefault {=> LspNull})
     }
 }
 
@@ -159,36 +137,8 @@ public struct NotificationMessage <: JsonSerializable & ToString {
         toJsonString(this)
     }
 
-    public prop isInitialized: Bool {
-        get() {
-            method == "initialized"
-        }
-    }
-
-    public prop isExit: Bool {
-        get() {
-            method == "exit"
-        }
-    }
-
     public func enveloped(): Message {
         Notification(this)
-    }
-
-    /**
-     * @throws MethodMistmatchException
-     */
-    public func extract<P>(method: String): P where P <: JsonDeserializable<P> {
-        if (this.method != method) {
-            throw MethodMismatchException(this.method, method)
-        }
-        fromLspAny(params.getOrDefault {=> LspNull})
-    }
-}
-
-public class MethodMismatchException <: LspException {
-    public MethodMismatchException(expectedMethod: String, actualMethod: String) {
-        super("Unable to extract params, expected method: `${expectedMethod}`, got: ${actualMethod}")
     }
 }
 
@@ -296,5 +246,14 @@ public enum ErrorCode <: JsonSerializable & JsonDeserializable<ErrorCode> & ToSt
 
     public func toString(): String {
         toJsonString(this)
+    }
+}
+
+sealed abstract class LspException <: Exception {
+    LspException() {
+    }
+
+    init(msg: String) {
+        super(msg)
     }
 }

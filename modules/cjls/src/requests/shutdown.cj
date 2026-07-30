@@ -7,7 +7,7 @@ import cjls.macros.*
 import lsp.*
 
 @LspRequest["shutdown"]
-public struct Shutdown {
+public class Shutdown {
     @LspHandle
     public static func handle(): Unit {
         throw UnsupportedException() // TODO: implement

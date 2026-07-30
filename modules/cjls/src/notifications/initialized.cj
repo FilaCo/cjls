@@ -8,7 +8,7 @@ import cjls.macros.*
 import lsp.*
 
 @LspNotification[method: "initialized"]
-public struct Initialized {
+public class Initialized {
     @LspHandle
     public static func handle(): Unit {
         throw UnsupportedException() // TODO: implement

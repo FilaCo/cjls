@@ -8,7 +8,7 @@ import cjls.macros.*
 import lsp.*
 
 @LspNotification[method: "exit"]
-public struct Exit {
+public class Exit {
     @LspHandle
     public static func handle(): Unit {
         throw UnsupportedException() // TODO: implement

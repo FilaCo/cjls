@@ -14,7 +14,6 @@ func runServer(): Unit {
     logInfo("shutting down server")
 }
 
-// 
 // func mainLoop<I, O>(conn: Connection<I, O>, initParams: LspAny): Unit where I <: InputStream, O <: OutputStream {
 //     let _ = fromLspAny<InitializeParams>(initParams)
 //     let docs = Documents()

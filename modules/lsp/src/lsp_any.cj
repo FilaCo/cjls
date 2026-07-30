@@ -2,7 +2,6 @@ package lsp
 
 import std.collection.{HashMap, ArrayList}
 import std.io.ByteBuffer
-import std.deriving.*
 import stdx.encoding.json.stream.*
 
 public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
@@ -67,9 +66,6 @@ public enum LspAny <: JsonSerializable & JsonDeserializable<LspAny> {
     }
 }
 
-/**
- * TODO: is it possible to get rid of this ugly round-trip?
- */
 public func toLspAny<T>(v: T): LspAny where T <: JsonSerializable {
     let bb = ByteBuffer()
     let jw = JsonWriter(bb)
@@ -86,56 +82,4 @@ public func fromLspAny<T>(v: LspAny): T where T <: JsonDeserializable<T> {
     jw.flush()
     let jr = JsonReader(bb)
     T.fromJson(jr)
-}
-
-public func toJsonString<T>(v: T): String where T <: JsonSerializable {
-    let bb = ByteBuffer()
-    let jw = JsonWriter(bb)
-    v.toJson(jw)
-    jw.flush()
-    String.fromUtf8(bb.bytes())
-}
-
-/**
- * `integer | string` type.
- */
-@Derive[Equatable]
-public enum IntegerOrString <: JsonSerializable & JsonDeserializable<IntegerOrString> & ToString {
-    | Integer(Int64)
-    | String(String)
-
-    /**
-     * @throws IllegalStateException - If input is empty, or not either a string or integer
-     */
-    public static func fromJson(r: JsonReader): IntegerOrString {
-        if (let Some(tok) <- r.peek()) {
-            return match (tok) {
-                case JsonNumber => IntegerOrString.Integer(r.readValue())
-                case JsonString => IntegerOrString.String(r.readValue())
-                case _ => throw IllegalStateException("expected integer or string")
-            }
-        }
-
-        throw IllegalStateException("expected integer or string, found EOF")
-    }
-
-    public func toJson(w: JsonWriter): Unit {
-        match (this) {
-            case Integer(v) => w.writeValue(v)
-            case String(v) => w.writeValue(v)
-        }
-    }
-
-    public func toString(): String {
-        toJsonString(this)
-    }
-}
-
-sealed abstract class LspException <: Exception {
-    LspException() {
-    }
-
-    init(str: String) {
-        super(str)
-    }
 }

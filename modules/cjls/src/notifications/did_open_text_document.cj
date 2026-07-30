@@ -7,7 +7,7 @@ import cjls.server.*
 import cjls.macros.*
 
 @LspNotification[method: "textDocument/didOpen", params: DidOpenTextDocumentParams]
-public struct DidOpenTextDocument {
+public class DidOpenTextDocument {
     @LspHandle
     public static func handle(params: DidOpenTextDocumentParams): Unit {}
 }

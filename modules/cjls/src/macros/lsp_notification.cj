@@ -82,7 +82,7 @@ private func buildHandleCall(outerDeclIdent: Token, fd: FuncDecl): Tokens {
     quote($outerDeclIdent.$funcName($callArgs))
 }
 
-func extendLspNotification(genericParam: Tokens, ident: Token, paramTy: Tokens, genericConstraint: Tokens,
+private func extendLspNotification(genericParam: Tokens, ident: Token, paramTy: Tokens, genericConstraint: Tokens,
     methodExpr: Expr, handleCall: Tokens): Tokens {
     quote(
         extend $genericParam $ident $genericParam <: LspNotification<$paramTy> $genericConstraint {

@@ -11,6 +11,10 @@ public struct Header <: Parsable<Header> {
 
     /**
      * @note: caller should trim a header terminator ("\r\n\r\n") from `str`.
+     *
+     * @throws HeaderContentLengthInvalidException - if length is not an integer
+     * @throws HeaderContentLengthMissingException - if required Content-Length field is missing
+     * @throws HeaderContentLengthNegativeException - if Content-Length has negative value
      */
     public static func parse(str: String): Header {
         let fieldsSplitted = str.split("\r\n", removeEmpty: true)
@@ -87,8 +91,8 @@ sealed abstract class HeaderException <: LspException {
     HeaderException() {
     }
 
-    init(str: String) {
-        super(str)
+    init(msg: String) {
+        super(msg)
     }
 }
 

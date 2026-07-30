@@ -7,7 +7,7 @@ import cjls.macros.*
 import lsp.*
 
 @LspRequest["initialize", params: InitializeParams, result: InitializeResult]
-public struct Initialize {
+public class Initialize {
     @LspHandle
     public static func handle(params: InitializeParams): InitializeResult {
         throw UnsupportedException() // TODO: implement
