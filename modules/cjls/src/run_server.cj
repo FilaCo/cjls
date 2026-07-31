@@ -2,8 +2,6 @@ package cjls
 
 import std.env.{getStdIn, getStdOut}
 import std.io.*
-import lsp.*
-import cjls.lsp_types.*
 
 func runServer(): Unit {
     logInfo("starting server")

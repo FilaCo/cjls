@@ -13,5 +13,4 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-lsp = { path = "../lsp" }
-stdxx = { path = "../stdxx" }
+jsonrpc = { path = "../jsonrpc" }

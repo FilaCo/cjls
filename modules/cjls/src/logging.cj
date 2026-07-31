@@ -69,4 +69,8 @@ class UnknownLogLevelException <: Exception {
     UnknownLogLevelException(value: String) {
         super("Unknown log level: ${value}")
     }
+
+    protected override func getClassName(): String {
+        "UnknownLogLevelException"
+    }
 }

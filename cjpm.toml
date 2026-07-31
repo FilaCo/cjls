@@ -1,8 +1,13 @@
 [workspace]
-members = ["modules/cjls", "modules/lsp", "modules/stdxx"]
+members = [
+    "modules/cjls",
+    "modules/jsonrpc",
+    "modules/lsp_codegen",
+    "modules/stdxx",
+]
 build-members = []
 test-members = []
-compile-option = ""
+compile-option = "-Woff unused"
 override-compile-option = ""
 link-option = ""
 target-dir = ""
