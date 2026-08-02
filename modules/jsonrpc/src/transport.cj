@@ -25,7 +25,8 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     private let output: BufferedOutputStream<OutputStream>
     private let closed = AtomicBool(false)
 
-    public FramedJsonRpcTransport(private let source: InputStream, private let sink: OutputStream, private let logger: Logger) {
+    public FramedJsonRpcTransport(private let source: InputStream, private let sink: OutputStream,
+        private let logger: Logger) {
         this.input = BufferedInputStream(source)
         this.output = BufferedOutputStream(sink)
     }
@@ -78,13 +79,13 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         let jv = try {
             JsonValue.fromStr(String.fromUtf8(payload))
         } catch (e: Exception) {
-            throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON\nCause: ${e}")
+            throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON\nCause: ${e.message}")
         }
 
         try {
             Body.deserialize(DataModel.fromJson(jv))
         } catch (e: DataModelException) {
-            throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e}",)
+            throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e.message}",)
         }
     }
 

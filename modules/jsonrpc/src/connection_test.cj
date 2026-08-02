@@ -632,8 +632,8 @@ class ConnectionCloseTest {
         let returned = LinkedBlockingQueue<Bool>()
         spawn {
             =>
-            connection.serve()
-            returned.add(true)
+                connection.serve()
+                returned.add(true)
         }
 
         // act

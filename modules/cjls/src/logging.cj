@@ -13,37 +13,15 @@ func initGlobalLogger(): Unit {
         s: String => try {
             Some(LogLevel.parse(s))
         } catch (e: UnknownLogLevelException) {
-            logWarning(e.message)
-            logInfo("setting log leve to INFO as default")
+            logger.warn(e.message)
+            logger.info("setting log leve to INFO as default")
             LogLevel.INFO
         }
     }.getOrDefault {
         =>
-            logInfo("log level was not provided, setting INFO as default")
+            logger.info("log level was not provided, setting INFO as default")
             LogLevel.INFO
     }
-}
-
-private const PREFIX = "[cjls] "
-
-func logFatal(msg: String) {
-    getGlobalLogger().fatal(PREFIX + msg)
-}
-
-func logError(msg: String) {
-    getGlobalLogger().error(PREFIX + msg)
-}
-
-func logWarning(msg: String) {
-    getGlobalLogger().warn(PREFIX + msg)
-}
-
-func logInfo(msg: String) {
-    getGlobalLogger().info(PREFIX + msg)
-}
-
-func logDebug(msg: String) {
-    getGlobalLogger().debug(PREFIX + msg)
 }
 
 extend LogLevel /* <: Parsable<LogLevel> */ {

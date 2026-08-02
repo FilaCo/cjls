@@ -439,7 +439,8 @@ class JsonRpcTransportRoundTripTest {
     // one ByteBuffer acting as the wire between two peers
     func wired(): (JsonRpcTransport, JsonRpcTransport) {
         let wire = ByteBuffer()
-        (FramedJsonRpcTransport(ByteBuffer(), wire, getGlobalLogger()), FramedJsonRpcTransport(wire, ByteBuffer(), getGlobalLogger()))
+        (FramedJsonRpcTransport(ByteBuffer(), wire, getGlobalLogger()), FramedJsonRpcTransport(wire, ByteBuffer(),
+                getGlobalLogger()))
     }
 
     @TestCase

@@ -4,12 +4,12 @@ import std.env.{getStdIn, getStdOut}
 import std.io.*
 
 func runServer(): Unit {
-    logInfo("starting server")
+    // logInfo("starting server")
     // let connection = Connection.stdio()
     // let caps = ServerCapabilities()
     // let initParams = connection.initialize(toLspAny(caps))
     // mainLoop(connection, initParams)
-    logInfo("shutting down server")
+    // logInfo("shutting down server")
 }
 
 // func mainLoop<I, O>(conn: Connection<I, O>, initParams: LspAny): Unit where I <: InputStream, O <: OutputStream {

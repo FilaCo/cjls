@@ -27,7 +27,7 @@ public struct Header <: Parsable<Header> {
                 case "Content-Length" => contentLength = try {
                     Int32.parse(fieldParts[1])
                 } catch (e: IllegalArgumentException) {
-                    throw TransportException("\"Content-Length\" value is invalid\nCause:${e}")
+                    throw TransportException("\"Content-Length\" value is invalid\nCause: ${e.message}")
                 }
                 // even though we only support utf-8 charsets we don't validate it here, because the header field syntax is correct
                 case "Content-Type" => contentType = fieldParts[1]
