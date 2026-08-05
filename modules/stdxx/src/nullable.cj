@@ -30,11 +30,10 @@ public enum Nullable<T> {
 
 extend<T> Nullable<T> <: Serializable<Nullable<T>> where T <: Serializable<T> {
     public static func deserialize(dm: DataModel): Nullable<T> {
-        if (dm is DataModelNull) {
-            return Null
+        match (dm) {
+            case _: DataModelNull => Null
+            case _ => Value(T.deserialize(dm))
         }
-
-        Value(T.deserialize(dm))
     }
 
     public func serialize(): DataModel {

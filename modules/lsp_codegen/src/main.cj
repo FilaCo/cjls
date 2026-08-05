@@ -1,6 +1,9 @@
 package lsp_codegen
 
 import std.argopt.*
+import std.fs.*
+import stdx.serialization.serialization.*
+import stdx.encoding.json.*
 
 main(args: Array<String>): Int64 {
     let argSpec = [
@@ -23,7 +26,8 @@ main(args: Array<String>): Int64 {
         return 1
     }
 
-    println("meta model path: ${cfg.metaModelPath}; src-dir: ${cfg.srcDir}; output-package: ${cfg.outputPackage}")
+    let metaModel = MetaModel.deserialize(
+        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(cfg.metaModelPath)))))
 
     return 0
 }

@@ -30,6 +30,18 @@ Then, from the repo root:
 
 The project depends on the external `stdx` library via `bin-dependencies` pointing at `third_party/stdx`. That path is **not** checked in — `build.cj` runs as a `pre-build` build script and symlinks `third_party/stdx` from the `CANGJIE_STDX_PATH` environment variable. If a build fails resolving `stdx.*` imports, confirm `CANGJIE_STDX_PATH` is set and `third_party/stdx` exists (currently symlinked to `~/.cangjie/third_party/stdx/static/stdx`). `cjpm test --skip-script` skips the script when the symlink is already in place.
 
+`cjpm clean` deletes that symlink, and `cjpm test` fails outright rather than letting the script recreate it (`can not find path './third_party/stdx'`). Run `cjpm build` once after a clean.
+
+### Everything must be statically linked (important)
+
+Every workspace library is `output-type = "static"`, and `CANGJIE_STDX_PATH` must point at the **static** stdx. This is load-bearing, not incidental: cjc 1.1.3 does not emit the funcTable for stdx's `extend<T> Array<T> <: Serializable<Array<T>>` at a user-defined `T` across a shared-library boundary. Flip any package on a serialization path to `dynamic` — or point at the dynamic stdx — and generic dispatch on `Array<SomeType>` (`dms.getDeserializedOrThrow<Array<Request>>(…)`, or `Array<T>.deserialize(dm)` inside a generic func) aborts the process:
+
+```
+F funcTable is nullptr, ti: std.core:Array<pkg:T>, itf: ...Serializable<...>
+```
+
+It is a SIGABRT from the runtime, not a catchable exception, it compiles perfectly cleanly, and the message names stdx rather than the call site — so it reads like a serialization bug when it is a linkage one. Measured across the full matrix (intermediate lib × stdx, static/dynamic): only static×static survives. **Check `grep output-type modules/*/cjpm.toml` and `$CANGJIE_STDX_PATH` before suspecting the serialization code.** If some package ever genuinely has to be dynamic, the escape hatch is deserializing arrays element-wise, so only the element type crosses the generic boundary.
+
 ### Commits
 
 Conventional Commits are enforced by commitlint via a husky `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); commitizen (`cz-conventional-changelog`) is configured.
@@ -38,10 +50,12 @@ Conventional Commits are enforced by commitlint via a husky `commit-msg` hook. U
 
 Four members declared in the root `cjpm.toml`, each its own package:
 
-- **`modules/stdxx`** (`dynamic`) — foundation library: the sum types the protocol needs (`IntegerOrString`, `ArrayOrObject`, `Nullable`), the `DataModel` helpers that go with them (`data_model.cj`), their exceptions (`exception.cj`), plus a `deriving` **macro package** for `@DeriveExt[...]` codegen. No project dependencies.
-- **`modules/jsonrpc`** (`dynamic`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
+- **`modules/stdxx`** (`static`) — foundation library: the sum types the protocol needs (`IntegerOrString`, `ArrayOrObject`, `Nullable`), the `DataModel` helpers that go with them (`data_model.cj`), their exceptions (`exception.cj`), plus a `deriving` **macro package** for `@DeriveExt[...]` codegen. No project dependencies.
+- **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
 - **`modules/cjls`** (`executable`) — the server: entrypoint, logging, and the `cjls.macros` macro package for handler registration. Depends on `jsonrpc`.
-- **`modules/lsp_codegen`** (`executable`) — placeholder for the generator that will turn `modules/cjls/metaModel.json` into typed LSP structs. Currently a hello-world `main`.
+- **`modules/lsp_codegen`** (`executable`) — the generator that will turn `modules/cjls/metaModel.json` into typed LSP structs. So far it parses arguments (`main.cj`) and deserializes the whole meta model into hand-written `Serializable` types (`meta_model.cj`); nothing is emitted yet. Run it with `cjpm run --name lsp_codegen -- modules/cjls/metaModel.json --src-dir modules/cjls/src/ --output-package cjls.lsp_types`.
+
+Both libraries are `static` deliberately — see the linking constraint above.
 
 Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` stands alone.
 
@@ -67,7 +81,7 @@ Layered exactly as `DESIGN.md` describes; all four layers are implemented:
 
 ### Serialization: `DataModel`, and the two independent null axes
 
-Serialization goes through `stdx.serialization`'s `DataModel` (`Serializable<T>`: `serialize(): DataModel` / `static deserialize(dm: DataModel): T`), currently hand-written per type. `@DeriveExt[...]` in `stdxx.deriving` is the intended codegen for this and is **still a stub that returns its input**.
+Serialization goes through `stdx.serialization`'s `DataModel` (`Serializable<T>`: `serialize(): DataModel` / `static deserialize(dm: DataModel): T`), currently hand-written per type. `@DeriveExt[...]` in `stdxx.deriving` is the intended codegen for this and is **still a stub that returns its input**. If a `Serializable` type with an array field aborts with `funcTable is nullptr`, the cause is linkage, not this code — see the static-linking section above.
 
 LSP treats *optional* and *nullable* as two independent axes, and this codebase mirrors that with two composable types — the mapping is mechanical, no judgment per field:
 
