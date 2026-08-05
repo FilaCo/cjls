@@ -13,3 +13,4 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+stdxx = { path = "../stdxx" }
