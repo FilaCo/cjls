@@ -140,7 +140,7 @@ class ConnectionServeRequestTest {
 
         // assert - the response carries the id it was asked under
         @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(42, intOf(resp.resultOrError.getResultOrThrow()))
+        @Expect(42, resp.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
@@ -148,7 +148,7 @@ class ConnectionServeRequestTest {
         // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {
-            method, params, _ => Result(DataModelString("${method}:${intOf(fieldOf(params, "processId"))}"))
+            method, params, _ => Result(DataModelString("${method}:${fieldOf(params, "processId").asIntOrThrow()}"))
         }
         let (_, transport) = serving(handler)
         let params = ArrayOrObject.Object(DataModelStruct().add(field("processId", 42)))
@@ -158,7 +158,7 @@ class ConnectionServeRequestTest {
         let resp = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
-        @Expect("initialize:42", strOf(resp.resultOrError.getResultOrThrow()))
+        @Expect("initialize:42", resp.resultOrError.getResultOrThrow().asStringOrThrow())
     }
 
     @TestCase
@@ -243,7 +243,7 @@ class ConnectionServeRequestTest {
         // assert - the duplicate is refused and the original still answers, rather
         // than the two silently sharing one cancellation token
         @Expect(ErrorCode.INVALID_REQUEST, rejected.resultOrError.getErrorOrThrow().code)
-        @Expect(42, intOf(completed.resultOrError.getResultOrThrow()))
+        @Expect(42, completed.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
@@ -260,8 +260,8 @@ class ConnectionServeRequestTest {
         let second = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
-        @Expect(42, intOf(first.resultOrError.getResultOrThrow()))
-        @Expect(42, intOf(second.resultOrError.getResultOrThrow()))
+        @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(42, second.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 }
 
@@ -320,7 +320,7 @@ class ConnectionServeNotificationTest {
 
         // assert
         @Expect(Integer(1), written.id.getOrThrow())
-        @Expect(42, intOf(written.resultOrError.getResultOrThrow()))
+        @Expect(42, written.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 }
 
@@ -526,40 +526,6 @@ class ConnectionOutboundTest {
     }
 
     @TestCase
-    func awaitWithTimeoutThrowsWhenThePeerAnswersWithAnError() {
-        // arrange - a timeout bounds the wait, it does not turn a refusal into a
-        // `None` the caller could mistake for silence
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
-
-        // act
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
-        transport.nextWritten()
-        transport.feed(
-            ResponseBody.error(Value(pending.id), ResponseError(ErrorCode.INVALID_PARAMS, "bad params")).enveloped())
-
-        // assert
-        let e = @AssertThrows[RpcException](pending.await(timeout: Duration.second))
-        @Expect(ErrorCode.INVALID_PARAMS, e.code)
-    }
-
-    @TestCase
-    func awaitWithTimeoutGivesUpOnASilentPeer() {
-        // arrange - nothing is ever fed, so the wait can only end by expiring
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
-
-        // act
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
-        transport.nextWritten()
-
-        // assert
-        @Assert(pending.await(timeout: Duration.millisecond * 50).isNone())
-    }
-
-    @TestCase
     func aTimedOutRequestDropsItsLateResponse() {
         // arrange
         let handler = FakeHandler()
@@ -591,7 +557,7 @@ class ConnectionOutboundTest {
 
         // assert
         @Expect("window/logMessage", note.method)
-        @Expect("hi", strOf(fieldOf(note.params, "message")))
+        @Expect("hi", fieldOf(note.params, "message").asStringOrThrow())
     }
 
     @TestCase

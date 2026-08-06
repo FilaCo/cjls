@@ -9,18 +9,17 @@ func initGlobalLogger(): Unit {
     setGlobalLogger(logger)
 
     const CJLS_LOG_LEVEL_ENV = "CJLS_LOG_LEVEL"
-    logger.level = getVariable(CJLS_LOG_LEVEL_ENV).flatMap {
-        s: String => try {
-            Some(LogLevel.parse(s))
-        } catch (e: UnknownLogLevelException) {
-            logger.warn(e.message)
-            logger.info("setting log leve to INFO as default")
-            LogLevel.INFO
-        }
-    }.getOrDefault {
-        =>
+    logger.level = match (getVariable(CJLS_LOG_LEVEL_ENV)) {
+        case None =>
             logger.info("log level was not provided, setting INFO as default")
             LogLevel.INFO
+        case Some(name) => try {
+            LogLevel.parse(name)
+        } catch (e: UnknownLogLevelException) {
+            logger.warn(e.message)
+            logger.info("setting log level to INFO as default")
+            LogLevel.INFO
+        }
     }
 }
 

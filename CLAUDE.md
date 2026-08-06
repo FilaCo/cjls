@@ -53,7 +53,7 @@ Four members declared in the root `cjpm.toml`, each its own package:
 - **`modules/stdxx`** (`static`) — foundation library: the sum types the protocol needs (`IntegerOrString`, `ArrayOrObject`, `Nullable`), the `DataModel` helpers that go with them (`data_model.cj`), their exceptions (`exception.cj`), plus a `deriving` **macro package** for `@DeriveExt[...]` codegen. No project dependencies.
 - **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
 - **`modules/cjls`** (`executable`) — the server: entrypoint, logging, and the `cjls.macros` macro package for handler registration. Depends on `jsonrpc`.
-- **`modules/lsp_codegen`** (`executable`) — the generator that will turn `modules/cjls/metaModel.json` into typed LSP structs. So far it parses arguments (`main.cj`) and deserializes the whole meta model into hand-written `Serializable` types (`meta_model.cj`); nothing is emitted yet. Run it with `cjpm run --name lsp_codegen -- modules/cjls/metaModel.json --src-dir modules/cjls/src/ --output-package cjls.lsp_types`.
+- **`modules/lsp_codegen`** (`executable`) — the generator that will turn `modules/lsp_codegen/metaModel.json` into typed LSP structs. So far it parses arguments (`main.cj`) and deserializes the whole meta model into hand-written `Serializable` types (`meta_model.cj`); nothing is emitted yet. Run it with `cjpm run --name lsp_codegen -- modules/lsp_codegen/metaModel.json --src-dir modules/cjls/src/ --output-package cjls.lsp_types`.
 
 Both libraries are `static` deliberately — see the linking constraint above.
 

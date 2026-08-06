@@ -44,10 +44,7 @@ struct MetaModel <: Serializable<MetaModel> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): MetaModel {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         MetaModel(
             metaData: dms.getDeserializedOrThrow("metaData"),
@@ -81,10 +78,7 @@ struct MetaData <: Serializable<MetaData> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): MetaData {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         MetaData(version: dms.getDeserializedOrThrow("version"))
     }
@@ -169,7 +163,7 @@ struct Request <: Serializable<Request> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -192,10 +186,7 @@ struct Request <: Serializable<Request> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Request {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         Request(
             method: dms.getDeserializedOrThrow("method"),
@@ -210,7 +201,7 @@ struct Request <: Serializable<Request> {
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
             clientCapability: dms.getDeserializedOrNone("clientCapability"),
             serverCapability: dms.getDeserializedOrNone("serverCapability"),
@@ -218,26 +209,23 @@ struct Request <: Serializable<Request> {
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
+        DataModelStruct()
             .add(field("method", method))
+            .addFieldIfSome("typeName", typeName)
+            .addFieldIfSome("params", params)
             .add(field("result", result))
+            .addFieldIfSome("partialResult", partialResult)
+            .addFieldIfSome("errorData", errorData)
+            .addFieldIfSome("registrationMethod", registrationMethod)
+            .addFieldIfSome("registrationOptions", registrationOptions)
             .add(field("messageDirection", messageDirection))
-            .add(field("proposed", proposed))
-
-        dms.addFieldIfSome("typeName", typeName)
-        dms.addFieldIfSome("params", params)
-        dms.addFieldIfSome("partialResult", partialResult)
-        dms.addFieldIfSome("errorData", errorData)
-        dms.addFieldIfSome("registrationMethod", registrationMethod)
-        dms.addFieldIfSome("registrationOptions", registrationOptions)
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-        dms.addFieldIfSome("clientCapability", clientCapability)
-        dms.addFieldIfSome("serverCapability", serverCapability)
-
-        dms
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
+            .addFieldIfSome("clientCapability", clientCapability)
+            .addFieldIfSome("serverCapability", serverCapability)
     }
 }
 
@@ -300,7 +288,7 @@ struct Notification <: Serializable<Notification> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -323,10 +311,7 @@ struct Notification <: Serializable<Notification> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Notification {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         Notification(
             method: dms.getDeserializedOrThrow("method"),
@@ -338,7 +323,7 @@ struct Notification <: Serializable<Notification> {
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
             clientCapability: dms.getDeserializedOrNone("clientCapability"),
             serverCapability: dms.getDeserializedOrNone("serverCapability"),
@@ -346,23 +331,20 @@ struct Notification <: Serializable<Notification> {
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
+        DataModelStruct()
             .add(field("method", method))
+            .addFieldIfSome("typeName", typeName)
+            .addFieldIfSome("params", params)
+            .addFieldIfSome("registrationMethod", registrationMethod)
+            .addFieldIfSome("registrationOptions", registrationOptions)
             .add(field("messageDirection", messageDirection))
-            .add(field("proposed", proposed))
-
-        dms.addFieldIfSome("typeName", typeName)
-        dms.addFieldIfSome("params", params)
-        dms.addFieldIfSome("registrationMethod", registrationMethod)
-        dms.addFieldIfSome("registrationOptions", registrationOptions)
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-        dms.addFieldIfSome("clientCapability", clientCapability)
-        dms.addFieldIfSome("serverCapability", serverCapability)
-
-        dms
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
+            .addFieldIfSome("clientCapability", clientCapability)
+            .addFieldIfSome("serverCapability", serverCapability)
     }
 }
 
@@ -416,7 +398,7 @@ struct Structure <: Serializable<Structure> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -429,10 +411,7 @@ struct Structure <: Serializable<Structure> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Structure {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         Structure(
             name: dms.getDeserializedOrThrow("name"),
@@ -442,25 +421,22 @@ struct Structure <: Serializable<Structure> {
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
+        DataModelStruct()
             .add(field("name", name))
+            .addFieldIfSome("extends", extends)
+            .addFieldIfSome("mixins", mixins)
             .add(field("properties", properties))
-            .add(field("proposed", proposed))
-
-        dms.addFieldIfSome("extends", extends)
-        dms.addFieldIfSome("mixins", mixins)
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -489,7 +465,7 @@ struct Enumeration <: Serializable<Enumeration> {
          * part of the set defined in `values`). If omitted no custom values are
          * supported.
          */
-        let supportsCustomValues!: Bool = false,
+        let supportsCustomValues!: ?Bool = None,
 
         /**
          * An optional documentation.
@@ -512,7 +488,7 @@ struct Enumeration <: Serializable<Enumeration> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -525,38 +501,32 @@ struct Enumeration <: Serializable<Enumeration> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Enumeration {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         Enumeration(
             name: dms.getDeserializedOrThrow("name"),
             `type`: dms.getDeserializedOrThrow("type"),
             values: dms.getDeserializedOrThrow("values"),
-            supportsCustomValues: dms.getDeserializedOrNone<Bool>("supportsCustomValues") ?? false,
+            supportsCustomValues: dms.getDeserializedOrNone("supportsCustomValues"),
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
+        DataModelStruct()
             .add(field("name", name))
             .add(field("type", `type`))
             .add(field("values", values))
-            .add(field("supportsCustomValues", supportsCustomValues))
-            .add(field("proposed", proposed))
-
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+            .addFieldIfSome("supportsCustomValues", supportsCustomValues)
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -597,7 +567,7 @@ struct TypeAlias <: Serializable<TypeAlias> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -610,10 +580,7 @@ struct TypeAlias <: Serializable<TypeAlias> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): TypeAlias {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         TypeAlias(
             name: dms.getDeserializedOrThrow("name"),
@@ -621,20 +588,20 @@ struct TypeAlias <: Serializable<TypeAlias> {
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct().add(field("name", name)).add(field("type", `type`)).add(field("proposed", proposed))
-
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+        DataModelStruct()
+            .add(field("name", name))
+            .add(field("type", `type`))
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -660,12 +627,7 @@ enum BaseTypes <: Serializable<BaseTypes> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): BaseTypes {
-        let dmStr = match (dm) {
-            case dmStr: DataModelString => dmStr
-            case _ => throw DataModelException("expected `DataModelString`")
-        }
-
-        match (dmStr.getValue()) {
+        match (dm.asStringOrThrow()) {
             case "URI" => Uri
             case "DocumentUri" => DocumentUri
             case "integer" => Integer
@@ -709,12 +671,7 @@ enum MessageDirection <: Serializable<MessageDirection> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): MessageDirection {
-        let dmStr = match (dm) {
-            case dmStr: DataModelString => dmStr
-            case _ => throw DataModelException("expected `DataModelString`")
-        }
-
-        match (dmStr.getValue()) {
+        match (dm.asStringOrThrow()) {
             case "clientToServer" => ClientToServer
             case "serverToClient" => ServerToClient
             case "both" => Both
@@ -735,7 +692,7 @@ enum MapKeyName <: Serializable<MapKeyName> {
     // URI
     | Uri
     | DocumentUri
-    // stringø
+    // string
     | String
     // integer
     | Integer
@@ -744,12 +701,7 @@ enum MapKeyName <: Serializable<MapKeyName> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): MapKeyName {
-        let dmStr = match (dm) {
-            case dmStr: DataModelString => dmStr
-            case _ => throw DataModelException("expected `DataModelString`")
-        }
-
-        match (dmStr.getValue()) {
+        match (dm.asStringOrThrow()) {
             case "URI" => Uri
             case "DocumentUri" => DocumentUri
             case "string" => String
@@ -782,10 +734,7 @@ enum MapKeyType <: Serializable<MapKeyType> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): MapKeyType {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         match (dms.getDeserializedOrThrow<String>("kind")) {
             case "base" => Base(dms.getDeserializedOrThrow("name"))
@@ -872,10 +821,7 @@ enum Type <: Serializable<Type> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Type {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         match (dms.getDeserializedOrThrow<String>("kind")) {
             case "base" => Base(dms.getDeserializedOrThrow("name"))
@@ -942,7 +888,7 @@ struct StructureLiteral <: Serializable<StructureLiteral> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -955,30 +901,26 @@ struct StructureLiteral <: Serializable<StructureLiteral> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): StructureLiteral {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         StructureLiteral(
             properties: dms.getDeserializedOrThrow("properties"),
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct().add(field("properties", properties)).add(field("proposed", proposed))
-
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+        DataModelStruct()
+            .add(field("properties", properties))
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -1001,7 +943,7 @@ struct Property <: Serializable<Property> {
          * Whether the property is optional. If
          * None, the property is mandatory.
          */
-        let optional!: Bool = false,
+        let optional!: ?Bool = None,
 
         /**
          * An optional documentation.
@@ -1024,7 +966,7 @@ struct Property <: Serializable<Property> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -1037,36 +979,30 @@ struct Property <: Serializable<Property> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): Property {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         Property(
             name: dms.getDeserializedOrThrow("name"),
             `type`: dms.getDeserializedOrThrow("type"),
-            optional: dms.getDeserializedOrNone<Bool>("optional") ?? false,
+            optional: dms.getDeserializedOrNone("optional"),
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
+        DataModelStruct()
             .add(field("name", name))
             .add(field("type", `type`))
-            .add(field("optional", optional))
-            .add(field("proposed", proposed))
-
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+            .addFieldIfSome("optional", optional)
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -1127,7 +1063,7 @@ struct EnumerationEntry <: Serializable<EnumerationEntry> {
          * Whether this is a proposed property. If omitted,
          * the structure is final.
          */
-        let proposed!: Bool = false,
+        let proposed!: ?Bool = None,
 
         /**
          * Whether the property is deprecated or not. If deprecated
@@ -1140,10 +1076,7 @@ struct EnumerationEntry <: Serializable<EnumerationEntry> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): EnumerationEntry {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
         EnumerationEntry(
             name: dms.getDeserializedOrThrow("name"),
@@ -1151,20 +1084,20 @@ struct EnumerationEntry <: Serializable<EnumerationEntry> {
             documentation: dms.getDeserializedOrNone("documentation"),
             since: dms.getDeserializedOrNone("since"),
             sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone<Bool>("proposed") ?? false,
+            proposed: dms.getDeserializedOrNone("proposed"),
             deprecated: dms.getDeserializedOrNone("deprecated"),
         )
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct().add(field("name", name)).add(field("value", value)).add(field("proposed", proposed))
-
-        dms.addFieldIfSome("documentation", documentation)
-        dms.addFieldIfSome("since", since)
-        dms.addFieldIfSome("sinceTags", sinceTags)
-        dms.addFieldIfSome("deprecated", deprecated)
-
-        dms
+        DataModelStruct()
+            .add(field("name", name))
+            .add(field("value", value))
+            .addFieldIfSome("documentation", documentation)
+            .addFieldIfSome("since", since)
+            .addFieldIfSome("sinceTags", sinceTags)
+            .addFieldIfSome("proposed", proposed)
+            .addFieldIfSome("deprecated", deprecated)
     }
 }
 
@@ -1180,21 +1113,15 @@ enum EnumerationType <: Serializable<EnumerationType> {
      * @throws DataModelException - if unable to deserialize DataModel
      */
     public static func deserialize(dm: DataModel): EnumerationType {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _ => throw DataModelException("expected `DataModelStruct`")
-        }
+        let dms = dm.asStructOrThrow()
 
+        // NB: `String` here resolves to this enum's own constructor, not the type — so the name cannot be read with
+        // `getDeserializedOrThrow<String>` the way the other deserializers do it.
         if ("base" != dms.getDeserializedOrThrow("kind")) {
             throw DataModelException("unexpected `kind` field value")
         }
 
-        let nameDataModel = match (dms.getOrThrow("name")) {
-            case dmStr: DataModelString => dmStr
-            case _ => throw DataModelException("expected `DataModelString`")
-        }
-
-        match (nameDataModel.getValue()) {
+        match (dms.getOrThrow("name").asStringOrThrow()) {
             case "string" => String
             case "integer" => Integer
             case "uinteger" => UInteger

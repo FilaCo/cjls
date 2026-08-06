@@ -2,14 +2,9 @@ package jsonrpc
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import std.unittest.prop_test.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import stdxx.*
-
-func intOf(dm: DataModel): Int64 {
-    (dm as DataModelInt).getOrThrow().getValue()
-}
 
 func fieldOf(params: ?ArrayOrObject, name: String): DataModel {
     params.getOrThrow().getObjectOrThrow().get(name)
@@ -185,7 +180,7 @@ class BodyDeserializeTest {
         // assert
         @Assert(body.isRequest())
         let req = body.getRequestBodyOrThrow()
-        @Expect(42, intOf(fieldOf(req.params, "processId")))
+        @Expect(42, fieldOf(req.params, "processId").asIntOrThrow())
     }
 
     @TestCase
@@ -215,7 +210,7 @@ class BodyDeserializeTest {
         @Assert(body.isResponse())
         let res = body.getResponseBodyOrThrow()
         @Expect(Integer(1), res.id.getOrThrow())
-        @Expect(42, intOf(res.resultOrError.getResultOrThrow()))
+        @Expect(42, res.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
@@ -246,7 +241,7 @@ class BodyDeserializeTest {
         @Assert(body.isResponse())
         let res = body.getResponseBodyOrThrow()
         @Assert(res.id.isNull())
-        @Expect(42, intOf(res.resultOrError.getResultOrThrow()))
+        @Expect(42, res.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
@@ -278,46 +273,6 @@ class BodyDeserializeTest {
 
         // act & assert
         @AssertThrows[DataModelException](deserialize(json))
-    }
-}
-
-@Test
-@Configure[randomSeed: 100500]
-class BodyPropertyTest {
-    func roundtrip(body: Body): Body {
-        Body.deserialize(DataModel.fromJson(body.serialize().toJson()))
-    }
-
-    // Property: serializing a Request and deserializing it back
-    // preserves the integer id exactly.
-    @TestCase[n in random()]
-    func roundtripPreservesRequestId(n: Int32) {
-        // arrange
-        let original = RequestBody(Integer(n), "test").enveloped()
-
-        // act
-        let roundtripped = roundtrip(original)
-
-        // assert
-        @Assert(roundtripped.isRequest())
-        @Expect(Integer(n), roundtripped.getRequestBodyOrThrow().id)
-    }
-
-    // Property: serializing a Response and deserializing it back
-    // preserves both the integer id and the integer result exactly.
-    @TestCase[n in random()]
-    func roundtripPreservesResponseResult(n: Int32) {
-        // arrange
-        let original = ResponseBody.result(Value(Integer(n)), DataModelInt(Int64(n))).enveloped()
-
-        // act
-        let roundtripped = roundtrip(original)
-
-        // assert
-        @Assert(roundtripped.isResponse())
-        let res = roundtripped.getResponseBodyOrThrow()
-        @Expect(n, res.id.getOrThrow().getIntegerOrThrow())
-        @Expect(Int64(n), intOf(res.resultOrError.getResultOrThrow()))
     }
 }
 

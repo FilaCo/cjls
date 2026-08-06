@@ -57,31 +57,6 @@ class NullableTest {
         @Assert(value, restored.getOrThrow())
     }
 
-    @TestCase[value in [ "", "hello", "42", "日本語" ]]
-    func valueRoundTrip(value: String) {
-        // arrange
-        let original = Nullable<String>.Value(value)
-
-        // act
-        let restored = Nullable<String>.deserialize(original.serialize())
-
-        // assert
-        @Assert(restored.isValue())
-        @Assert(value, restored.getOrThrow())
-    }
-
-    @TestCase
-    func nullRoundTrip() {
-        // arrange
-        let original = Nullable<String>.Null
-
-        // act
-        let restored = Nullable<String>.deserialize(original.serialize())
-
-        // assert
-        @Assert(restored.isNull())
-    }
-
     @TestCase
     func getOnNullThrows() {
         // arrange

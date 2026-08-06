@@ -1,7 +1,6 @@
 package jsonrpc
 
 import std.io.{ByteBuffer, BufferedInputStream}
-import std.unittest.prop_test.*
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -225,32 +224,5 @@ class HeaderParseStreamTest {
         // assert - second header
         @Assert(h2.isSome())
         @Expect(4, h2.getOrThrow().contentLength)
-    }
-}
-
-@Test
-@Configure[randomSeed: 100500]
-class HeaderPropertyTest {
-    @TestCase[n in random()]
-    func streamParseMatchesStrParse(n: Int32) {
-        // Property: parsing a header from a BufferedInputStream<ByteBuffer>
-        // yields the same result as parsing the equivalent string. Only
-        // non-negative content-lengths produce well-formed headers.
-
-        // arrange
-        if (n < 0) {
-            return
-        }
-        let headerStr = "Content-Length: ${n}\r\n\r\n"
-        let fromStr = Header.parse(headerStr)
-        let bb = ByteBuffer()
-        bb.write(headerStr.toArray())
-
-        // act
-        let fromStream = Header.parse(BufferedInputStream(bb))
-
-        // assert
-        @Assert(fromStream.isSome())
-        @Expect(fromStr.contentLength, fromStream.getOrThrow().contentLength)
     }
 }

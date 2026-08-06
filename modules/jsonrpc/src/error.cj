@@ -23,23 +23,14 @@ public struct ResponseError <: Serializable<ResponseError> {
      * @throws DataModelException - if not a `DataModelStruct` provided
      */
     public static func deserialize(dm: DataModel): ResponseError {
-        if (let dms: DataModelStruct <- dm) {
-            let data = dms.getOrNone("data")
-            return ResponseError(ErrorCode.deserialize(dms.get("code")), String.deserialize(dms.get("message")),
-                data: data)
-        }
+        let dms = dm.asStructOrThrow()
 
-        throw DataModelException("expected `DataModelStruct`")
+        ResponseError(dms.getDeserializedOrThrow("code"), dms.getDeserializedOrThrow("message"),
+            data: dms.getOrNone("data"))
     }
 
     public func serialize(): DataModel {
-        let dms = DataModelStruct()
-        dms.add(field("code", code)).add(field("message", message))
-        if (let Some(data) <- data) {
-            dms.add(Field("data", data))
-        }
-
-        dms
+        DataModelStruct().add(field("code", code)).add(field("message", message)).addFieldIfSome("data", data)
     }
 }
 
@@ -91,16 +82,14 @@ public struct ErrorCode <: Equatable<ErrorCode> & ToString & Serializable<ErrorC
      * @throws DataModelException - if not a `DataModelInt` provided
      */
     public static func deserialize(dm: DataModel): ErrorCode {
-        if (let dmi: DataModelInt <- dm) {
-            let value = try {
-                Int32(dmi.getValue())
-            } catch (e: Exception) {
-                throw DataModelException("invalid error code\nCause: ${e}")
-            }
-            return ErrorCode(value)
+        let raw = dm.asIntOrThrow()
+        let value = try {
+            Int32(raw)
+        } catch (e: Exception) {
+            throw DataModelException("invalid error code\nCause: ${e}")
         }
 
-        throw DataModelException("expected `DataModelInt`")
+        ErrorCode(value)
     }
 
     public func serialize(): DataModel {

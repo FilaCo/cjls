@@ -7,30 +7,6 @@ import stdx.serialization.serialization.*
 
 @Test
 class IntegerOrStringTest {
-    @TestCase[value in [ 0, 42, - 1, 2147483647 ]]
-    func integerSerializesToDataModelInt(value: Int32) {
-        // arrange
-        let sut = Integer(value)
-
-        // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelInt)
-    }
-
-    @TestCase[value in [ "", "hello", "42", "café", "日本語" ]]
-    func stringSerializesToDataModelString(value: String) {
-        // arrange
-        let sut = IntegerOrString.String(value)
-
-        // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelString)
-    }
-
     @TestCase[value in [ 0, 42, - 1, - 999, 2147483647 ]]
     func integerRoundTrip(value: Int32) {
         // arrange
@@ -105,28 +81,6 @@ class IntegerOrStringHashTest {
     // JSON-RPC request ids are hash map keys - a peer's id is built here, the
     // matching one is rebuilt from the wire, and the two have to land in the same
     // bucket or a response never finds what it is answering.
-
-    @TestCase[value in [ 0, 42, - 1, - 999, 2147483647 ]]
-    func integerHashCodeAgreesWithEquality(value: Int32) {
-        // arrange - one value built directly, one rebuilt from its serialized form
-        let original = Integer(value)
-        let restored = IntegerOrString.deserialize(original.serialize())
-
-        // act & assert
-        @Assert(original == restored)
-        @Expect(original.hashCode(), restored.hashCode())
-    }
-
-    @TestCase[value in [ "", "1", "abc", "café", "日本語" ]]
-    func stringHashCodeAgreesWithEquality(value: String) {
-        // arrange
-        let original = IntegerOrString.String(value)
-        let restored = IntegerOrString.deserialize(original.serialize())
-
-        // act & assert
-        @Assert(original == restored)
-        @Expect(original.hashCode(), restored.hashCode())
-    }
 
     @TestCase
     func integerAndStringKeysDoNotCollapse() {

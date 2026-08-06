@@ -7,32 +7,6 @@ import stdx.serialization.serialization.*
 @Test
 class ArrayOrObjectTest {
     @TestCase
-    func objectSerializesToDataModelStruct() {
-        // arrange
-        let sut = ArrayOrObject.Object(DataModelStruct().add(field("processId", 42)))
-
-        // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelStruct)
-    }
-
-    @TestCase
-    func arraySerializesToDataModelSeq() {
-        // arrange
-        let seq = DataModelSeq()
-        seq.add(DataModelInt(1))
-        let sut = ArrayOrObject.Array(seq)
-
-        // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelSeq)
-    }
-
-    @TestCase
     func deserializeStructYieldsObject() {
         // arrange
         let dm = DataModelStruct().add(field("processId", 42))

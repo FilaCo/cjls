@@ -1,5 +1,6 @@
 package jsonrpc
 
+import std.collection.ArrayList
 import std.collection.concurrent.*
 import std.sync.*
 import stdx.log.*
@@ -167,7 +168,12 @@ public class Connection <: Resource {
     }
 
     private func abandonPending(): Unit {
+        let ids = ArrayList<RequestId>()
         for ((id, _) in pending) {
+            ids.add(id)
+        }
+
+        for (id in ids) {
             if (let Some(slot) <- pending.remove(id)) {
                 slot.add(
                     ResultOrError.Error(
@@ -189,15 +195,11 @@ public class Connection <: Resource {
      * @throws RpcException - if params are not serialized to array|object|null
      */
     private func serializeParams<P>(params: P): ?ArrayOrObject where P <: Serializable<P> {
-        let dm = params.serialize()
-        if (dm is DataModelNull) {
-            return None
-        }
-
-        try {
-            ArrayOrObject.deserialize(dm)
-        } catch (_: DataModelException) {
-            throw RpcException(ErrorCode.INVALID_PARAMS, "invalid params type", data: dm)
+        match (params.serialize()) {
+            case _: DataModelNull => None
+            case dmStr: DataModelSeq => ArrayOrObject.Array(dmStr)
+            case dmStruct: DataModelStruct => ArrayOrObject.Object(dmStruct)
+            case dm => throw RpcException(ErrorCode.INVALID_PARAMS, "invalid params type", data: dm)
         }
     }
 

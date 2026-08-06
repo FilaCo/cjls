@@ -1,6 +1,6 @@
 # `lsp_codegen` — design
 
-Turns `modules/cjls/metaModel.json` (LSP 3.18.0) into idiomatic Cangjie declarations plus
+Turns `modules/lsp_codegen/metaModel.json` (LSP 3.18.0) into idiomatic Cangjie declarations plus
 their `DataModel` serialization, so the LSP layer above `jsonrpc` is typed rather than
 hand-written.
 
@@ -58,7 +58,7 @@ Each of these was compiled, not assumed.
 The generator owns a directory and nothing else in it.
 
 ```
-lsp_codegen --src-dir modules/lsp/src --package lsp.types modules/cjls/metaModel.json
+lsp_codegen --src-dir modules/lsp/src --package lsp.types modules/lsp_codegen/metaModel.json
 ```
 
 The metaModel is the positional argument — it is the subject of the command, not a setting.

@@ -15,50 +15,39 @@ public enum Body <: Serializable<Body> {
      * @throws RpcException - if the protocol invariants are not met
      */
     public static func deserialize(dm: DataModel): Body {
-        if (let dms: DataModelStruct <- dm) {
-            match (dms.get("jsonrpc")) {
-                case jsonRpcVersion: DataModelString where jsonRpcVersion.getValue() == "2.0" => ()
-                case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
-            }
+        let dms = dm.asStructOrThrow()
 
-            let id = dms.getOrNone("id")
-
-            if (let Some(id) <- id) {
-                let result = dms.getOrNone("result")
-                let error = dms.getOrNone("error")
-
-                match ((result, error)) {
-                    case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST, "malformed json")
-                    case (Some(result), None) => return ResponseBody(Nullable.deserialize(id), Result(result))
-                        .enveloped()
-                    case (None, Some(error)) => return ResponseBody(Nullable.deserialize(id),
-                        ResultOrError.Error(ResponseError.deserialize(error))).enveloped()
-                    case _ => return RequestBody(IntegerOrString.deserialize(id), String.deserialize(dms.get("method")),
-                        params: dms.getOrNone("params").map {it => ArrayOrObject.deserialize(it)}).enveloped()
-                }
-            }
-
-            return NotificationBody(String.deserialize(dms.get("method")),
-                params: dms.getOrNone("params").map {it => ArrayOrObject.deserialize(it)}).enveloped()
+        match (dms.get("jsonrpc")) {
+            case jsonRpcVersion: DataModelString where jsonRpcVersion.getValue() == "2.0" => ()
+            case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
         }
 
-        throw DataModelException("expected `DataModelStruct`")
+        if (let Some(id) <- dms.getOrNone("id")) {
+            let result = dms.getOrNone("result")
+            let error = dms.getOrNone("error")
+
+            match ((result, error)) {
+                case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST, "malformed json")
+                case (Some(result), None) => return ResponseBody(Nullable.deserialize(id), Result(result)).enveloped()
+                case (None, Some(error)) => return ResponseBody(Nullable.deserialize(id),
+                    ResultOrError.Error(ResponseError.deserialize(error))).enveloped()
+                case _ => return RequestBody(IntegerOrString.deserialize(id), dms.getDeserializedOrThrow("method"),
+                    params: dms.getDeserializedOrNone("params")).enveloped()
+            }
+        }
+
+        NotificationBody(dms.getDeserializedOrThrow("method"), params: dms.getDeserializedOrNone("params")).enveloped()
     }
 
     public func serialize(): DataModel {
         let dms = DataModelStruct()
         dms.add(field("jsonrpc", "2.0"))
         match (this) {
-            case Request(req) =>
-                dms.add(field("id", req.id)).add(field("method", req.method))
-                if (let Some(params) <- req.params) {
-                    dms.add(field("params", params))
-                }
-            case Notification(note) =>
-                dms.add(field("method", note.method))
-                if (let Some(params) <- note.params) {
-                    dms.add(field("params", params))
-                }
+            case Request(req) => dms
+                .add(field("id", req.id))
+                .add(field("method", req.method))
+                .addFieldIfSome("params", req.params)
+            case Notification(note) => dms.add(field("method", note.method)).addFieldIfSome("params", note.params)
             case Response(resp) =>
                 dms.add(field("id", resp.id))
                 match (resp.resultOrError) {

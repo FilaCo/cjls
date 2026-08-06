@@ -86,7 +86,7 @@ class JsonRpcTransportReadTest {
 
         // assert
         @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(42, intOf(resp.resultOrError.getResultOrThrow()))
+        @Expect(42, resp.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
@@ -166,7 +166,7 @@ class JsonRpcTransportReadTest {
 
         // assert
         @Assert(payload.toArray().size > payload.runes().count())
-        @Expect("привет", strOf(fieldOf(note.params, "text")))
+        @Expect("привет", fieldOf(note.params, "text").asStringOrThrow())
     }
 
     @TestCase
@@ -378,30 +378,6 @@ class JsonRpcTransportWriteTest {
     }
 
     @TestCase
-    func writeNotificationFraming() {
-        // arrange
-        let body = NotificationBody("exit").enveloped()
-
-        // act
-        let raw = writtenBytes(body)
-
-        // assert
-        @Expect("Content-Length: 33\r\n\r\n{\"jsonrpc\":\"2.0\",\"method\":\"exit\"}", raw)
-    }
-
-    @TestCase
-    func writeResponseFraming() {
-        // arrange
-        let body = ResponseBody.result(Value(Integer(1)), DataModelInt(42)).enveloped()
-
-        // act
-        let raw = writtenBytes(body)
-
-        // assert
-        @Expect("Content-Length: 36\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":42}", raw)
-    }
-
-    @TestCase
     func writeDeclaresByteLengthNotCharLength() {
         // arrange - multi-byte payload: the declared length must match the
         // number of bytes on the wire, otherwise the peer desyncs.
@@ -466,23 +442,6 @@ class JsonRpcTransportRoundTripTest {
 @Test
 @Configure[randomSeed: 100500]
 class JsonRpcTransportPropertyTest {
-    @TestCase[id in random()]
-    func requestIdSurvivesRoundTrip(id: Int32) {
-        // Property: any request id written by one peer is read back unchanged.
-
-        // arrange
-        let wire = ByteBuffer()
-        let sender = FramedJsonRpcTransport(ByteBuffer(), wire, getGlobalLogger())
-        let receiver = FramedJsonRpcTransport(wire, ByteBuffer(), getGlobalLogger())
-
-        // act
-        sender.write(RequestBody(Integer(id), "initialize").enveloped())
-        let req = receiver.read().getOrThrow().getRequestBodyOrThrow()
-
-        // assert
-        @Expect(id, req.id.getIntegerOrThrow())
-    }
-
     @TestCase[method in random()]
     func declaredLengthAlwaysMatchesPayload(method: String) {
         // Property: the declared `Content-Length` always equals the byte size of

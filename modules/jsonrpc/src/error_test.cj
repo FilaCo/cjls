@@ -4,10 +4,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
-
-func strOf(dm: DataModel): String {
-    (dm as DataModelString).getOrThrow().getValue()
-}
+import stdxx.*
 
 @Test
 class ResponseErrorSerializeTest {
@@ -69,7 +66,7 @@ class ResponseErrorSerializeTest {
         @Expect(ErrorCode.PARSE_ERROR, err.code)
         @Expect("parse error", err.message)
         @Assert(err.data.isSome())
-        @Expect("extra", strOf(err.data.getOrThrow()))
+        @Expect("extra", err.data.getOrThrow().asStringOrThrow())
     }
 
     @TestCase
@@ -117,7 +114,7 @@ class ErrorCodeTest {
 
         // assert
         @Expect(original, restored)
-        @Expect(Int64(value), intOf(original.serialize()))
+        @Expect(Int64(value), original.serialize().asIntOrThrow())
     }
 
     @TestCase
