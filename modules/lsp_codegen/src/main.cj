@@ -2,34 +2,49 @@ package lsp_codegen
 
 import std.argopt.*
 import std.fs.*
+import std.process.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 
 main(args: Array<String>): Int64 {
-    let argSpec = [
-        Long("src-dir", RequiredValue),
-        Long("output-package", RequiredValue)
-    ]
+    try {
+        let (cfg, metaModelPath) = parseArgs(args)
+        let metaModel = MetaModel.deserialize(
+            DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(metaModelPath)))))
 
-    let cfg = try {
-        let parsed = parseArguments(
-            args,
-            argSpec
-        )
+        let cjFiles = generateCjFiles(cfg, metaModel)
+        if (!exists(cfg.outputDir)) {
+            Directory.create(cfg.outputDir, recursive: true)
+        }
+        for (file in cjFiles) {
+            File.writeTo(file.path, file.content.toArray())
+        }
+        let exitCode = execute("cjfmt", ["-d", cfg.outputDir.toString()])
+        if (exitCode != 0) {
+            eprintln("cjfmt run failed!")
+        }
+        println("info: generated ${cjFiles.size} Cangjie files")
 
-        let metaModelPath = parsed.getRequiredValue(parsed.nonOptions.first, "metaModel file path")
-
-        Config(metaModelPath: metaModelPath, srcDir: parsed.getRequiredOption("src-dir"),
-            outputPackage: parsed.getRequiredOption("output-package"))
-    } catch (e: ArgumentParseException) {
-        eprintln("error: invalid arguments\nCause: ${e.message}")
+        return exitCode
+    } catch (e: Exception) {
+        eprintln("error: ${e.message}")
         return 1
     }
+}
 
-    let metaModel = MetaModel.deserialize(
-        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(cfg.metaModelPath)))))
+func parseArgs(args: Array<String>): (Config, /* metaModelPath */ Path) {
+    let parsed = parseArguments(
+        args,
+        [
+            Long("src-dir", RequiredValue),
+            Long("output-package", RequiredValue)
+        ]
+    )
 
-    return 0
+    let metaModelPath = Path(parsed.getRequiredValue(parsed.nonOptions.first, "metaModel file path"))
+    let srcDir = Path(parsed.getRequiredOption("src-dir")).normalize()
+
+    (Config(srcDir: srcDir, outputPackage: parsed.getRequiredOption("output-package")), metaModelPath)
 }
 
 extend ParsedArguments {

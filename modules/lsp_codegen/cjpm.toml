@@ -9,7 +9,7 @@ script-dir = ""
 output-type = "executable"
 compile-option = ""
 override-compile-option = ""
-link-option = ""
+link-option = "-lc++"
 package-configuration = {}
 
 [dependencies]
