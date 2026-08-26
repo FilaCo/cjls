@@ -48,16 +48,17 @@ Conventional Commits are enforced by commitlint via a husky `commit-msg` hook. U
 
 ## Workspace layout
 
-Four members declared in the root `cjpm.toml`, each its own package:
+Five members declared in the root `cjpm.toml`, each its own package:
 
 - **`modules/stdxx`** (`static`) — foundation library: the sum types the protocol needs (`IntegerOrString`, `ArrayOrObject`, `Nullable`), the `DataModel` helpers that go with them (`data_model.cj`), their exceptions (`exception.cj`), plus a `deriving` **macro package** for `@DeriveExt[...]` codegen. No project dependencies.
 - **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
 - **`modules/cjls`** (`executable`) — the server: entrypoint, logging, and the `cjls.macros` macro package for handler registration. Depends on `jsonrpc`.
-- **`modules/lsp_codegen`** (`executable`) — the generator that will turn `modules/lsp_codegen/metaModel.json` into typed LSP structs. So far it parses arguments (`main.cj`) and deserializes the whole meta model into hand-written `Serializable` types (`meta_model.cj`); nothing is emitted yet. Run it with `cjpm run --name lsp_codegen -- modules/lsp_codegen/metaModel.json --src-dir modules/cjls/src/ --output-package cjls.lsp_types`.
+- **`modules/cjtoml`** (`static`) — a vendored TOML parser/encoder (Huawei, Apache-2.0 with Runtime Library Exception), carried in-tree because `stdx` ships no TOML module. Its public entry point is `unmarshal<T>(path: String): T where T <: Serializable<T>` — it takes a **file path**, not TOML text. Third-party code: keep it byte-identical to upstream, and never run `cjfmt` over it.
+- **`modules/lsp_codegen`** (`executable`) — the generator that will turn `modules/lsp_codegen/metaModel.json` into typed LSP structs. It takes the meta model path on the command line and everything else from a TOML config passed with `-c`/`--config` (`modules/cjls/lsp_codegen.toml`): `cjpm run --name lsp_codegen -- modules/lsp_codegen/metaModel.json -c modules/cjls/lsp_codegen.toml`. The config declares only `output-subpackage`; the output directory and the root package name are inherited from the `cjpm.toml` next to it (`src-dir`, defaulting to `src`, and `[package] name`), because cjpm requires every subpackage to be named `<package name>.<path under src-dir>`. A relative `src-dir` resolves against the config file's own directory, not the cwd.
 
-Both libraries are `static` deliberately — see the linking constraint above.
+All three libraries are `static` deliberately — see the linking constraint above.
 
-Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` stands alone.
+Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` sits outside that chain, on `cjtoml` (which depends on nothing) and `stdxx`.
 
 ## Architecture
 

@@ -5,7 +5,6 @@ import std.fs.*
 import std.process.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
-import cjtoml.*
 
 main(args: Array<String>): Int64 {
     try {
@@ -17,9 +16,10 @@ main(args: Array<String>): Int64 {
 }
 
 private func mainImpl(args: Array<String>): Int64 {
-    let (cfg, metaModelPath) = parseArgs(args)
+    let cliArgs = parseArgs(args)
+    let cfg = Config.load(cliArgs.configPath)
     let metaModel = MetaModel.deserialize(
-        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(metaModelPath)))))
+        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(cliArgs.metaModelPath)))))
 
     let cjFiles = generateCjFiles(cfg, metaModel)
     if (!exists(cfg.outputDir)) {
@@ -28,7 +28,7 @@ private func mainImpl(args: Array<String>): Int64 {
     for (file in cjFiles) {
         File.writeTo(file.path, file.contents.toArray())
     }
-    let exitCode = execute("cjfmt", ["-d", cfg.outputDir.toString()])
+    let exitCode = execute("cjfmt", ["-d", cfg.outputDir.toString()], stdOut: Discard)
     if (exitCode != 0) {
         eprintln("cjfmt run failed!")
     }
@@ -37,20 +37,20 @@ private func mainImpl(args: Array<String>): Int64 {
     exitCode
 }
 
-private func parseArgs(args: Array<String>): (Config, /* metaModelPath */ Path) {
+struct CliArgs {
+    CliArgs(let configPath!: Path, let metaModelPath!: Path) {}
+}
+
+func parseArgs(args: Array<String>): CliArgs {
     let parsed = parseArguments(
         args,
-        [
-            Full("config", r'c', RequiredValue),
-        ]
+        [Full("config", r'c', RequiredValue)]
     )
 
-    let metaModelPath = Path(parsed.getRequiredValue(parsed.nonOptions.first, "metaModel file path"))
-    
-    let cfgPath = parsed.getRequiredOption("config")
-    let cfg = unmarshal<Config>(cfgPath)
-
-    (cfg, metaModelPath)
+    CliArgs(
+        configPath: Path(parsed.getRequiredOption("config")),
+        metaModelPath: Path(parsed.getRequiredValue(parsed.nonOptions.first, "metaModel file path"))
+    )
 }
 
 extend ParsedArguments {
@@ -70,6 +70,6 @@ extend ParsedArguments {
             } else {
                 it
             }
-        }.filter {it => !it.isEmpty()}.getOrThrow {=> ArgumentParseException("missing required `${what}`")}
+        }.filter {it => !it.isEmpty()}.getOrThrow {=> ArgumentParseException("missing required ${what}")}
     }
 }

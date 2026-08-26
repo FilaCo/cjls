@@ -1,3 +1,2 @@
 [general]
-src-dir = "src"
-output-package = "cjls.lsp_types"
+output-subpackage = "lsp_types"

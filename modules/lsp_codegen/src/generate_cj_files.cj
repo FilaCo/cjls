@@ -76,7 +76,7 @@ private func generateEnumerationFiles(cfg: Config, mm: MetaModel): Array<CjFile>
             }
             cjEmitter.flush()
             let contents = unsafe { String.fromUtf8(readToEnd(byteBuffer)) }
-            let path = cfg.outputDir.join(enumIr.ident.toAsciiLowerSnakeCase()).join(".cj")
+            let path = cfg.outputDir.join("${enumIr.ident.toAsciiLowerSnakeCase()}.cj")
             CjFile(path, contents)
     }
 }
