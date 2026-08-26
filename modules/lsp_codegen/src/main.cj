@@ -8,31 +8,35 @@ import stdx.encoding.json.*
 
 main(args: Array<String>): Int64 {
     try {
-        let (cfg, metaModelPath) = parseArgs(args)
-        let metaModel = MetaModel.deserialize(
-            DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(metaModelPath)))))
-
-        let cjFiles = generateCjFiles(cfg, metaModel)
-        if (!exists(cfg.outputDir)) {
-            Directory.create(cfg.outputDir, recursive: true)
-        }
-        for (file in cjFiles) {
-            File.writeTo(file.path, file.content.toArray())
-        }
-        let exitCode = execute("cjfmt", ["-d", cfg.outputDir.toString()])
-        if (exitCode != 0) {
-            eprintln("cjfmt run failed!")
-        }
-        println("info: generated ${cjFiles.size} Cangjie files")
-
-        return exitCode
+        mainImpl(args)
     } catch (e: Exception) {
         eprintln("error: ${e.message}")
         return 1
     }
 }
 
-func parseArgs(args: Array<String>): (Config, /* metaModelPath */ Path) {
+private func mainImpl(args: Array<String>): Int64 {
+    let (cfg, metaModelPath) = parseArgs(args)
+    let metaModel = MetaModel.deserialize(
+        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(metaModelPath)))))
+
+    let cjFiles = generateCjFiles(cfg, metaModel)
+    if (!exists(cfg.outputDir)) {
+        Directory.create(cfg.outputDir, recursive: true)
+    }
+    for (file in cjFiles) {
+        File.writeTo(file.path, file.contents.toArray())
+    }
+    let exitCode = execute("cjfmt", ["-d", cfg.outputDir.toString()])
+    if (exitCode != 0) {
+        eprintln("cjfmt run failed!")
+    }
+    println("info: generated ${cjFiles.size} Cangjie files")
+
+    exitCode
+}
+
+private func parseArgs(args: Array<String>): (Config, /* metaModelPath */ Path) {
     let parsed = parseArguments(
         args,
         [

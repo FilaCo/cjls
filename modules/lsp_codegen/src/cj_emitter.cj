@@ -1,5 +1,7 @@
 package lsp_codegen
 
+import std.ast.*
+import std.collection.HashSet
 import std.io.{OutputStream, StringWriter}
 
 class CjEmitter {
@@ -10,19 +12,26 @@ class CjEmitter {
         this.output = StringWriter(output)
     }
 
+    func flush(): Unit {
+        output.flush()
+    }
+
     /**
      * Emits newline without indentation
      */
-    func newLine(): Unit {
+    func nl(): Unit {
         output.write("\n")
     }
 
     func block(body: () -> Unit): Unit {
-        emit("{")
-        newLine()
-        indented(body)
-        newLine()
+        emitln("{")
+        indentedln(body)
         emit("}")
+    }
+
+    func blockln(body: () -> Unit): Unit {
+        block(body)
+        nl()
     }
 
     func indented(body: () -> Unit): Unit {
@@ -31,27 +40,35 @@ class CjEmitter {
         indentation--
     }
 
-    func blockComment(bc: BlockComment): Unit {
-        if (bc.lines.isEmpty()) {
-            emit("/**/")
-            return
-        }
-        emit("/*")
-        newLine()
-        for (line in bc.lines) {
+    func indentedln(body: () -> Unit): Unit {
+        indented(body)
+        nl()
+    }
+
+    func emit(dc: DocComment): Unit {
+        emitln("/**")
+        for (line in dc.lines) {
             if (line.isEmpty()) {
                 emit(" *")
             } else {
                 emit(" * ${line}")
             }
-            newLine()
+            nl()
         }
         emit(" */")
-        newLine()
     }
 
-    func flush(): Unit {
-        output.flush()
+    func emitln(dc: DocComment): Unit {
+        emitln(dc)
+        nl()
+    }
+
+    func emit(toks: Tokens): Unit {
+        emit(toks.toString())
+    }
+
+    func emitln(toks: Tokens): Unit {
+        emitln(toks.toString())
     }
 
     private func emit(s: String): Unit {
@@ -59,8 +76,13 @@ class CjEmitter {
         let ws = unsafe { String.fromUtf8Unchecked(indentBytes) }
         output.write("${ws}${s}")
     }
+
+    private func emitln(s: String): Unit {
+        emit(s)
+        nl()
+    }
 }
 
-struct BlockComment {
-    BlockComment(let lines!: Array<String> = []) {}
+struct DocComment {
+    DocComment(let lines!: Array<String> = []) {}
 }

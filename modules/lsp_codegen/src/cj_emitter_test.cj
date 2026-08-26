@@ -1,6 +1,6 @@
 package lsp_codegen
 
-import std.io.{ByteBuffer, StringWriter, readToEnd}
+import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -9,7 +9,7 @@ class CjEmitterTest {
     @TestCase
     func smokeBlockComment() {
         // arrange
-        let bc = BlockComment(
+        let dc = DocComment(
             lines: [
                 "one",
                 "two",
@@ -30,7 +30,7 @@ class CjEmitterTest {
 """
 
         // act
-        sut.blockComment(bc)
+        sut.emit(dc)
         sut.flush()
         let actual = unsafe { String.fromUtf8(readToEnd(output)) }
 

@@ -8,11 +8,11 @@ import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import stdxx.*
 
-func dmOf(json: String): DataModel {
+private func dmOf(json: String) {
     DataModel.fromJson(JsonValue.fromStr(json))
 }
 
-func jsonOf(dm: DataModel): String {
+private func jsonOf(dm: DataModel) {
     dm.toJson().toString()
 }
 
