@@ -5,6 +5,7 @@ import std.fs.*
 import std.process.*
 import stdx.serialization.serialization.*
 import stdx.encoding.json.*
+import cjtoml.*
 
 main(args: Array<String>): Int64 {
     try {
@@ -40,15 +41,16 @@ private func parseArgs(args: Array<String>): (Config, /* metaModelPath */ Path) 
     let parsed = parseArguments(
         args,
         [
-            Long("src-dir", RequiredValue),
-            Long("output-package", RequiredValue)
+            Full("config", r'c', RequiredValue),
         ]
     )
 
     let metaModelPath = Path(parsed.getRequiredValue(parsed.nonOptions.first, "metaModel file path"))
-    let srcDir = Path(parsed.getRequiredOption("src-dir")).normalize()
+    
+    let cfgPath = parsed.getRequiredOption("config")
+    let cfg = unmarshal<Config>(cfgPath)
 
-    (Config(srcDir: srcDir, outputPackage: parsed.getRequiredOption("output-package")), metaModelPath)
+    (cfg, metaModelPath)
 }
 
 extend ParsedArguments {

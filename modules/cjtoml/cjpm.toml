@@ -1,17 +1,15 @@
 [package]
 cjc-version = "1.3.0"
-name = "lsp_codegen"
+name = "cjtoml"
 organization = ""
 description = "nothing here"
 version = "1.0.0"
 target-dir = ""
 script-dir = ""
-output-type = "executable"
+output-type = "static"
 compile-option = ""
 override-compile-option = ""
-link-option = "-lc++"
+link-option = ""
 package-configuration = {}
 
 [dependencies]
-cjtoml = { path = "../cjtoml" }
-stdxx = { path = "../stdxx" }

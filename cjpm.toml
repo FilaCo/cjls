@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "modules/cjls",
+    "modules/cjtoml",
     "modules/jsonrpc",
     "modules/lsp_codegen",
     "modules/stdxx",

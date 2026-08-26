@@ -59,7 +59,7 @@ class CjEmitter {
     }
 
     func emitln(dc: DocComment): Unit {
-        emitln(dc)
+        emit(dc)
         nl()
     }
 

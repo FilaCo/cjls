@@ -21,7 +21,7 @@ class CjEmitterTest {
         let sut = CjEmitter(output)
 
         let expected = """
-/*
+/**
  * one
  * two
  *
@@ -30,7 +30,7 @@ class CjEmitterTest {
 """
 
         // act
-        sut.emit(dc)
+        sut.emitln(dc)
         sut.flush()
         let actual = unsafe { String.fromUtf8(readToEnd(output)) }
 

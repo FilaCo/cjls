@@ -1,0 +1,3 @@
+[general]
+src-dir = "src"
+output-package = "cjls.lsp_types"
