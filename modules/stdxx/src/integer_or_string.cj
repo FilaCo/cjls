@@ -15,7 +15,13 @@ public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equata
      */
     public static func deserialize(dm: DataModel): IntegerOrString {
         match (dm) {
-            case i: DataModelInt => Integer(Int32(i.getValue()))
+            case i: DataModelInt =>
+                let value = try {
+                    Int32(i.getValue())
+                } catch (e: OverflowException) {
+                    throw DataModelException("invalid integer\nCause: ${e}")
+                }
+                Integer(value)
             case s: DataModelString => String(s.getValue())
             case _ => throw DataModelException("expected integer or string")
         }

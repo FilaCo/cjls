@@ -85,7 +85,7 @@ public struct ErrorCode <: Equatable<ErrorCode> & ToString & Serializable<ErrorC
         let raw = dm.asIntOrThrow()
         let value = try {
             Int32(raw)
-        } catch (e: Exception) {
+        } catch (e: OverflowException) {
             throw DataModelException("invalid error code\nCause: ${e}")
         }
 

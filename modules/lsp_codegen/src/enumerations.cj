@@ -139,11 +139,10 @@ extend CjEmitter {
                 blockln {
                     =>
                         let dataModelCast = match (openEnum.base) {
-                            case Int32Base  => quote(Int32(dm.asIntOrThrow()))
+                            case Int32Base => quote(Int32(dm.asIntOrThrow()))
                             case UInt32Base => quote(UInt32(dm.asIntOrThrow()))
                             case StringBase => quote(dm.asStringOrThrow())
                         }
-
 
                         emitln(quote($enumIdent($dataModelCast)))
                 }
@@ -174,13 +173,14 @@ extend CjEmitter {
 
                         emitln(quote(match($(dataModelCast))))
                         block {
-                            => for (variant in closedEnum.variants) {
-                                let valueToken = valueToken(variant.value)
-                                let identToken = escapedIdent(variant.ident.toAsciiPascalCase())
-                                emitln(quote(case $valueToken => $identToken))
-                            }
+                            =>
+                                for (variant in closedEnum.variants) {
+                                    let valueToken = valueToken(variant.value)
+                                    let identToken = escapedIdent(variant.ident.toAsciiPascalCase())
+                                    emitln(quote(case $valueToken => $identToken))
+                                }
 
-                            emitln(quote(case v => throw DataModelException("unexpected variant ${v}")))
+                                emitln(quote(case v => throw DataModelException("unexpected variant ${v}")))
                         }
                 }
                 emitln(quote(public func serialize(): DataModel))
