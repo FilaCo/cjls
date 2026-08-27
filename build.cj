@@ -21,11 +21,10 @@ func onPreBuild(): Unit {
     }
 
     const CANGJIE_STDX_PATH_ENV = "CANGJIE_STDX_PATH"
-    let globalStdxPath = getVariable(CANGJIE_STDX_PATH_ENV).getOrThrow {=> CangjieStdxPathEnvNotFoundException()}
-    SymbolicLink.create(localStdxPath, to: Path(globalStdxPath))
+    if (let Some(globalStdxPath) <- getVariable(CANGJIE_STDX_PATH_ENV)) {
+        SymbolicLink.create(localStdxPath, to: Path(globalStdxPath))
+    }
 }
-
-class CangjieStdxPathEnvNotFoundException <: Exception {}
 
 func onPreClean(): Unit {
     let localStdxPath = getLocalStdxPath()
