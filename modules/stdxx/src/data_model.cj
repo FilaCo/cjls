@@ -6,6 +6,7 @@ public interface DataModelShape {
     func asStructOrThrow(): DataModelStruct
     func asStringOrThrow(): String
     func asIntOrThrow(): Int64
+    func asBoolOrThrow(): Bool
 }
 
 public interface DataModelFields<SelfT> {
@@ -36,6 +37,13 @@ extend DataModel <: DataModelShape {
         match (this) {
             case dmInt: DataModelInt => dmInt.getValue()
             case _ => throw DataModelException("expected `DataModelInt`")
+        }
+    }
+
+    public func asBoolOrThrow(): Bool {
+        match (this) {
+            case dmBool: DataModelBool => dmBool.getValue()
+            case _ => throw DataModelException("expected `DataModelBool`")
         }
     }
 }

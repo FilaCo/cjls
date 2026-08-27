@@ -22,6 +22,16 @@ func resolveDoc(enumeration: Enumeration): DocIr {
     )
 }
 
+func resolveDoc(entry: EnumerationEntry): DocIr {
+    docOf(
+        documentation: entry.documentation,
+        since: entry.since,
+        sinceTags: entry.sinceTags,
+        proposed: entry.proposed,
+        deprecated: entry.deprecated
+    )
+}
+
 private func docOf(documentation!: ?String, since!: ?String, sinceTags!: ?Array<String>, proposed!: ?Bool,
     deprecated!: ?String) {
     DocIr(documentation: documentation, since: since, sinceTags: sinceTags, proposed: proposed ?? false,

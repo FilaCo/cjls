@@ -3,9 +3,19 @@
  */
 package cjls.lsp_types
 
+import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import jsonrpc.*
 
 public type URI = String
 
 public type DocumentUri = String
+
+public type LSPAny = DataModel
+
+public type LSPObject = DataModelStruct
+
+public type LSPArray = DataModelSeq
+
+public type ErrorCodes = ErrorCode

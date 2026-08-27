@@ -1,14 +1,19 @@
 package lsp_codegen
 
-import cjtoml.*
 import std.fs.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import cjtoml.*
 
 struct Config {
     let outputDir: Path
 
-    Config(let srcDir!: Path, let outputPackage!: String) {
+    Config(
+        let srcDir!: Path,
+        let outputPackage!: String,
+        let imports!: Collection<String> = [],
+        let typeMap!: TypeMap = TypeMap()
+    ) {
         var outputDirVal = srcDir
         // skip root package name
         for (s in outputPackage.split(".")[1..]) {
@@ -29,20 +34,18 @@ struct Config {
 
         let srcDir = cfgFile.srcDir ?? manifest.flatMap {it: CjpmManifest => it.srcDir} ?? Path("src")
         let rootPackage = manifest.flatMap {it: CjpmManifest => it.name}.getOrThrow {
-            => ConfigException(
-                "cannot tell the root package of `${subPackage}`")
+            => ConfigException("cannot tell the root package of `${subPackage}`")
         }
 
-        Config(srcDir: srcDir.resolveAgainst(cfgDir), outputPackage: "${rootPackage}.${subPackage}")
+        Config(
+            imports: cfgFile.imports,
+            srcDir: srcDir.resolveAgainst(cfgDir),
+            outputPackage: "${rootPackage}.${subPackage}",
+            typeMap: cfgFile.typeMap,
+        )
     }
 }
 
-/**
- * A path field that may legitimately be absent.
- *
- * cjpm spells "unset" as an empty string — `modules/cjls/cjpm.toml` ships `target-dir = ""` — so a
- * blank value has to mean the same thing as a missing key, or it resolves to a directory named "".
- */
 private func optionalPathField(dms: DataModelStruct, key: String): ?Path {
     let raw: ?String = match (dms.get(key)) {
         case s: DataModelString => s.getValue()
@@ -82,7 +85,7 @@ class ConfigException <: Exception {
 }
 
 private struct ConfigFile <: Serializable<ConfigFile> {
-    ConfigFile(let srcDir!: ?Path, let outputSubpackage!: String) {}
+    ConfigFile(let srcDir!: ?Path, let outputSubpackage!: String, let imports!: Array<String>, let typeMap!: TypeMap) {}
 
     public static func deserialize(dm: DataModel): ConfigFile {
         let dms = dm.asStructOrThrow()
@@ -92,17 +95,33 @@ private struct ConfigFile <: Serializable<ConfigFile> {
 
         ConfigFile(
             srcDir: srcDir,
-            outputSubpackage: general.get("output-subpackage").asStringOrThrow()
+            outputSubpackage: general.get("output-subpackage").asStringOrThrow(),
+            imports: stringListField(general, "imports"),
+            typeMap: TypeMap.deserialize(dms.get("types"))
         )
     }
 
     public func serialize(): DataModel {
-        let general = DataModelStruct()
-            .addFieldIfSome("src-dir", srcDir.map {it: Path => it.toString()})
-            .add(field("output-subpackage", outputSubpackage))
-
-        DataModelStruct().add(Field("general", general))
+        throw UnsupportedException()
     }
+}
+
+/**
+ * A list of strings that may legitimately be absent, read as `[]` when it is.
+ */
+private func stringListField(dms: DataModelStruct, key: String): Array<String> {
+    let items = match (dms.get(key)) {
+        case seq: DataModelSeq => seq.getItems()
+        case _: DataModelNull => return []
+        case _ => throw ConfigException("`${key}` must be an array of strings")
+    }
+
+    items.map {
+        it: DataModel => match (it) {
+            case s: DataModelString => s.getValue()
+            case _ => throw ConfigException("`${key}` must be an array of strings")
+        }
+    }.toArray()
 }
 
 private struct CjpmManifest <: Serializable<CjpmManifest> {

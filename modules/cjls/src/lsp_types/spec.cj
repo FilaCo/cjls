@@ -3,8 +3,10 @@
  */
 package cjls.lsp_types
 
+import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import jsonrpc.*
 
 /**
  * Indicates in which direction a message is sent in the protocol.

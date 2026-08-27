@@ -179,6 +179,39 @@ class ConfigLoadTest {
     }
 
     @TestCase
+    func importsDefaultToNoneAndTypesToAnEmptyMap() {
+        // arrange
+        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
+
+        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
+            cfgPath, _ =>
+                // act
+                let sut = Config.load(cfgPath)
+
+                // assert
+                @Expect(sut.imports.isEmpty())
+                @Expect("SymbolKind", sut.typeMap.bind("SymbolKind").typeNameOf("SymbolKind") ?? "")
+        }
+    }
+
+    @TestCase
+    func importsAndTypesAreReadFromTheConfig() {
+        // arrange
+        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\nimports = [\"jsonrpc.*\"]\n" +
+            "[types.ErrorCodes]\nskip = true\n"
+
+        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
+            cfgPath, _ =>
+                // act
+                let sut = Config.load(cfgPath)
+
+                // assert
+                @PowerAssert(["jsonrpc.*"], sut.imports.toArray())
+                @Expect(sut.typeMap.bind("ErrorCodes").typeNameOf("ErrorCodes").isNone())
+        }
+    }
+
+    @TestCase
     func aBlankOutputSubpackageThrows() {
         // arrange
         let cfg = "[general]\noutput-subpackage = \"   \"\n"

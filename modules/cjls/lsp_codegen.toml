@@ -1,2 +1,29 @@
 [general]
 output-subpackage = "lsp_types"
+imports = [
+    "std.deriving.*",
+    "stdx.serialization.serialization.*",
+    "stdxx.*",
+    "jsonrpc.*",
+]
+
+[types.URI]
+alias = "String"
+
+[types.DocumentUri]
+alias = "String"
+
+[types.LSPAny]
+alias = "DataModel"
+
+[types.LSPObject]
+alias = "DataModelStruct"
+
+[types.LSPArray]
+alias = "DataModelSeq"
+
+[types.ErrorCodes]
+alias = "ErrorCode"
+
+[types.LSPErrorCodes]
+extern = "ErrorCode"
