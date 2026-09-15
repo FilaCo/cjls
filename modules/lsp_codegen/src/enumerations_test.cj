@@ -8,7 +8,7 @@ import std.unittest.testmacro.*
 import stdxx.*
 
 private func enumerationOf(name: String, values: Array<EnumerationEntry>): Enumeration {
-    Enumeration(name: name, `type`: EnumerationType.Integer, values: values, supportsCustomValues: true)
+    Enumeration(name: name, enumerationType: EnumerationType.Integer, values: values, supportsCustomValues: true)
 }
 
 private func configWith(typeMap: TypeMap): Config {

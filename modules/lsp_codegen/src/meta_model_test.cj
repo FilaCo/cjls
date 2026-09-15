@@ -84,7 +84,7 @@ class BaseTypesTest {
         let e = @AssertThrows[DataModelException](BaseTypes.deserialize(DataModelString("float")))
 
         // assert
-        @Expect("invalid `BaseTypes` value", e.message)
+        @Expect("unexpected `BaseTypes` value: float", e.message)
     }
 }
 
@@ -114,7 +114,7 @@ class MessageDirectionTest {
         let e = @AssertThrows[DataModelException](MessageDirection.deserialize(DataModelString("bidirectional")))
 
         // assert
-        @Expect("invalid `MessageDirection` value", e.message)
+        @Expect("unexpected `MessageDirection` value: bidirectional", e.message)
     }
 }
 
@@ -145,7 +145,7 @@ class MapKeyNameTest {
         let e = @AssertThrows[DataModelException](MapKeyName.deserialize(DataModelString("decimal")))
 
         // assert
-        @Expect("invalid `MapKeyName` value", e.message)
+        @Expect("unexpected `MapKeyName` value: decimal", e.message)
     }
 }
 
@@ -197,7 +197,7 @@ class MapKeyTypeTest {
         let e = @AssertThrows[DataModelException](MapKeyType.deserialize(dmOf(json)))
 
         // assert
-        @Expect("unexpected `kind` field value: \"literal\"", e.message)
+        @Expect("unexpected `MapKeyType` kind: literal", e.message)
     }
 
     @TestCase
@@ -337,7 +337,7 @@ class TypeTest {
         let e = @AssertThrows[DataModelException](Type.deserialize(dmOf("{\"kind\":\"struct\"}")))
 
         // assert
-        @Expect("unknown \"kind\": \"struct\"", e.message)
+        @Expect("unexpected `Type` kind: struct", e.message)
     }
 
     @TestCase
@@ -470,7 +470,7 @@ class PropertyTest {
     @TestCase
     func serializeOmitsEveryAbsentField() {
         // arrange
-        let sut = Property(name: "uri", `type`: Type.Base(BaseTypes.DocumentUri))
+        let sut = Property(name: "uri", propertyType: Type.Base(BaseTypes.DocumentUri))
 
         // act & assert - only the two required keys; an absent flag is never written as
         // `false`, which is what keeps the shipped meta model a lossless round trip
@@ -480,7 +480,7 @@ class PropertyTest {
     @TestCase
     func serializeKeepsAnExplicitFalseApartFromAnAbsentFlag() {
         // arrange - the distinction `?Bool` exists to preserve
-        let sut = Property(name: "uri", `type`: Type.Base(BaseTypes.DocumentUri), optional: false)
+        let sut = Property(name: "uri", propertyType: Type.Base(BaseTypes.DocumentUri), optional: false)
 
         // act & assert
         assertSameJson("{\"name\":\"uri\",\"type\":{\"kind\":\"base\",\"name\":\"DocumentUri\"},\"optional\":false}",
@@ -693,7 +693,7 @@ class EnumerationTest {
 
         // assert
         @Expect("ErrorCodes", sut.name)
-        assertSameJson("{\"kind\":\"base\",\"name\":\"integer\"}", sut.`type`.serialize())
+        assertSameJson("{\"kind\":\"base\",\"name\":\"integer\"}", sut.enumerationType.serialize())
         @Expect(1, sut.values.size)
         @Expect("ParseError", sut.values[0].name)
         @Expect(true, sut.supportsCustomValues.getOrThrow())

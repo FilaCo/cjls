@@ -42,7 +42,7 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Aliased(_) | Skipped => return None
     }
 
-    let base = match (enumeration.`type`) {
+    let base = match (enumeration.enumerationType) {
         case String => StringBase
         case Integer => Int32Base
         case UInteger => UInt32Base

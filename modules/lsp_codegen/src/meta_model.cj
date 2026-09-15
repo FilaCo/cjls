@@ -2,12 +2,14 @@ package lsp_codegen
 
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 
 /**
  * The actual meta model.
  * @note specification taken from: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/metaModel/metaModel.ts
  */
-struct MetaModel <: Serializable<MetaModel> {
+@DeriveExt[Serializable]
+struct MetaModel {
     MetaModel(
         /**
          * Additional meta data.
@@ -39,59 +41,23 @@ struct MetaModel <: Serializable<MetaModel> {
          */
         let typeAliases!: Array<TypeAlias>
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): MetaModel {
-        let dms = dm.asStructOrThrow()
-
-        MetaModel(
-            metaData: dms.getDeserializedOrThrow("metaData"),
-            requests: dms.getDeserializedOrThrow("requests"),
-            notifications: dms.getDeserializedOrThrow("notifications"),
-            structures: dms.getDeserializedOrThrow("structures"),
-            enumerations: dms.getDeserializedOrThrow("enumerations"),
-            typeAliases: dms.getDeserializedOrThrow("typeAliases")
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("metaData", metaData))
-            .add(field("requests", requests))
-            .add(field("notifications", notifications))
-            .add(field("structures", structures))
-            .add(field("enumerations", enumerations))
-            .add(field("typeAliases", typeAliases))
-    }
 }
 
-struct MetaData <: Serializable<MetaData> {
+@DeriveExt[Serializable]
+struct MetaData {
     MetaData(
         /**
          * The protocol version.
          */
         let version!: String) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): MetaData {
-        let dms = dm.asStructOrThrow()
-
-        MetaData(version: dms.getDeserializedOrThrow("version"))
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct().add(field("version", version))
-    }
 }
 
 /**
  * Represents a LSP request
  */
-struct Request <: Serializable<Request> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct Request {
     Request(
         /**
          * The request's method name.
@@ -181,58 +147,14 @@ struct Request <: Serializable<Request> {
          */
         let serverCapability!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Request {
-        let dms = dm.asStructOrThrow()
-
-        Request(
-            method: dms.getDeserializedOrThrow("method"),
-            typeName: dms.getDeserializedOrNone("typeName"),
-            params: dms.getDeserializedOrNone("params"),
-            result: dms.getDeserializedOrThrow("result"),
-            partialResult: dms.getDeserializedOrNone("partialResult"),
-            errorData: dms.getDeserializedOrNone("errorData"),
-            registrationMethod: dms.getDeserializedOrNone("registrationMethod"),
-            registrationOptions: dms.getDeserializedOrNone("registrationOptions"),
-            messageDirection: dms.getDeserializedOrThrow("messageDirection"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-            clientCapability: dms.getDeserializedOrNone("clientCapability"),
-            serverCapability: dms.getDeserializedOrNone("serverCapability"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("method", method))
-            .addFieldIfSome("typeName", typeName)
-            .addFieldIfSome("params", params)
-            .add(field("result", result))
-            .addFieldIfSome("partialResult", partialResult)
-            .addFieldIfSome("errorData", errorData)
-            .addFieldIfSome("registrationMethod", registrationMethod)
-            .addFieldIfSome("registrationOptions", registrationOptions)
-            .add(field("messageDirection", messageDirection))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-            .addFieldIfSome("clientCapability", clientCapability)
-            .addFieldIfSome("serverCapability", serverCapability)
-    }
 }
 
 /**
  * Represents a LSP notification
  */
-struct Notification <: Serializable<Notification> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct Notification {
     Notification(
         /**
          * The notifications's method name.
@@ -306,52 +228,14 @@ struct Notification <: Serializable<Notification> {
          */
         let serverCapability!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Notification {
-        let dms = dm.asStructOrThrow()
-
-        Notification(
-            method: dms.getDeserializedOrThrow("method"),
-            typeName: dms.getDeserializedOrNone("typeName"),
-            params: dms.getDeserializedOrNone("params"),
-            registrationMethod: dms.getDeserializedOrNone("registrationMethod"),
-            registrationOptions: dms.getDeserializedOrNone("registrationOptions"),
-            messageDirection: dms.getDeserializedOrThrow("messageDirection"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-            clientCapability: dms.getDeserializedOrNone("clientCapability"),
-            serverCapability: dms.getDeserializedOrNone("serverCapability"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("method", method))
-            .addFieldIfSome("typeName", typeName)
-            .addFieldIfSome("params", params)
-            .addFieldIfSome("registrationMethod", registrationMethod)
-            .addFieldIfSome("registrationOptions", registrationOptions)
-            .add(field("messageDirection", messageDirection))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-            .addFieldIfSome("clientCapability", clientCapability)
-            .addFieldIfSome("serverCapability", serverCapability)
-    }
 }
 
 /**
  * Defines the structure of an object literal.
  */
-struct Structure <: Serializable<Structure> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct Structure {
     Structure(
         /**
          * The name of the structure.
@@ -406,44 +290,14 @@ struct Structure <: Serializable<Structure> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Structure {
-        let dms = dm.asStructOrThrow()
-
-        Structure(
-            name: dms.getDeserializedOrThrow("name"),
-            extends: dms.getDeserializedOrNone("extends"),
-            mixins: dms.getDeserializedOrNone("mixins"),
-            properties: dms.getDeserializedOrThrow("properties"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("name", name))
-            .addFieldIfSome("extends", extends)
-            .addFieldIfSome("mixins", mixins)
-            .add(field("properties", properties))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
 /**
  * Defines an enumeration.
  */
-struct Enumeration <: Serializable<Enumeration> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct Enumeration {
     Enumeration(
         /**
          * The name of the enumeration.
@@ -453,7 +307,7 @@ struct Enumeration <: Serializable<Enumeration> {
         /**
          * The type of the elements.
          */
-        let `type`!: EnumerationType,
+        @DeriveExtSerializable[rename: "type"] let enumerationType!: EnumerationType,
 
         /**
          * The enum values.
@@ -496,45 +350,15 @@ struct Enumeration <: Serializable<Enumeration> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Enumeration {
-        let dms = dm.asStructOrThrow()
-
-        Enumeration(
-            name: dms.getDeserializedOrThrow("name"),
-            `type`: dms.getDeserializedOrThrow("type"),
-            values: dms.getDeserializedOrThrow("values"),
-            supportsCustomValues: dms.getDeserializedOrNone("supportsCustomValues"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("name", name))
-            .add(field("type", `type`))
-            .add(field("values", values))
-            .addFieldIfSome("supportsCustomValues", supportsCustomValues)
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
 /**
  * Defines a type alias.
  * (e.g. `type Definition = Location | LocationLink`)
  */
-struct TypeAlias <: Serializable<TypeAlias> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct TypeAlias {
     TypeAlias(
         /**
          * The name of the type alias.
@@ -544,7 +368,7 @@ struct TypeAlias <: Serializable<TypeAlias> {
         /**
          * The aliased type.
          */
-        let `type`!: Type,
+        @DeriveExtSerializable[rename: "type"] let typeAliasType!: Type,
 
         /**
          * An optional documentation.
@@ -575,149 +399,63 @@ struct TypeAlias <: Serializable<TypeAlias> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): TypeAlias {
-        let dms = dm.asStructOrThrow()
-
-        TypeAlias(
-            name: dms.getDeserializedOrThrow("name"),
-            `type`: dms.getDeserializedOrThrow("type"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("name", name))
-            .add(field("type", `type`))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
-enum BaseTypes <: Serializable<BaseTypes> {
+@DeriveExt[Serializable]
+enum BaseTypes {
     // URI
-    | Uri
+    | @DeriveExtSerializable[value: "URI"]
+    Uri
     | DocumentUri
     // integer
-    | Integer
+    | @DeriveExtSerializable[value: "integer"]
+    Integer
     // uinteger
-    | UInteger
+    | @DeriveExtSerializable[value: "uinteger"]
+    UInteger
     // decimal
-    | Decimal
+    | @DeriveExtSerializable[value: "decimal"]
+    Decimal
     | RegExp
     // string
-    | String
+    | @DeriveExtSerializable[value: "string"]
+    String
     // boolean
-    | Boolean
+    | @DeriveExtSerializable[value: "boolean"]
+    Boolean
     // null
-    | Null
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): BaseTypes {
-        match (dm.asStringOrThrow()) {
-            case "URI" => Uri
-            case "DocumentUri" => DocumentUri
-            case "integer" => Integer
-            case "uinteger" => UInteger
-            case "decimal" => Decimal
-            case "RegExp" => RegExp
-            case "string" => String
-            case "boolean" => Boolean
-            case "null" => Null
-            case _ => throw DataModelException("invalid `BaseTypes` value")
-        }
-    }
-
-    public func serialize(): DataModel {
-        DataModelString(match (this) {
-            case Uri => "URI"
-            case DocumentUri => "DocumentUri"
-            case Integer => "integer"
-            case UInteger => "uinteger"
-            case Decimal => "decimal"
-            case RegExp => "RegExp"
-            case String => "string"
-            case Boolean => "boolean"
-            case Null => "null"
-        })
-    }
+    | @DeriveExtSerializable[value: "null"]
+    Null
 }
 
 /**
  * Indicates in which direction a message is sent in the protocol.
  */
-enum MessageDirection <: Serializable<MessageDirection> {
+@DeriveExt[Serializable]
+enum MessageDirection {
     // clientToServer
-    | ClientToServer
+    | @DeriveExtSerializable[value: "clientToServer"]
+    ClientToServer
     // serverToClient
-    | ServerToClient
+    | @DeriveExtSerializable[value: "serverToClient"]
+    ServerToClient
     // both
-    | Both
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): MessageDirection {
-        match (dm.asStringOrThrow()) {
-            case "clientToServer" => ClientToServer
-            case "serverToClient" => ServerToClient
-            case "both" => Both
-            case _ => throw DataModelException("invalid `MessageDirection` value")
-        }
-    }
-
-    public func serialize(): DataModel {
-        DataModelString(match (this) {
-            case ClientToServer => "clientToServer"
-            case ServerToClient => "serverToClient"
-            case Both => "both"
-        })
-    }
+    | @DeriveExtSerializable[value: "both"]
+    Both
 }
 
-enum MapKeyName <: Serializable<MapKeyName> {
+@DeriveExt[Serializable]
+enum MapKeyName {
     // URI
-    | Uri
+    | @DeriveExtSerializable[value: "URI"]
+    Uri
     | DocumentUri
     // string
-    | String
+    | @DeriveExtSerializable[value: "string"]
+    String
     // integer
-    | Integer
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): MapKeyName {
-        match (dm.asStringOrThrow()) {
-            case "URI" => Uri
-            case "DocumentUri" => DocumentUri
-            case "string" => String
-            case "integer" => Integer
-            case _ => throw DataModelException("invalid `MapKeyName` value")
-        }
-    }
-
-    public func serialize(): DataModel {
-        DataModelString(match (this) {
-            case Uri => "URI"
-            case DocumentUri => "DocumentUri"
-            case String => "string"
-            case Integer => "integer"
-        })
-    }
+    | @DeriveExtSerializable[value: "integer"]
+    Integer
 }
 
 /**
@@ -726,141 +464,101 @@ enum MapKeyName <: Serializable<MapKeyName> {
  * type must either resolve to a `string` or `integer`
  * type. (e.g. `type ChangeAnnotationIdentifier === string`).
  */
-enum MapKeyType <: Serializable<MapKeyType> {
-    | Base(MapKeyName)
-    | Reference(String)
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): MapKeyType {
-        let dms = dm.asStructOrThrow()
-
-        match (dms.getDeserializedOrThrow<String>("kind")) {
-            case "base" => Base(dms.getDeserializedOrThrow("name"))
-            case "reference" => Reference(dms.getDeserializedOrThrow("name"))
-            case kind => throw DataModelException("unexpected `kind` field value: \"${kind}\"")
-        }
-    }
-
-    public func serialize(): DataModel {
-        match (this) {
-            case Base(name) => DataModelStruct().add(field("kind", "base")).add(field("name", name))
-            case Reference(ref) => DataModelStruct().add(field("kind", "reference")).add(field("name", ref))
-        }
-    }
+@DeriveExt[Serializable]
+@DeriveExtSerializable[tag: "kind"]
+enum MapKeyType {
+    | @DeriveExtSerializable[value: "base", payload: ["name"]]
+    Base(MapKeyName)
+    | @DeriveExtSerializable[value: "reference", payload: ["name"]]
+    Reference(String)
 }
 
-enum Type <: Serializable<Type> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[tag: "kind"]
+enum Type {
     /**
      * Represents a base type like `string` or `DocumentUri`.
      */
-    | Base( /* name */ BaseTypes)
+    | @DeriveExtSerializable[value: "base", payload: ["name"]]
+    Base( /* name */ BaseTypes)
 
     /**
      * Represents a reference to another type (e.g. `TextDocument`).
      * This is either a `Structure`, a `Enumeration` or a `TypeAlias`
      * in the same meta model.
      */
-    | Reference( /* name */ String)
+    | @DeriveExtSerializable[value: "reference", payload: ["name"]]
+    Reference( /* name */ String)
 
     /**
      * Represents an array type (e.g. `TextDocument[]`).
      */
-    | Array( /* element */ Type)
+    | @DeriveExtSerializable[value: "array", payload: ["element"]]
+    Array( /* element */ Type)
 
     /**
      * Represents a JSON object map
      * (e.g. `interface Map<K extends string | integer, V> { [key: K] => V; }`).
      */
-    | Map( /* key */ MapKeyType, /* value */ Type)
+    | @DeriveExtSerializable[value: "map", payload: ["key", "value"]]
+    Map( /* key */ MapKeyType, /* value */ Type)
 
     /**
      * Represents an `and` type
      * (e.g. TextDocumentParams & WorkDoneProgressParams`).
      */
-    | And( /* items */ Array<Type>)
+    | @DeriveExtSerializable[value: "and", payload: ["items"]]
+    And( /* items */ Array<Type>)
 
     /**
      * Represents an `or` type
      * (e.g. `Location | LocationLink`).
      */
-    | Or( /* items */ Array<Type>)
+    | @DeriveExtSerializable[value: "or", payload: ["items"]]
+    Or( /* items */ Array<Type>)
 
     /**
      * Represents a `tuple` type
      * (e.g. `[integer, integer]`).
      */
-    | Tuple( /* items */ Array<Type>)
+    | @DeriveExtSerializable[value: "tuple", payload: ["items"]]
+    Tuple( /* items */ Array<Type>)
 
     /**
      * Represents a literal structure
      * (e.g. `property: { start: uinteger; end: uinteger; }`).
      */
-    | Literal( /* value */ StructureLiteral)
+    | @DeriveExtSerializable[value: "literal", payload: ["value"]]
+    Literal( /* value */ StructureLiteral)
 
     /**
      * Represents a string literal type
      * (e.g. `kind: 'rename'`).
      */
-    | StringLiteral( /* value */ String)
+    | @DeriveExtSerializable[value: "stringLiteral", payload: ["value"]]
+    StringLiteral( /* value */ String)
 
     /**
      * Represents an integer literal type
      * (e.g. `kind: 1`).
      */
-    | IntegerLiteral( /* value */ Int64)
+    | @DeriveExtSerializable[value: "integerLiteral", payload: ["value"]]
+    IntegerLiteral( /* value */ Int64)
 
     /**
      * Represents a boolean literal type
      * (e.g. `kind: true`).
      */
-    | BooleanLiteral( /* value */ Bool)
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Type {
-        let dms = dm.asStructOrThrow()
-
-        match (dms.getDeserializedOrThrow<String>("kind")) {
-            case "base" => Base(dms.getDeserializedOrThrow("name"))
-            case "reference" => Reference(dms.getDeserializedOrThrow("name"))
-            case "array" => Array(dms.getDeserializedOrThrow("element"))
-            case "map" => Map(dms.getDeserializedOrThrow("key"), dms.getDeserializedOrThrow("value"))
-            case "and" => And(dms.getDeserializedOrThrow("items"))
-            case "or" => Or(dms.getDeserializedOrThrow("items"))
-            case "tuple" => Tuple(dms.getDeserializedOrThrow("items"))
-            case "literal" => Literal(dms.getDeserializedOrThrow("value"))
-            case "stringLiteral" => StringLiteral(dms.getDeserializedOrThrow("value"))
-            case "integerLiteral" => IntegerLiteral(dms.getDeserializedOrThrow("value"))
-            case "booleanLiteral" => BooleanLiteral(dms.getDeserializedOrThrow("value"))
-            case kind => throw DataModelException("unknown \"kind\": \"${kind}\"")
-        }
-    }
-
-    public func serialize(): DataModel {
-        let dms = DataModelStruct()
-        match (this) {
-            case Base(baseTypes) => dms.add(field("kind", "base")).add(field("name", baseTypes))
-            case Reference(ref) => dms.add(field("kind", "reference")).add(field("name", ref))
-            case Array(element) => dms.add(field("kind", "array")).add(field("element", element))
-            case Map(key, value) => dms.add(field("kind", "map")).add(field("key", key)).add(field("value", value))
-            case And(items) => dms.add(field("kind", "and")).add(field("items", items))
-            case Or(items) => dms.add(field("kind", "or")).add(field("items", items))
-            case Tuple(items) => dms.add(field("kind", "tuple")).add(field("items", items))
-            case Literal(value) => dms.add(field("kind", "literal")).add(field("value", value))
-            case StringLiteral(value) => dms.add(field("kind", "stringLiteral")).add(field("value", value))
-            case IntegerLiteral(value) => dms.add(field("kind", "integerLiteral")).add(field("value", value))
-            case BooleanLiteral(value) => dms.add(field("kind", "booleanLiteral")).add(field("value", value))
-        }
-    }
+    | @DeriveExtSerializable[value: "booleanLiteral", payload: ["value"]]
+    BooleanLiteral( /* value */ Bool)
 }
 
 /**
  * Defines an unnamed structure of an object literal.
  */
-struct StructureLiteral <: Serializable<StructureLiteral> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct StructureLiteral {
     StructureLiteral(
         /**
          * The properties.
@@ -896,38 +594,14 @@ struct StructureLiteral <: Serializable<StructureLiteral> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): StructureLiteral {
-        let dms = dm.asStructOrThrow()
-
-        StructureLiteral(
-            properties: dms.getDeserializedOrThrow("properties"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("properties", properties))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
 /**
  * Represents an object property.
  */
-struct Property <: Serializable<Property> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct Property {
     Property(
         /**
          * The property name;
@@ -937,7 +611,8 @@ struct Property <: Serializable<Property> {
         /**
          * The type of the property
          */
-        let `type`!: Type,
+        @DeriveExtSerializable[rename: "type"]
+        let propertyType!: Type,
 
         /**
          * Whether the property is optional. If
@@ -974,63 +649,21 @@ struct Property <: Serializable<Property> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): Property {
-        let dms = dm.asStructOrThrow()
-
-        Property(
-            name: dms.getDeserializedOrThrow("name"),
-            `type`: dms.getDeserializedOrThrow("type"),
-            optional: dms.getDeserializedOrNone("optional"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("name", name))
-            .add(field("type", `type`))
-            .addFieldIfSome("optional", optional)
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
+
+@DeriveExt[Serializable]
 enum OneOrMany<T> {
     | One(T)
     | Many(Array<T>)
 }
 
-extend<T> OneOrMany<T> <: Serializable<OneOrMany<T>> where T <: Serializable<T> {
-    public static func deserialize(dm: DataModel): OneOrMany<T> {
-        match (dm) {
-            case _: DataModelSeq => Many(Array<T>.deserialize(dm))
-            case _ => One(T.deserialize(dm))
-        }
-    }
-
-    public func serialize(): DataModel {
-        match (this) {
-            case One(v) => v.serialize()
-            case Many(arr) => arr.serialize()
-        }
-    }
-}
-
 /**
  * Defines an enumeration entry.
  */
-struct EnumerationEntry <: Serializable<EnumerationEntry> {
+@DeriveExt[Serializable]
+@DeriveExtSerializable[skipNone]
+struct EnumerationEntry {
     EnumerationEntry(
         /**
          * The name of the enum item.
@@ -1071,34 +704,6 @@ struct EnumerationEntry <: Serializable<EnumerationEntry> {
          */
         let deprecated!: ?String = None
     ) {}
-
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): EnumerationEntry {
-        let dms = dm.asStructOrThrow()
-
-        EnumerationEntry(
-            name: dms.getDeserializedOrThrow("name"),
-            value: dms.getDeserializedOrThrow("value"),
-            documentation: dms.getDeserializedOrNone("documentation"),
-            since: dms.getDeserializedOrNone("since"),
-            sinceTags: dms.getDeserializedOrNone("sinceTags"),
-            proposed: dms.getDeserializedOrNone("proposed"),
-            deprecated: dms.getDeserializedOrNone("deprecated"),
-        )
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct()
-            .add(field("name", name))
-            .add(field("value", value))
-            .addFieldIfSome("documentation", documentation)
-            .addFieldIfSome("since", since)
-            .addFieldIfSome("sinceTags", sinceTags)
-            .addFieldIfSome("proposed", proposed)
-            .addFieldIfSome("deprecated", deprecated)
-    }
 }
 
 enum EnumerationType <: Serializable<EnumerationType> {
