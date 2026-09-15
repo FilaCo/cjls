@@ -12,6 +12,7 @@ public interface DataModelShape {
 public interface DataModelFields<SelfT> {
     func getOrNone(name: String): ?DataModel
     func getDeserializedOrNone<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT>
+    func getDeserializedOrNoneOnNull<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT>
     func getOrThrow(name: String): DataModel
     func getDeserializedOrThrow<FieldT>(name: String): FieldT where FieldT <: Serializable<FieldT>
     func addFieldIfSome<FieldT>(name: String, v: ?FieldT): SelfT where FieldT <: Serializable<FieldT>
@@ -69,6 +70,20 @@ extend DataModelStruct <: DataModelFields<DataModelStruct> {
      */
     public func getDeserializedOrNone<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT> {
         getOrNone(name).map {it => FieldT.deserialize(it)}
+    }
+
+    /**
+     * `None` when the key is absent *or* explicitly `null` - for a plain optional field the two are
+     * the same absence of a value. Use `getDeserializedOrNone` where `null` has to stay
+     * distinguishable from absent, which is what `Nullable<T>` in the field type asks for.
+     *
+     * @throws DataModelException - if FieldT.deserialize throws it.
+     */
+    public func getDeserializedOrNoneOnNull<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT> {
+        match (getOrNone(name)) {
+            case Some(dm) => Option<FieldT>.deserialize(dm)
+            case None => None
+        }
     }
 
     /**

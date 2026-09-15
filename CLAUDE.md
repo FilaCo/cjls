@@ -82,16 +82,26 @@ Layered exactly as `DESIGN.md` describes; all four layers are implemented:
 
 ### Serialization: `DataModel`, and the two independent null axes
 
-Serialization goes through `stdx.serialization`'s `DataModel` (`Serializable<T>`: `serialize(): DataModel` / `static deserialize(dm: DataModel): T`), currently hand-written per type. `@DeriveExt[...]` in `stdxx.deriving` is the intended codegen for this and is **still a stub that returns its input**. If a `Serializable` type with an array field aborts with `funcTable is nullptr`, the cause is linkage, not this code — see the static-linking section above.
+Serialization goes through `stdx.serialization`'s `DataModel` (`Serializable<T>`: `serialize(): DataModel` / `static deserialize(dm: DataModel): T`). `@DeriveExt[Serializable]` in `stdxx.deriving` generates it for a `struct` or `class` whose fields are its primary constructor parameters, and for an `enum` in any of three shapes. Note that `std.deriving`'s `@Derive` cannot be taught new interfaces — `std.deriving.api`, where its own derivings register, is `protected` to the `std` module — hence the separate macro. When both are applied to one declaration, `@DeriveExt` has to be the outer one: macros expand inside out, so it appends to whatever `@Derive` emitted. If a `Serializable` type with an array field aborts with `funcTable is nullptr`, the cause is linkage, not this code — see the static-linking section above.
+
+One marker configures it — `@DeriveExtSerializable[...]`, the way a single `#[serde(...)]` serves serde's derives. It is legal only inside `@DeriveExt` (it carries its options there through `setItem`/`getChildMessages` and expands to nothing), it works out where it sits from the declaration it was given, and the options follow from that position: `skipNone` and `tag: "kind"` on a type, `rename: "textDocument"` and `skipNone` on a field, `value: "URI"` / `value: -32700` and `payload: ["key", "value"]` on an enum variant. Anything misplaced, misspelled, or spelled as a flag when it takes a value is a diagnostic. Names default to the identifier with its backquotes stripped, so `` `type` `` needs no marker.
+
+**One marker per declaration is load-bearing, not just tidy:** cjc 1.3.0-alpha aborts with an internal error when *any* two macros are stacked on a primary constructor parameter, so a second marker macro must never be added — put the option inside the one that is there. **And** `Nullable<T>` is recognised by its name in the source, so a field declared through an import alias of it reads as a plain optional and loses the `null`-vs-absent distinction.
+
+**Structs.** The fields are the primary constructor parameters in declaration order; a default value does not make a field optional, the type does. Every type parameter of a generic declaration gets `Serializable<T>` appended to its bounds.
+
+**Enums.** No payload anywhere → the enum *is* the value (a string, or integers when `value:` says so; all variants must agree). Payloads and no `tag:` → untagged, the variant is whichever one the value reads as, tried in declaration order — any failure, an integer overflow included, moves on to the next — so order them narrowest first. `tag: "kind"` → internally tagged, `value:` gives the tag and `payload:` names the positional payload, which follows the same optional/`skipNone` rules a field does. Duplicate wire names and duplicate variant values are diagnostics.
 
 LSP treats *optional* and *nullable* as two independent axes, and this codebase mirrors that with two composable types — the mapping is mechanical, no judgment per field:
 
-| protocol shape | Cangjie type | on write |
-|---|---|---|
-| required, non-null | `T` | always |
-| optional | `field!: ?T = None` | **omitted** when `None` — never written as `null` |
-| nullable | `Nullable<T>` | always; `Null` → JSON `null` |
-| optional **and** nullable | `?Nullable<T>` | omit `None`; `Some(Null)` → `null`; `Some(Value v)` → `v` |
+| protocol shape | Cangjie type | on read | on write |
+|---|---|---|---|
+| required, non-null | `T` | throws when absent | always |
+| optional | `field!: ?T = None` | absent and `null` both give `None` | `null` when `None` — `skipNone` omits the key instead |
+| nullable | `Nullable<T>` | `Null` when `null` | always; `Null` → JSON `null` |
+| optional **and** nullable | `?Nullable<T>` | absent → `None`, `null` → `Some(Null)` | `null` for either; `Some(Value v)` → `v` |
+
+The write side of `?T` follows serde rather than LSP: `None` is written as `null`. **Anything that goes out on an LSP wire needs `skipNone`** — the protocol tells an absent key from an explicit `null`, and 477 of the metaModel's properties are optional-only. `?Nullable<T>` is the only shape that keeps the two apart on read whatever the marker says.
 
 **Read-side caveat:** `DataModelStruct.get(key)` returns `DataModelNull` for an *absent* key, collapsing `undefined` and explicit `null`. Use the presence-aware `DataModelStruct.getOrNone` extension (`modules/stdxx/src/data_model.cj`) whenever the distinction matters — `Body.deserialize` depends on it to tell a notification (no `id`) from a response with a null `id`.
 
