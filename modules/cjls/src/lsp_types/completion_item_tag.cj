@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -14,24 +15,12 @@ import jsonrpc.*
  *
  * @since 3.15.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum CompletionItemTag {
     /**
      * Render a completion as obsolete, usually using a strike-out.
      */
-    | Deprecated
-}
-
-extend CompletionItemTag <: Serializable<CompletionItemTag> {
-    public static func deserialize(dm: DataModel): CompletionItemTag {
-        match (dm.asIntOrThrow()) {
-            case 1 => Deprecated
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Deprecated => DataModelInt(1)
-        }
-    }
+    | @DeriveExtSerializable[value: 1]
+    Deprecated
 }

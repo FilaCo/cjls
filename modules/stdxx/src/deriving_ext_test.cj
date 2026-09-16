@@ -78,6 +78,30 @@ struct DerivedAndDescribed {
     DerivedAndDescribed(let name!: String) {}
 }
 
+/**
+ * The shape `lsp_codegen` emits for an open enumeration: marker between the two derives.
+ */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
+@Derive[Equatable, Hashable]
+public struct DerivedOpenCode {
+    public const DerivedOpenCode(public let value: Int32) {}
+
+    public static const PARSE_ERROR: DerivedOpenCode = DerivedOpenCode(-32700)
+}
+
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
+struct DerivedOpenUnsigned {
+    DerivedOpenUnsigned(let value: UInt32) {}
+}
+
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
+struct DerivedOpenKind {
+    DerivedOpenKind(let `value`!: String) {}
+}
+
 @Test
 class DeriveSerializableTest {
     @TestCase
@@ -574,5 +598,59 @@ class DeriveTaggedEnumTest {
             case Rect(w, h) => "rect:${w}x${h}"
             case Point => "point"
         }
+    }
+}
+
+@Test
+class DeriveTransparentTest {
+    @TestCase
+    func aTransparentStructTravelsAsItsOnlyField() {
+        // act
+        let dm = DerivedOpenCode.PARSE_ERROR.serialize()
+
+        // assert
+        @Expect(-32700, dm.asIntOrThrow())
+    }
+
+    @TestCase
+    func aValueOutsideTheKnownConstantsRoundTrips() {
+        // act
+        let restored = DerivedOpenCode.deserialize(DataModelInt(-1))
+
+        // assert
+        @Expect(-1i32, restored.value)
+        @Expect(DerivedOpenCode(-1), restored)
+    }
+
+    @TestCase
+    func anUnsignedFieldRoundTrips() {
+        // act
+        let restored = DerivedOpenUnsigned.deserialize(DerivedOpenUnsigned(7).serialize())
+
+        // assert
+        @Expect(7u32, restored.value)
+    }
+
+    @TestCase
+    func aNamedFieldRoundTrips() {
+        // act
+        let dm = DerivedOpenKind(value: "refactor").serialize()
+        let restored = DerivedOpenKind.deserialize(dm)
+
+        // assert
+        @Expect("refactor", dm.asStringOrThrow())
+        @Expect("refactor", restored.value)
+    }
+
+    @TestCase
+    func aValueOfTheWrongKindThrows() {
+        // act & assert
+        @AssertThrows[DataModelException](DerivedOpenCode.deserialize(DataModelString("-1")))
+    }
+
+    @TestCase
+    func aValueOutsideTheFieldTypeThrows() {
+        // act & assert
+        @AssertThrows(DerivedOpenUnsigned.deserialize(DataModelInt(-1)))
     }
 }

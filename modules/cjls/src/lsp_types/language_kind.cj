@@ -6,12 +6,15 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Predefined Language kinds
  * @since 3.18.0
  */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct LanguageKind {
     public const LanguageKind(public let value: String) {}
@@ -147,13 +150,4 @@ public struct LanguageKind {
     public static const XSL: LanguageKind = LanguageKind("xsl")
 
     public static const YAML: LanguageKind = LanguageKind("yaml")
-}
-
-extend LanguageKind <: Serializable<LanguageKind> {
-    public static func deserialize(dm: DataModel): LanguageKind {
-        LanguageKind(dm.asStringOrThrow())
-    }
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
 }

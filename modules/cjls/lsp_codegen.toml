@@ -4,6 +4,7 @@ imports = [
     "std.deriving.*",
     "stdx.serialization.serialization.*",
     "stdxx.*",
+    "stdxx.deriving.*",
     "jsonrpc.*",
 ]
 

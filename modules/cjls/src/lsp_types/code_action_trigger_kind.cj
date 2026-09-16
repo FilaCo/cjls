@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,12 +14,14 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum CodeActionTriggerKind {
     /**
      * Code actions were explicitly requested by the user or by an extension.
      */
-    | Invoked
+    | @DeriveExtSerializable[value: 1]
+    Invoked
 
     /**
      * Code actions were requested automatically.
@@ -26,21 +29,6 @@ public enum CodeActionTriggerKind {
      * This typically happens when current selection in a file changes, but can
      * also be triggered when file content changes.
      */
-    | Automatic
-}
-
-extend CodeActionTriggerKind <: Serializable<CodeActionTriggerKind> {
-    public static func deserialize(dm: DataModel): CodeActionTriggerKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Invoked
-            case 2 => Automatic
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Invoked => DataModelInt(1)
-            case Automatic => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Automatic
 }

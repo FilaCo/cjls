@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,31 +14,18 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum InlayHintKind {
     /**
      * An inlay hint that for a type annotation.
      */
-    | Type
+    | @DeriveExtSerializable[value: 1]
+    Type
 
     /**
      * An inlay hint that is for a parameter.
      */
-    | Parameter
-}
-
-extend InlayHintKind <: Serializable<InlayHintKind> {
-    public static func deserialize(dm: DataModel): InlayHintKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Type
-            case 2 => Parameter
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Type => DataModelInt(1)
-            case Parameter => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Parameter
 }

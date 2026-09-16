@@ -6,59 +6,44 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The message type
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum MessageType {
     /**
      * An error message.
      */
-    | Error
+    | @DeriveExtSerializable[value: 1]
+    Error
 
     /**
      * A warning message.
      */
-    | Warning
+    | @DeriveExtSerializable[value: 2]
+    Warning
 
     /**
      * An information message.
      */
-    | Info
+    | @DeriveExtSerializable[value: 3]
+    Info
 
     /**
      * A log message.
      */
-    | Log
+    | @DeriveExtSerializable[value: 4]
+    Log
 
     /**
      * A debug message.
      *
      * @since 3.18.0
      */
-    | Debug
-}
-
-extend MessageType <: Serializable<MessageType> {
-    public static func deserialize(dm: DataModel): MessageType {
-        match (dm.asIntOrThrow()) {
-            case 1 => Error
-            case 2 => Warning
-            case 3 => Info
-            case 4 => Log
-            case 5 => Debug
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Error => DataModelInt(1)
-            case Warning => DataModelInt(2)
-            case Info => DataModelInt(3)
-            case Log => DataModelInt(4)
-            case Debug => DataModelInt(5)
-        }
-    }
+    | @DeriveExtSerializable[value: 5]
+    Debug
 }

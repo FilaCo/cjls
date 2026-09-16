@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -14,13 +15,15 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum ApplyKind {
     /**
      * The value from the individual item (if provided and not `null`) will be
      * used instead of the default.
      */
-    | Replace
+    | @DeriveExtSerializable[value: 1]
+    Replace
 
     /**
      * The value from the item will be merged with the default.
@@ -28,21 +31,6 @@ public enum ApplyKind {
      * The specific rules for mergeing values are defined against each field
      * that supports merging.
      */
-    | Merge
-}
-
-extend ApplyKind <: Serializable<ApplyKind> {
-    public static func deserialize(dm: DataModel): ApplyKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Replace
-            case 2 => Merge
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Replace => DataModelInt(1)
-            case Merge => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Merge
 }

@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,24 +14,12 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum CodeActionTag {
     /**
      * Marks the code action as LLM-generated.
      */
-    | LlmGenerated
-}
-
-extend CodeActionTag <: Serializable<CodeActionTag> {
-    public static func deserialize(dm: DataModel): CodeActionTag {
-        match (dm.asIntOrThrow()) {
-            case 1 => LlmGenerated
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case LlmGenerated => DataModelInt(1)
-        }
-    }
+    | @DeriveExtSerializable[value: 1]
+    LlmGenerated
 }

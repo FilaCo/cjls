@@ -6,23 +6,12 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum TokenFormat {
-    | Relative
-}
-
-extend TokenFormat <: Serializable<TokenFormat> {
-    public static func deserialize(dm: DataModel): TokenFormat {
-        match (dm.asStringOrThrow()) {
-            case "relative" => Relative
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Relative => DataModelString("relative")
-        }
-    }
+    | @DeriveExtSerializable[value: "relative"]
+    Relative
 }

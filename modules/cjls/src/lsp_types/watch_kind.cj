@@ -6,8 +6,11 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct WatchKind {
     public const WatchKind(public let value: UInt32) {}
@@ -25,13 +28,4 @@ public struct WatchKind {
      * Interested in delete events
      */
     public static const DELETE: WatchKind = WatchKind(4)
-}
-
-extend WatchKind <: Serializable<WatchKind> {
-    public static func deserialize(dm: DataModel): WatchKind {
-        WatchKind(UInt32(dm.asIntOrThrow()))
-    }
-    public func serialize(): DataModel {
-        DataModelInt(Int64(value))
-    }
 }

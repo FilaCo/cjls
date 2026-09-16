@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,52 +14,36 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum UniquenessLevel {
     /**
      * The moniker is only unique inside a document
      */
-    | Document
+    | @DeriveExtSerializable[value: "document"]
+    Document
 
     /**
      * The moniker is unique inside a project for which a dump got created
      */
-    | Project
+    | @DeriveExtSerializable[value: "project"]
+    Project
 
     /**
      * The moniker is unique inside the group to which a project belongs
      */
-    | Group
+    | @DeriveExtSerializable[value: "group"]
+    Group
 
     /**
      * The moniker is unique inside the moniker scheme.
      */
-    | Scheme
+    | @DeriveExtSerializable[value: "scheme"]
+    Scheme
 
     /**
      * The moniker is globally unique
      */
-    | Global
-}
-
-extend UniquenessLevel <: Serializable<UniquenessLevel> {
-    public static func deserialize(dm: DataModel): UniquenessLevel {
-        match (dm.asStringOrThrow()) {
-            case "document" => Document
-            case "project" => Project
-            case "group" => Group
-            case "scheme" => Scheme
-            case "global" => Global
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Document => DataModelString("document")
-            case Project => DataModelString("project")
-            case Group => DataModelString("group")
-            case Scheme => DataModelString("scheme")
-            case Global => DataModelString("global")
-        }
-    }
+    | @DeriveExtSerializable[value: "global"]
+    Global
 }

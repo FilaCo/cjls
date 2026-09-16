@@ -6,98 +6,63 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The kind of a completion entry.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum CompletionItemKind {
-    | Text
-    | Method
-    | Function
-    | Constructor
-    | Field
-    | Variable
-    | Class
-    | Interface
-    | Module
-    | Property
-    | `Unit`
-    | Value
-    | Enum
-    | Keyword
-    | Snippet
-    | Color
-    | File
-    | Reference
-    | Folder
-    | EnumMember
-    | Constant
-    | Struct
-    | Event
-    | Operator
-    | TypeParameter
-}
-
-extend CompletionItemKind <: Serializable<CompletionItemKind> {
-    public static func deserialize(dm: DataModel): CompletionItemKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Text
-            case 2 => Method
-            case 3 => Function
-            case 4 => Constructor
-            case 5 => Field
-            case 6 => Variable
-            case 7 => Class
-            case 8 => Interface
-            case 9 => Module
-            case 10 => Property
-            case 11 => `Unit`
-            case 12 => Value
-            case 13 => Enum
-            case 14 => Keyword
-            case 15 => Snippet
-            case 16 => Color
-            case 17 => File
-            case 18 => Reference
-            case 19 => Folder
-            case 20 => EnumMember
-            case 21 => Constant
-            case 22 => Struct
-            case 23 => Event
-            case 24 => Operator
-            case 25 => TypeParameter
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Text => DataModelInt(1)
-            case Method => DataModelInt(2)
-            case Function => DataModelInt(3)
-            case Constructor => DataModelInt(4)
-            case Field => DataModelInt(5)
-            case Variable => DataModelInt(6)
-            case Class => DataModelInt(7)
-            case Interface => DataModelInt(8)
-            case Module => DataModelInt(9)
-            case Property => DataModelInt(10)
-            case `Unit` => DataModelInt(11)
-            case Value => DataModelInt(12)
-            case Enum => DataModelInt(13)
-            case Keyword => DataModelInt(14)
-            case Snippet => DataModelInt(15)
-            case Color => DataModelInt(16)
-            case File => DataModelInt(17)
-            case Reference => DataModelInt(18)
-            case Folder => DataModelInt(19)
-            case EnumMember => DataModelInt(20)
-            case Constant => DataModelInt(21)
-            case Struct => DataModelInt(22)
-            case Event => DataModelInt(23)
-            case Operator => DataModelInt(24)
-            case TypeParameter => DataModelInt(25)
-        }
-    }
+    | @DeriveExtSerializable[value: 1]
+    Text
+    | @DeriveExtSerializable[value: 2]
+    Method
+    | @DeriveExtSerializable[value: 3]
+    Function
+    | @DeriveExtSerializable[value: 4]
+    Constructor
+    | @DeriveExtSerializable[value: 5]
+    Field
+    | @DeriveExtSerializable[value: 6]
+    Variable
+    | @DeriveExtSerializable[value: 7]
+    Class
+    | @DeriveExtSerializable[value: 8]
+    Interface
+    | @DeriveExtSerializable[value: 9]
+    Module
+    | @DeriveExtSerializable[value: 10]
+    Property
+    | @DeriveExtSerializable[value: 11]
+    `Unit`
+    | @DeriveExtSerializable[value: 12]
+    Value
+    | @DeriveExtSerializable[value: 13]
+    Enum
+    | @DeriveExtSerializable[value: 14]
+    Keyword
+    | @DeriveExtSerializable[value: 15]
+    Snippet
+    | @DeriveExtSerializable[value: 16]
+    Color
+    | @DeriveExtSerializable[value: 17]
+    File
+    | @DeriveExtSerializable[value: 18]
+    Reference
+    | @DeriveExtSerializable[value: 19]
+    Folder
+    | @DeriveExtSerializable[value: 20]
+    EnumMember
+    | @DeriveExtSerializable[value: 21]
+    Constant
+    | @DeriveExtSerializable[value: 22]
+    Struct
+    | @DeriveExtSerializable[value: 23]
+    Event
+    | @DeriveExtSerializable[value: 24]
+    Operator
+    | @DeriveExtSerializable[value: 25]
+    TypeParameter
 }

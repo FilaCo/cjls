@@ -8,6 +8,7 @@ const ITEM_IDENT = "ident"
 const ITEM_ON_TYPE = "onType"
 const ITEM_RENAME = "rename"
 const ITEM_SKIP_NONE = "skipNone"
+const ITEM_TRANSPARENT = "transparent"
 const ITEM_TAG = "tag"
 const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
@@ -23,6 +24,7 @@ const ITEM_PAYLOAD = "payload"
  * |-------------|---------------------------|-----------------------------------------------------|
  * | type        | `skipNone`                | every optional field omits its key when `None`      |
  * | type        | `tag: "kind"`             | the enum is internally tagged by that field         |
+ * | type        | `transparent`             | the struct is its only field on the wire            |
  * | field       | `rename: "textDocument"`  | the name the field carries on the wire              |
  * | field       | `skipNone`                | this field omits its key when `None`                |
  * | enum variant| `value: "URI"`, `value: -1`| what the variant is on the wire, or its tag        |
@@ -123,6 +125,10 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
             if (expected(argument, position, [OnType], isFlag, false)) {
                 setStringOption(argument, ITEM_TAG, value)
             }
+        case "transparent" =>
+            if (expected(argument, position, [OnType], isFlag, true)) {
+                setItem(ITEM_TRANSPARENT, "true")
+            }
         case "skipNone" =>
             if (expected(argument, position, [OnType, OnField], isFlag, true)) {
                 setItem(ITEM_SKIP_NONE, "true")
@@ -139,7 +145,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
             DiagReportLevel.ERROR,
             tokens,
             "`@DeriveExtSerializable` has no option `${name}`",
-            "it takes: rename, skipNone, tag, value, payload"
+            "it takes: rename, skipNone, tag, transparent, value, payload"
         )
     }
 }
@@ -300,6 +306,7 @@ struct MarkerOptions {
         let rename!: ?String = None,
         let skipNone!: Bool = false,
         let tag!: ?String = None,
+        let transparent!: Bool = false,
         let value!: ?WireValue = None,
         let payload!: Array<String> = []
     ) {}
@@ -343,6 +350,7 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
         } else {
             None
         },
+        transparent: message.hasItem(ITEM_TRANSPARENT),
         value: value,
         payload: if (message.hasItem(ITEM_PAYLOAD)) {
             message.getString(ITEM_PAYLOAD).split(",")

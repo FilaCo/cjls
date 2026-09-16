@@ -6,18 +6,21 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Defines whether the insert text in a completion item should be interpreted as
  * plain text or a snippet.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum InsertTextFormat {
     /**
      * The primary text to be inserted is treated as a plain string.
      */
-    | PlainText
+    | @DeriveExtSerializable[value: 1]
+    PlainText
 
     /**
      * The primary text to be inserted is treated as a snippet.
@@ -29,21 +32,6 @@ public enum InsertTextFormat {
      *
      * See also: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#snippet_syntax
      */
-    | Snippet
-}
-
-extend InsertTextFormat <: Serializable<InsertTextFormat> {
-    public static func deserialize(dm: DataModel): InsertTextFormat {
-        match (dm.asIntOrThrow()) {
-            case 1 => PlainText
-            case 2 => Snippet
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case PlainText => DataModelInt(1)
-            case Snippet => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Snippet
 }

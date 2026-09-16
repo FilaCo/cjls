@@ -6,43 +6,30 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The file event type
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum FileChangeType {
     /**
      * The file got created.
      */
-    | Created
+    | @DeriveExtSerializable[value: 1]
+    Created
 
     /**
      * The file got changed.
      */
-    | Changed
+    | @DeriveExtSerializable[value: 2]
+    Changed
 
     /**
      * The file got deleted.
      */
-    | Deleted
-}
-
-extend FileChangeType <: Serializable<FileChangeType> {
-    public static func deserialize(dm: DataModel): FileChangeType {
-        match (dm.asIntOrThrow()) {
-            case 1 => Created
-            case 2 => Changed
-            case 3 => Deleted
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Created => DataModelInt(1)
-            case Changed => DataModelInt(2)
-            case Deleted => DataModelInt(3)
-        }
-    }
+    | @DeriveExtSerializable[value: 3]
+    Deleted
 }

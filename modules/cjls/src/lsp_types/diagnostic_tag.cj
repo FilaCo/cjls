@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,6 +14,7 @@ import jsonrpc.*
  *
  * @since 3.15.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum DiagnosticTag {
     /**
@@ -21,28 +23,14 @@ public enum DiagnosticTag {
      * Clients are allowed to render diagnostics with this tag faded out instead of having
      * an error squiggle.
      */
-    | Unnecessary
+    | @DeriveExtSerializable[value: 1]
+    Unnecessary
 
     /**
      * Deprecated or obsolete code.
      *
      * Clients are allowed to rendered diagnostics with this tag strike through.
      */
-    | Deprecated
-}
-
-extend DiagnosticTag <: Serializable<DiagnosticTag> {
-    public static func deserialize(dm: DataModel): DiagnosticTag {
-        match (dm.asIntOrThrow()) {
-            case 1 => Unnecessary
-            case 2 => Deprecated
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Unnecessary => DataModelInt(1)
-            case Deprecated => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Deprecated
 }

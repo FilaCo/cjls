@@ -25,6 +25,10 @@ func deriveSerializable(decl: Decl): Tokens {
         return report(clash, "two fields share the wire name \"${clash.value}\"", "rename one of them")
     }
 
+    if (typeOptions.transparent) {
+        return transparentExtension(decl, typeOptions, fields, memberOptions)
+    }
+
     let typeIdent = decl.identifier
     let typeArgs = typeArgsOf(decl)
     let whereClause = serializableWhereClause(decl)
@@ -49,6 +53,73 @@ func deriveSerializable(decl: Decl): Tokens {
 
             public func serialize(): DataModel {
                 DataModelStruct()$serializeChain
+            }
+        }
+    )
+}
+
+/**
+ * The one field has to be required: its name never reaches the wire, so neither does anything that
+ * would tell an absent value from a present one.
+ */
+private func transparentExtension(
+    decl: Decl,
+    typeOptions: MarkerOptions,
+    fields: ArrayList<DerivedField>,
+    memberOptions: HashMap<String, MarkerOptions>
+): Tokens {
+    let typeIdent = decl.identifier
+    if (fields.size != 1) {
+        return report(
+            typeIdent,
+            "`transparent` needs exactly one field",
+            "`${typeIdent.value}` declares ${fields.size}"
+        )
+    }
+    if (typeOptions.skipNone || typeOptions.tag.isSome()) {
+        return report(
+            typeIdent,
+            "`transparent` takes no other option on the type",
+            "the struct has no object of its own to tag or to omit keys from"
+        )
+    }
+
+    let field = fields[0]
+    if (let Some(options) <- memberOptions.get(field.ident.value)) {
+        if (options.rename.isSome() || options.skipNone) {
+            return report(
+                field.ident,
+                "the field of a `transparent` struct takes no options",
+                "its name never reaches the wire"
+            )
+        }
+    }
+    if (field.shape.isOptional) {
+        return report(
+            field.ident,
+            "the field of a `transparent` struct has to be required",
+            "declare it as `${stripBackquotes(field.ident.value)}: T`, not `?T`"
+        )
+    }
+
+    let typeArgs = typeArgsOf(decl)
+    let whereClause = serializableWhereClause(decl)
+    let ident = field.ident
+    let fieldType = field.fieldType
+    let ctorArg = if (field.isNamed) {
+        quote($ident: $fieldType.deserialize(dm))
+    } else {
+        quote($fieldType.deserialize(dm))
+    }
+
+    quote(
+        extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
+            public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
+                $typeIdent$typeArgs($ctorArg)
+            }
+
+            public func serialize(): DataModel {
+                this.$ident.serialize()
             }
         }
     )
@@ -93,6 +164,7 @@ private struct DerivedField {
         let ident!: Token,
         let wireName!: Token,
         let isNamed!: Bool,
+        let fieldType!: Tokens,
         let shape!: FieldShape,
         let skipNone!: Bool
     ) {}
@@ -153,6 +225,7 @@ private func derivedFieldOf(param: FuncParam, options: MarkerOptions, skipNoneOn
         ident: ident,
         wireName: Token(TokenKind.STRING_LITERAL, wireName),
         isNamed: isNamedParam(tokens),
+        fieldType: param.paramType.toTokens(),
         shape: shapeOf(param.paramType),
         skipNone: skipNoneOnType || options.skipNone
     )

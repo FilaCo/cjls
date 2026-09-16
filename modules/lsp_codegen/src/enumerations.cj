@@ -5,7 +5,7 @@ import stdxx.*
 
 struct EnumIr {
     EnumIr(let base: EnumBase, let doc: DocIr, let shape!: EnumShape = Declared, let isOpen!: Bool = false,
-        let ident!: String, let variants!: Array<EnumVariantIr>) {}
+        let ident!: String, let variants!: Array<EnumVariantIr>, let derives!: Array<DeriveIr> = []) {}
 }
 
 /**
@@ -26,7 +26,13 @@ enum EnumShape {
 }
 
 struct EnumVariantIr {
-    EnumVariantIr(let doc: DocIr, let ident!: String, let value!: IntegerOrString) {}
+    EnumVariantIr(
+        let doc: DocIr,
+        // unescaped: the resolver compares it with the wire value, the emitter escapes it
+        let ident!: String,
+        let value!: IntegerOrString,
+        let serializable!: ?SerializableMemberOptions = None
+    ) {}
 }
 
 enum EnumBase {
@@ -48,18 +54,45 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case UInteger => UInt32Base
     }
 
+    let isOpen = enumeration.supportsCustomValues ?? false
+    // only a closed enumeration we declare becomes an `enum`: an open one is a struct around its
+    // value, and both it and an adopted one carry their constants as `static` members
+    let (derives, asConstructors): (Array<DeriveIr>, Bool) = match (shape) {
+        case Declared => ([Serializable(SerializableTypeOptions(transparent: isOpen)), DeriveIr.Equatable,
+            DeriveIr.Hashable], !isOpen)
+        case Adopted(_) => ([], false)
+    }
+
     EnumIr(
         base,
         resolveDoc(enumeration),
         shape: shape,
-        isOpen: enumeration.supportsCustomValues ?? false,
+        isOpen: isOpen,
         ident: ident,
-        variants: enumeration.values.map {it: EnumerationEntry => resolveEnumVariant(it)}
+        variants: enumeration.values.map {
+            it: EnumerationEntry => resolveEnumVariant(it, asConstructor: asConstructors)
+        },
+        derives: derives
     )
 }
 
-private func resolveEnumVariant(entry: EnumerationEntry): EnumVariantIr {
-    EnumVariantIr(resolveDoc(entry), ident: entry.name, value: entry.value)
+private func resolveEnumVariant(entry: EnumerationEntry, asConstructor!: Bool): EnumVariantIr {
+    let ident = if (asConstructor) {
+        entry.name.toAsciiPascalCase()
+    } else {
+        entry.name.toAsciiUpperSnakeCase()
+    }
+
+    let serializable: ?SerializableMemberOptions = if (!asConstructor) {
+        None
+    } else if (entry.value == ident) {
+        // the macro already puts a variant on the wire under its identifier
+        SerializableMemberOptions()
+    } else {
+        SerializableMemberOptions(value: entry.value)
+    }
+
+    EnumVariantIr(resolveDoc(entry), ident: ident, value: entry.value, serializable: serializable)
 }
 
 extend CjEmitter {
@@ -67,13 +100,13 @@ extend CjEmitter {
         emitDoc(enumIr.doc)
         match (enumIr.shape) {
             case Adopted(target) => emitAdoptedVariants(enumIr, target)
-            case Declared => withDerivings([DerivingIr.Equatable, DerivingIr.Hashable]) {
-                => if (enumIr.isOpen) {
+            case Declared =>
+                emitDerives(enumIr.derives)
+                if (enumIr.isOpen) {
                     emitOpenEnum(enumIr)
                 } else {
                     emitClosedEnum(enumIr)
                 }
-            }
         }
     }
 
@@ -94,15 +127,15 @@ extend CjEmitter {
     }
 
     private func emitAdoptedVariant(adoptedConst: EnumVariantIr, targetType: Tokens): Unit {
-        let constIdent = Token(IDENTIFIER, adoptedConst.ident.toAsciiUpperSnakeCase())
-        let constValue = valueToken(adoptedConst.value)
+        let constIdent = escapedIdent(adoptedConst.ident)
+        let constValue = adoptedConst.value
 
         emitDoc(adoptedConst.doc)
         emitln(quote(static prop $constIdent: $targetType { get() { $targetType($constValue) } }))
     }
 
     private func emitOpenEnum(openEnum: EnumIr): Unit {
-        let enumIdent = Token(IDENTIFIER, openEnum.ident)
+        let enumIdent = escapedIdent(openEnum.ident)
         let enumBaseType = openEnum.base.toTokens()
 
         emit(quote(public struct $enumIdent))
@@ -117,93 +150,18 @@ extend CjEmitter {
                     nl()
                 }
         }
-
-        // extensions
-        emitOpenEnumSerializable(openEnum)
     }
 
     private func emitOpenEnumVariant(openEnumVariant: EnumVariantIr, enumIdent: Token): Unit {
-        let enumVariantIdent = Token(IDENTIFIER, openEnumVariant.ident.toAsciiUpperSnakeCase())
-        let enumVariantValue = valueToken(openEnumVariant.value)
+        let enumVariantIdent = escapedIdent(openEnumVariant.ident)
+        let enumVariantValue = openEnumVariant.value
 
         emitDoc(openEnumVariant.doc)
         emitln(quote(public static const $enumVariantIdent: $enumIdent = $enumIdent($enumVariantValue)))
     }
 
-    private func emitOpenEnumSerializable(openEnum: EnumIr): Unit {
-        let enumIdent = escapedIdent(openEnum.ident)
-        emit(quote(extend $enumIdent <: Serializable<$enumIdent>))
-        blockln {
-            =>
-                emitln(quote(public static func deserialize(dm: DataModel): $enumIdent))
-                blockln {
-                    =>
-                        let dataModelCast = match (openEnum.base) {
-                            case Int32Base => quote(Int32(dm.asIntOrThrow()))
-                            case UInt32Base => quote(UInt32(dm.asIntOrThrow()))
-                            case StringBase => quote(dm.asStringOrThrow())
-                        }
-
-                        emitln(quote($enumIdent($dataModelCast)))
-                }
-                emitln(quote(public func serialize(): DataModel))
-                blockln {
-                    =>
-                        let serializeBody = match (openEnum.base) {
-                            case Int32Base | UInt32Base => quote(DataModelInt(Int64(value)))
-                            case StringBase => quote(DataModelString(value))
-                        }
-                        emitln(serializeBody)
-                }
-        }
-    }
-
-    private func emitClosedEnumSerializable(closedEnum: EnumIr): Unit {
-        let enumIdent = escapedIdent(closedEnum.ident)
-        emit(quote(extend $enumIdent <: Serializable<$enumIdent>))
-        blockln {
-            =>
-                emitln(quote(public static func deserialize(dm: DataModel): $enumIdent))
-                blockln {
-                    =>
-                        let dataModelCast = match (closedEnum.base) {
-                            case Int32Base | UInt32Base => quote(dm.asIntOrThrow())
-                            case StringBase => quote(dm.asStringOrThrow())
-                        }
-
-                        emitln(quote(match($(dataModelCast))))
-                        block {
-                            =>
-                                for (variant in closedEnum.variants) {
-                                    let valueToken = valueToken(variant.value)
-                                    let identToken = escapedIdent(variant.ident.toAsciiPascalCase())
-                                    emitln(quote(case $valueToken => $identToken))
-                                }
-
-                                emitln(quote(case v => throw DataModelException("unexpected variant ${v}")))
-                        }
-                }
-                emitln(quote(public func serialize(): DataModel))
-                blockln {
-                    =>
-                        let dataModelType = match (closedEnum.base) {
-                            case Int32Base | UInt32Base => quote(DataModelInt)
-                            case StringBase => quote(DataModelString)
-                        }
-                        emitln(quote(match(this)))
-                        block {
-                            => for (variant in closedEnum.variants) {
-                                let identToken = escapedIdent(variant.ident.toAsciiPascalCase())
-                                let valueToken = valueToken(variant.value)
-                                emitln(quote(case $identToken => $dataModelType($valueToken)))
-                            }
-                        }
-                }
-        }
-    }
-
     private func emitClosedEnum(closedEnum: EnumIr): Unit {
-        let enumIdent = Token(IDENTIFIER, closedEnum.ident)
+        let enumIdent = escapedIdent(closedEnum.ident)
 
         emit(quote(public enum $enumIdent))
         // body
@@ -213,22 +171,14 @@ extend CjEmitter {
                 nl()
             }
         }
-        // extensions
-        emitClosedEnumSerializable(closedEnum)
     }
 
     private func emitClosedEnumVariant(closedEnumVariant: EnumVariantIr): Unit {
-        let enumVariantIdent = escapedIdent(closedEnumVariant.ident.toAsciiPascalCase())
+        let enumVariantIdent = escapedIdent(closedEnumVariant.ident)
+        let marker = serializableMarkerOf(closedEnumVariant.serializable)
 
         emitDoc(closedEnumVariant.doc)
-        emitln(quote(| $enumVariantIdent))
-    }
-}
-
-private func valueToken(value: IntegerOrString): Token {
-    match (value) {
-        case IntegerOrString.String(s) => Token(STRING_LITERAL, s)
-        case Integer(i) => Token(INTEGER_LITERAL, i.toString())
+        emitln(quote(| $marker $enumVariantIdent))
     }
 }
 

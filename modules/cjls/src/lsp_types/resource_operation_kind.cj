@@ -6,40 +6,27 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum ResourceOperationKind {
     /**
      * Supports creating new files and folders.
      */
-    | Create
+    | @DeriveExtSerializable[value: "create"]
+    Create
 
     /**
      * Supports renaming existing files and folders.
      */
-    | Rename
+    | @DeriveExtSerializable[value: "rename"]
+    Rename
 
     /**
      * Supports deleting existing files and folders.
      */
-    | Delete
-}
-
-extend ResourceOperationKind <: Serializable<ResourceOperationKind> {
-    public static func deserialize(dm: DataModel): ResourceOperationKind {
-        match (dm.asStringOrThrow()) {
-            case "create" => Create
-            case "rename" => Rename
-            case "delete" => Delete
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Create => DataModelString("create")
-            case Rename => DataModelString("rename")
-            case Delete => DataModelString("delete")
-        }
-    }
+    | @DeriveExtSerializable[value: "delete"]
+    Delete
 }

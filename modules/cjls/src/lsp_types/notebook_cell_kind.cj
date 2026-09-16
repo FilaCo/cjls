@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,31 +14,18 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum NotebookCellKind {
     /**
      * A markup-cell is formatted source that is used for display.
      */
-    | Markup
+    | @DeriveExtSerializable[value: 1]
+    Markup
 
     /**
      * A code-cell is source code.
      */
-    | Code
-}
-
-extend NotebookCellKind <: Serializable<NotebookCellKind> {
-    public static func deserialize(dm: DataModel): NotebookCellKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Markup
-            case 2 => Code
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Markup => DataModelInt(1)
-            case Code => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Code
 }

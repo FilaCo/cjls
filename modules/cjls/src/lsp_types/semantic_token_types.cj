@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -15,6 +16,8 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct SemanticTokenTypes {
     public const SemanticTokenTypes(public let value: String) {}
@@ -75,13 +78,4 @@ public struct SemanticTokenTypes {
      * @since 3.18.0
      */
     public static const LABEL: SemanticTokenTypes = SemanticTokenTypes("label")
-}
-
-extend SemanticTokenTypes <: Serializable<SemanticTokenTypes> {
-    public static func deserialize(dm: DataModel): SemanticTokenTypes {
-        SemanticTokenTypes(dm.asStringOrThrow())
-    }
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
 }

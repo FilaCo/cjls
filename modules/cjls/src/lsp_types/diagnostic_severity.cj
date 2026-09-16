@@ -6,50 +6,36 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The diagnostic's severity.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum DiagnosticSeverity {
     /**
      * Reports an error.
      */
-    | Error
+    | @DeriveExtSerializable[value: 1]
+    Error
 
     /**
      * Reports a warning.
      */
-    | Warning
+    | @DeriveExtSerializable[value: 2]
+    Warning
 
     /**
      * Reports an information.
      */
-    | Information
+    | @DeriveExtSerializable[value: 3]
+    Information
 
     /**
      * Reports a hint.
      */
-    | Hint
-}
-
-extend DiagnosticSeverity <: Serializable<DiagnosticSeverity> {
-    public static func deserialize(dm: DataModel): DiagnosticSeverity {
-        match (dm.asIntOrThrow()) {
-            case 1 => Error
-            case 2 => Warning
-            case 3 => Information
-            case 4 => Hint
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Error => DataModelInt(1)
-            case Warning => DataModelInt(2)
-            case Information => DataModelInt(3)
-            case Hint => DataModelInt(4)
-        }
-    }
+    | @DeriveExtSerializable[value: 4]
+    Hint
 }

@@ -96,6 +96,174 @@ class ResolveEnumTest {
 }
 
 @Test
+class ResolveEnumDerivesTest {
+    @TestCase
+    func aClosedEnumerationDerivesSerializableAsItsValues() {
+        // arrange
+        let sut = closedStringEnumeration("MarkupKind", [("PlainText", "plaintext"), ("Markdown", "Markdown")])
+
+        // act
+        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+
+        // assert
+        @Expect(!isTransparent(ir))
+        @Expect("PlainText", ir.variants[0].ident)
+        @Expect(Some(IntegerOrString.String("plaintext")), ir.variants[0].serializable.getOrThrow().value)
+        @Expect(ir.variants[1].serializable.getOrThrow().value.isNone())
+    }
+
+    /**
+     * A variant's name on the wire is compared against the identifier it ends up with, not against
+     * the metaModel name it was cased from.
+     */
+    @TestCase
+    func aValueIsGivenWhenCasingMovesTheIdentifierAwayFromIt() {
+        // arrange
+        let sut = closedStringEnumeration("Kind", [("markdown", "markdown")])
+
+        // act
+        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+
+        // assert
+        @Expect("Markdown", ir.variants[0].ident)
+        @Expect(Some(IntegerOrString.String("markdown")), ir.variants[0].serializable.getOrThrow().value)
+    }
+
+    @TestCase
+    func anIntegerVariantAlwaysGivesItsValue() {
+        // arrange
+        let sut = Enumeration(name: "MessageType", enumerationType: EnumerationType.Integer,
+            values: [EnumerationEntry(name: "Error", value: IntegerOrString.Integer(1))])
+
+        // act
+        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+
+        // assert
+        @Expect(Some(IntegerOrString.Integer(1)), ir.variants[0].serializable.getOrThrow().value)
+    }
+
+    @TestCase
+    func anOpenEnumerationIsTransparentAndItsConstantsCarryNoMarker() {
+        // arrange
+        let sut = enumerationOf("ErrorCodes",
+            [EnumerationEntry(name: "ParseError", value: IntegerOrString.Integer(-32700))])
+
+        // act
+        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+
+        // assert
+        @Expect(isTransparent(ir))
+        @Expect("PARSE_ERROR", ir.variants[0].ident)
+        @Expect(ir.variants[0].serializable.isNone())
+    }
+
+    @TestCase
+    func anAdoptedEnumerationDerivesNothing() {
+        // arrange
+        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
+        let sut = enumerationOf("LSPErrorCodes",
+            [EnumerationEntry(name: "RequestFailed", value: IntegerOrString.Integer(-32803))])
+
+        // act
+        let ir = resolveEnum(configWith(typeMap), sut).getOrThrow()
+
+        // assert
+        @Expect(ir.derives.isEmpty())
+        @Expect("REQUEST_FAILED", ir.variants[0].ident)
+        @Expect(ir.variants[0].serializable.isNone())
+    }
+
+    private static func closedStringEnumeration(name: String, entries: Array<(String, String)>): Enumeration {
+        Enumeration(
+            name: name,
+            enumerationType: EnumerationType.String,
+            values: entries.map {
+                entry: (String, String) => EnumerationEntry(name: entry[0], value: IntegerOrString.String(entry[1]))
+            }
+        )
+    }
+
+    private static func isTransparent(ir: EnumIr): Bool {
+        for (derive in ir.derives) {
+            if (let Serializable(options) <- derive) {
+                return options.transparent
+            }
+        }
+
+        false
+    }
+}
+
+@Test
+class EmitDeclaredEnumTest {
+    @TestCase
+    func aClosedEnumOpensWithItsDerivesAndMarksOnlyTheVariantsThatNeedIt() {
+        // arrange
+        let sut = EnumIr(
+            EnumBase.StringBase,
+            DocIr(),
+            ident: "MarkupKind",
+            variants: [
+                EnumVariantIr(DocIr(), ident: "PlainText", value: IntegerOrString.String("plaintext"),
+                    serializable: SerializableMemberOptions(value: IntegerOrString.String("plaintext"))),
+                EnumVariantIr(DocIr(), ident: "Markdown", value: IntegerOrString.String("Markdown"),
+                    serializable: SerializableMemberOptions())
+            ],
+            derives: [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable]
+        )
+
+        let expected = """
+@DeriveExt[Serializable]
+@Derive[Equatable, Hashable]
+public enum MarkupKind{
+    | @DeriveExtSerializable[value: "plaintext"] PlainText
+
+    | Markdown
+
+
+}
+"""
+
+        // act
+        let actual = emitted(sut)
+
+        // assert
+        @PowerAssert(expected, actual)
+    }
+
+    @TestCase
+    func anOpenEnumIsATransparentStruct() {
+        // arrange
+        let sut = EnumIr(
+            EnumBase.Int32Base,
+            DocIr(),
+            isOpen: true,
+            ident: "ErrorCodes",
+            variants: [EnumVariantIr(DocIr(), ident: "PARSE_ERROR", value: IntegerOrString.Integer(-32700))],
+            derives: [DeriveIr.Serializable(SerializableTypeOptions(transparent: true)), DeriveIr.Equatable]
+        )
+
+        let expected = """
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
+@Derive[Equatable]
+public struct ErrorCodes{
+    public const ErrorCodes(public let value: Int32) { }
+    public static const PARSE_ERROR: ErrorCodes = ErrorCodes(- 32700)
+
+
+}
+"""
+
+        // act
+        let actual = emitted(sut)
+
+        // assert
+        @PowerAssert(expected, actual)
+    }
+}
+
+@Test
 class EmitAdoptedEnumTest {
     /**
      * The `extend` is what makes the constants reachable as `ErrorCode.REQUEST_FAILED` outside this
@@ -113,12 +281,12 @@ class EmitAdoptedEnumTest {
             DocIr(),
             shape: Adopted("ErrorCode"),
             ident: "LSPErrorCodes",
-            variants: [EnumVariantIr(DocIr(), ident: "RequestFailed", value: IntegerOrString.Integer(-32803))]
+            variants: [EnumVariantIr(DocIr(), ident: "REQUEST_FAILED", value: IntegerOrString.Integer(-32803))]
         )
 
         let expected = """
 sealed interface LSPErrorCodes{
-    static prop REQUEST_FAILED: ErrorCode { get() { ErrorCode(-32803) } }
+    static prop REQUEST_FAILED: ErrorCode { get() { ErrorCode(- 32803) } }
 
 
 }

@@ -6,43 +6,30 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * A document highlight kind.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum DocumentHighlightKind {
     /**
      * A textual occurrence.
      */
-    | Text
+    | @DeriveExtSerializable[value: 1]
+    Text
 
     /**
      * Read-access of a symbol, like reading a variable.
      */
-    | Read
+    | @DeriveExtSerializable[value: 2]
+    Read
 
     /**
      * Write-access of a symbol, like writing to a variable.
      */
-    | Write
-}
-
-extend DocumentHighlightKind <: Serializable<DocumentHighlightKind> {
-    public static func deserialize(dm: DataModel): DocumentHighlightKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Text
-            case 2 => Read
-            case 3 => Write
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Text => DataModelInt(1)
-            case Read => DataModelInt(2)
-            case Write => DataModelInt(3)
-        }
-    }
+    | @DeriveExtSerializable[value: 3]
+    Write
 }

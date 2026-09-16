@@ -6,11 +6,14 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * A set of predefined range kinds.
  */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct FoldingRangeKind {
     public const FoldingRangeKind(public let value: String) {}
@@ -28,13 +31,4 @@ public struct FoldingRangeKind {
      * Folding range for a region (e.g. `#region`)
      */
     public static const REGION: FoldingRangeKind = FoldingRangeKind("region")
-}
-
-extend FoldingRangeKind <: Serializable<FoldingRangeKind> {
-    public static func deserialize(dm: DataModel): FoldingRangeKind {
-        FoldingRangeKind(dm.asStringOrThrow())
-    }
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
 }

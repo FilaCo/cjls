@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -15,31 +16,18 @@ import jsonrpc.*
  * Please note that `MarkupKinds` must not start with a `$`. This kinds
  * are reserved for internal usage.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum MarkupKind {
     /**
      * Plain text is supported as a content format
      */
-    | PlainText
+    | @DeriveExtSerializable[value: "plaintext"]
+    PlainText
 
     /**
      * Markdown is supported as a content format
      */
-    | Markdown
-}
-
-extend MarkupKind <: Serializable<MarkupKind> {
-    public static func deserialize(dm: DataModel): MarkupKind {
-        match (dm.asStringOrThrow()) {
-            case "plaintext" => PlainText
-            case "markdown" => Markdown
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case PlainText => DataModelString("plaintext")
-            case Markdown => DataModelString("markdown")
-        }
-    }
+    | @DeriveExtSerializable[value: "markdown"]
+    Markdown
 }

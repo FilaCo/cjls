@@ -6,52 +6,38 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum FailureHandlingKind {
     /**
      * Applying the workspace change is simply aborted if one of the changes provided
      * fails. All operations executed before the failing operation stay executed.
      */
-    | Abort
+    | @DeriveExtSerializable[value: "abort"]
+    Abort
 
     /**
      * All operations are executed transactional. That means they either all
      * succeed or no changes at all are applied to the workspace.
      */
-    | Transactional
+    | @DeriveExtSerializable[value: "transactional"]
+    Transactional
 
     /**
      * If the workspace edit contains only textual file changes they are executed transactional.
      * If resource changes (create, rename or delete file) are part of the change the failure
      * handling strategy is abort.
      */
-    | TextOnlyTransactional
+    | @DeriveExtSerializable[value: "textOnlyTransactional"]
+    TextOnlyTransactional
 
     /**
      * The client tries to undo the operations already executed. But there is no
      * guarantee that this is succeeding.
      */
-    | Undo
-}
-
-extend FailureHandlingKind <: Serializable<FailureHandlingKind> {
-    public static func deserialize(dm: DataModel): FailureHandlingKind {
-        match (dm.asStringOrThrow()) {
-            case "abort" => Abort
-            case "transactional" => Transactional
-            case "textOnlyTransactional" => TextOnlyTransactional
-            case "undo" => Undo
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Abort => DataModelString("abort")
-            case Transactional => DataModelString("transactional")
-            case TextOnlyTransactional => DataModelString("textOnlyTransactional")
-            case Undo => DataModelString("undo")
-        }
-    }
+    | @DeriveExtSerializable[value: "undo"]
+    Undo
 }

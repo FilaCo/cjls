@@ -6,11 +6,14 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * A set of predefined code action kinds
  */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct CodeActionKind {
     public const CodeActionKind(public let value: String) {}
@@ -111,13 +114,4 @@ public struct CodeActionKind {
      * @since 3.18.0
      */
     public static const NOTEBOOK: CodeActionKind = CodeActionKind("notebook")
-}
-
-extend CodeActionKind <: Serializable<CodeActionKind> {
-    public static func deserialize(dm: DataModel): CodeActionKind {
-        CodeActionKind(dm.asStringOrThrow())
-    }
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
 }

@@ -6,44 +6,31 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Represents reasons why a text document is saved.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum TextDocumentSaveReason {
     /**
      * Manually triggered, e.g. by the user pressing save, by starting debugging,
      * or by an API call.
      */
-    | Manual
+    | @DeriveExtSerializable[value: 1]
+    Manual
 
     /**
      * Automatic after a delay.
      */
-    | AfterDelay
+    | @DeriveExtSerializable[value: 2]
+    AfterDelay
 
     /**
      * When the editor lost focus.
      */
-    | FocusOut
-}
-
-extend TextDocumentSaveReason <: Serializable<TextDocumentSaveReason> {
-    public static func deserialize(dm: DataModel): TextDocumentSaveReason {
-        match (dm.asIntOrThrow()) {
-            case 1 => Manual
-            case 2 => AfterDelay
-            case 3 => FocusOut
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Manual => DataModelInt(1)
-            case AfterDelay => DataModelInt(2)
-            case FocusOut => DataModelInt(3)
-        }
-    }
+    | @DeriveExtSerializable[value: 3]
+    FocusOut
 }

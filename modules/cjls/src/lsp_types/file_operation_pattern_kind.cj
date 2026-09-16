@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -14,31 +15,18 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum FileOperationPatternKind {
     /**
      * The pattern matches a file only.
      */
-    | File
+    | @DeriveExtSerializable[value: "file"]
+    File
 
     /**
      * The pattern matches a folder only.
      */
-    | Folder
-}
-
-extend FileOperationPatternKind <: Serializable<FileOperationPatternKind> {
-    public static func deserialize(dm: DataModel): FileOperationPatternKind {
-        match (dm.asStringOrThrow()) {
-            case "file" => File
-            case "folder" => Folder
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case File => DataModelString("file")
-            case Folder => DataModelString("folder")
-        }
-    }
+    | @DeriveExtSerializable[value: "folder"]
+    Folder
 }

@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,38 +14,24 @@ import jsonrpc.*
  *
  * @since 3.15.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum SignatureHelpTriggerKind {
     /**
      * Signature help was invoked manually by the user or by a command.
      */
-    | Invoked
+    | @DeriveExtSerializable[value: 1]
+    Invoked
 
     /**
      * Signature help was triggered by a trigger character.
      */
-    | TriggerCharacter
+    | @DeriveExtSerializable[value: 2]
+    TriggerCharacter
 
     /**
      * Signature help was triggered by the cursor moving or by the document content changing.
      */
-    | ContentChange
-}
-
-extend SignatureHelpTriggerKind <: Serializable<SignatureHelpTriggerKind> {
-    public static func deserialize(dm: DataModel): SignatureHelpTriggerKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Invoked
-            case 2 => TriggerCharacter
-            case 3 => ContentChange
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Invoked => DataModelInt(1)
-            case TriggerCharacter => DataModelInt(2)
-            case ContentChange => DataModelInt(3)
-        }
-    }
+    | @DeriveExtSerializable[value: 3]
+    ContentChange
 }

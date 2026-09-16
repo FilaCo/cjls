@@ -6,40 +6,27 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum TraceValue {
     /**
      * Turn tracing off.
      */
-    | Off
+    | @DeriveExtSerializable[value: "off"]
+    Off
 
     /**
      * Trace messages only.
      */
-    | Messages
+    | @DeriveExtSerializable[value: "messages"]
+    Messages
 
     /**
      * Verbose message tracing.
      */
-    | Verbose
-}
-
-extend TraceValue <: Serializable<TraceValue> {
-    public static func deserialize(dm: DataModel): TraceValue {
-        match (dm.asStringOrThrow()) {
-            case "off" => Off
-            case "messages" => Messages
-            case "verbose" => Verbose
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Off => DataModelString("off")
-            case Messages => DataModelString("messages")
-            case Verbose => DataModelString("verbose")
-        }
-    }
+    | @DeriveExtSerializable[value: "verbose"]
+    Verbose
 }

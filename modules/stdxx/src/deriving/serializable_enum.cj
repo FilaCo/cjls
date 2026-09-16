@@ -5,6 +5,9 @@ import std.collection.*
 
 func deriveSerializableEnum(decl: EnumDecl): Tokens {
     let (typeOptions, variantOptions) = collectMarkers()
+    if (typeOptions.transparent) {
+        return report(decl, "`transparent` does not apply to an enum", "it belongs on a struct or a class with one field")
+    }
 
     let variants = ArrayList<DerivedVariant>()
     for (ctor in decl.constructors) {

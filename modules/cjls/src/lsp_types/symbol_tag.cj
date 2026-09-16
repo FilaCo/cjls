@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,24 +14,12 @@ import jsonrpc.*
  *
  * @since 3.16
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum SymbolTag {
     /**
      * Render a symbol as obsolete, usually using a strike-out.
      */
-    | Deprecated
-}
-
-extend SymbolTag <: Serializable<SymbolTag> {
-    public static func deserialize(dm: DataModel): SymbolTag {
-        match (dm.asIntOrThrow()) {
-            case 1 => Deprecated
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Deprecated => DataModelInt(1)
-        }
-    }
+    | @DeriveExtSerializable[value: 1]
+    Deprecated
 }

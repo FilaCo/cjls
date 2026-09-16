@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,6 +14,8 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
+@DeriveExt[Serializable]
+@DeriveExtSerializable[transparent]
 @Derive[Equatable, Hashable]
 public struct PositionEncodingKind {
     public const PositionEncodingKind(public let value: String) {}
@@ -37,13 +40,4 @@ public struct PositionEncodingKind {
      * encoding-agnostic representation of character offsets.
      */
     public static const UTF32: PositionEncodingKind = PositionEncodingKind("utf-32")
-}
-
-extend PositionEncodingKind <: Serializable<PositionEncodingKind> {
-    public static func deserialize(dm: DataModel): PositionEncodingKind {
-        PositionEncodingKind(dm.asStringOrThrow())
-    }
-    public func serialize(): DataModel {
-        DataModelString(value)
-    }
 }

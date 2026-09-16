@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -14,6 +15,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum InsertTextMode {
     /**
@@ -23,7 +25,8 @@ public enum InsertTextMode {
      * The client will not apply any kind of adjustments to the
      * string.
      */
-    | AsIs
+    | @DeriveExtSerializable[value: 1]
+    AsIs
 
     /**
      * The editor adjusts leading whitespace of new lines so that
@@ -34,21 +37,6 @@ public enum InsertTextMode {
      * multi line completion item is indented using 2 tabs and all
      * following lines inserted will be indented using 2 tabs as well.
      */
-    | AdjustIndentation
-}
-
-extend InsertTextMode <: Serializable<InsertTextMode> {
-    public static func deserialize(dm: DataModel): InsertTextMode {
-        match (dm.asIntOrThrow()) {
-            case 1 => AsIs
-            case 2 => AdjustIndentation
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case AsIs => DataModelInt(1)
-            case AdjustIndentation => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    AdjustIndentation
 }

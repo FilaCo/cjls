@@ -6,27 +6,16 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum PrepareSupportDefaultBehavior {
     /**
      * The client's default behavior is to select the identifier
      * according the to language's syntax rule.
      */
-    | Identifier
-}
-
-extend PrepareSupportDefaultBehavior <: Serializable<PrepareSupportDefaultBehavior> {
-    public static func deserialize(dm: DataModel): PrepareSupportDefaultBehavior {
-        match (dm.asIntOrThrow()) {
-            case 1 => Identifier
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Identifier => DataModelInt(1)
-        }
-    }
+    | @DeriveExtSerializable[value: 1]
+    Identifier
 }

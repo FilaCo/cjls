@@ -611,8 +611,7 @@ struct Property {
         /**
          * The type of the property
          */
-        @DeriveExtSerializable[rename: "type"]
-        let propertyType!: Type,
+        @DeriveExtSerializable[rename: "type"] let propertyType!: Type,
 
         /**
          * Whether the property is optional. If
@@ -650,7 +649,6 @@ struct Property {
         let deprecated!: ?String = None
     ) {}
 }
-
 
 @DeriveExt[Serializable]
 enum OneOrMany<T> {

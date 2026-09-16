@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,33 +14,20 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum DocumentDiagnosticReportKind {
     /**
      * A diagnostic report with a full
      * set of problems.
      */
-    | Full
+    | @DeriveExtSerializable[value: "full"]
+    Full
 
     /**
      * A report indicating that the last
      * returned report is still accurate.
      */
-    | Unchanged
-}
-
-extend DocumentDiagnosticReportKind <: Serializable<DocumentDiagnosticReportKind> {
-    public static func deserialize(dm: DataModel): DocumentDiagnosticReportKind {
-        match (dm.asStringOrThrow()) {
-            case "full" => Full
-            case "unchanged" => Unchanged
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Full => DataModelString("full")
-            case Unchanged => DataModelString("unchanged")
-        }
-    }
+    | @DeriveExtSerializable[value: "unchanged"]
+    Unchanged
 }

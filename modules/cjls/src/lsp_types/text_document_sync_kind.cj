@@ -6,47 +6,34 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Defines how the host (editor) should sync
  * document changes to the language server.
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum TextDocumentSyncKind {
     /**
      * Documents should not be synced at all.
      */
-    | None
+    | @DeriveExtSerializable[value: 0]
+    None
 
     /**
      * Documents are synced by always sending the full content
      * of the document.
      */
-    | Full
+    | @DeriveExtSerializable[value: 1]
+    Full
 
     /**
      * Documents are synced by sending the full content on open.
      * After that only incremental updates to the document are
      * send.
      */
-    | Incremental
-}
-
-extend TextDocumentSyncKind <: Serializable<TextDocumentSyncKind> {
-    public static func deserialize(dm: DataModel): TextDocumentSyncKind {
-        match (dm.asIntOrThrow()) {
-            case 0 => None
-            case 1 => Full
-            case 2 => Incremental
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case None => DataModelInt(0)
-            case Full => DataModelInt(1)
-            case Incremental => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Incremental
 }

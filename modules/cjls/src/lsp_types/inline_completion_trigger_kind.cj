@@ -6,6 +6,7 @@ package cjls.lsp_types
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import stdxx.deriving.*
 import jsonrpc.*
 
 /**
@@ -13,31 +14,18 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
+@DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 public enum InlineCompletionTriggerKind {
     /**
      * Completion was triggered explicitly by a user gesture.
      */
-    | Invoked
+    | @DeriveExtSerializable[value: 1]
+    Invoked
 
     /**
      * Completion was triggered automatically while editing.
      */
-    | Automatic
-}
-
-extend InlineCompletionTriggerKind <: Serializable<InlineCompletionTriggerKind> {
-    public static func deserialize(dm: DataModel): InlineCompletionTriggerKind {
-        match (dm.asIntOrThrow()) {
-            case 1 => Invoked
-            case 2 => Automatic
-            case v => throw DataModelException("unexpected variant ${v}")
-        }
-    }
-    public func serialize(): DataModel {
-        match (this) {
-            case Invoked => DataModelInt(1)
-            case Automatic => DataModelInt(2)
-        }
-    }
+    | @DeriveExtSerializable[value: 2]
+    Automatic
 }
