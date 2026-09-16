@@ -35,4 +35,10 @@ public enum MonikerKind {
      */
     | @DeriveExtSerializable[value: "local"]
     Local
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

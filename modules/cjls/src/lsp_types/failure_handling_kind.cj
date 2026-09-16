@@ -40,4 +40,10 @@ public enum FailureHandlingKind {
      */
     | @DeriveExtSerializable[value: "undo"]
     Undo
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

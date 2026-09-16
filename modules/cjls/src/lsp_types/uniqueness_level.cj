@@ -46,4 +46,10 @@ public enum UniquenessLevel {
      */
     | @DeriveExtSerializable[value: "global"]
     Global
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

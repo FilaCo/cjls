@@ -65,4 +65,10 @@ public enum CompletionItemKind {
     Operator
     | @DeriveExtSerializable[value: 25]
     TypeParameter
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

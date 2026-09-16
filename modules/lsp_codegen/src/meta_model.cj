@@ -704,39 +704,18 @@ struct EnumerationEntry {
     ) {}
 }
 
-enum EnumerationType <: Serializable<EnumerationType> {
-    // string
-    | String
-    // integer
-    | Integer
-    // uinteger
-    | UInteger
+@DeriveExt[Serializable]
+@DeriveExtSerializable[tag: "kind", value: "base"]
+struct EnumerationType {
+    EnumerationType(let name!: EnumerationBaseType) {}
+}
 
-    /**
-     * @throws DataModelException - if unable to deserialize DataModel
-     */
-    public static func deserialize(dm: DataModel): EnumerationType {
-        let dms = dm.asStructOrThrow()
-
-        // NB: `String` here resolves to this enum's own constructor, not the type — so the name cannot be read with
-        // `getDeserializedOrThrow<String>` the way the other deserializers do it.
-        if ("base" != dms.getDeserializedOrThrow("kind")) {
-            throw DataModelException("unexpected `kind` field value")
-        }
-
-        match (dms.getOrThrow("name").asStringOrThrow()) {
-            case "string" => String
-            case "integer" => Integer
-            case "uinteger" => UInteger
-            case _ => throw DataModelException("invalid `EnumerationType` value")
-        }
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct().add(field("kind", "base")).add(field("name", match (this) {
-            case String => "string"
-            case Integer => "integer"
-            case UInteger => "uinteger"
-        }))
-    }
+@DeriveExt[Serializable]
+enum EnumerationBaseType {
+    | @DeriveExtSerializable[value: "string"]
+    String
+    | @DeriveExtSerializable[value: "integer"]
+    Integer
+    | @DeriveExtSerializable[value: "uinteger"]
+    UInteger
 }

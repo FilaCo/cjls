@@ -30,4 +30,10 @@ public enum MarkupKind {
      */
     | @DeriveExtSerializable[value: "markdown"]
     Markdown
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

@@ -30,4 +30,10 @@ public enum DocumentDiagnosticReportKind {
      */
     | @DeriveExtSerializable[value: "unchanged"]
     Unchanged
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

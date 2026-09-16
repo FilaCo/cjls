@@ -28,4 +28,10 @@ public enum InlayHintKind {
      */
     | @DeriveExtSerializable[value: 2]
     Parameter
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

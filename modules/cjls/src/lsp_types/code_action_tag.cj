@@ -22,4 +22,10 @@ public enum CodeActionTag {
      */
     | @DeriveExtSerializable[value: 1]
     LlmGenerated
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

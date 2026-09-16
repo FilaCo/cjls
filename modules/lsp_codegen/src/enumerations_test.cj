@@ -8,7 +8,7 @@ import std.unittest.testmacro.*
 import stdxx.*
 
 private func enumerationOf(name: String, values: Array<EnumerationEntry>): Enumeration {
-    Enumeration(name: name, enumerationType: EnumerationType.Integer, values: values, supportsCustomValues: true)
+    Enumeration(name: name, enumerationType: EnumerationType(name: EnumerationBaseType.Integer), values: values, supportsCustomValues: true)
 }
 
 private func configWith(typeMap: TypeMap): Config {
@@ -132,7 +132,7 @@ class ResolveEnumDerivesTest {
     @TestCase
     func anIntegerVariantAlwaysGivesItsValue() {
         // arrange
-        let sut = Enumeration(name: "MessageType", enumerationType: EnumerationType.Integer,
+        let sut = Enumeration(name: "MessageType", enumerationType: EnumerationType(name: EnumerationBaseType.Integer),
             values: [EnumerationEntry(name: "Error", value: IntegerOrString.Integer(1))])
 
         // act
@@ -173,10 +173,51 @@ class ResolveEnumDerivesTest {
         @Expect(ir.variants[0].serializable.isNone())
     }
 
+    @TestCase
+    func aClosedEnumerationReadsUnknownValuesIntoACatchAllOfItsBaseType() {
+        // arrange
+        let sut = Enumeration(name: "SymbolKind", enumerationType: EnumerationType(name: EnumerationBaseType.UInteger),
+            values: [EnumerationEntry(name: "File", value: IntegerOrString.Integer(1))])
+
+        // act
+        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+
+        // assert
+        let catchAll = ir.catchAll.getOrThrow()
+        @Expect("Unknown", catchAll.ident)
+        @Expect(catchAll.serializable.other)
+    }
+
+    @TestCase
+    func onlyAClosedEnumerationGetsACatchAll() {
+        // arrange
+        let open = enumerationOf("ErrorCodes",
+            [EnumerationEntry(name: "ParseError", value: IntegerOrString.Integer(-32700))])
+        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
+        let adopted = Enumeration(name: "LSPErrorCodes", enumerationType: EnumerationType(name: EnumerationBaseType.Integer),
+            values: [EnumerationEntry(name: "RequestFailed", value: IntegerOrString.Integer(-32803))])
+
+        // act & assert
+        @Expect(resolveEnum(configWith(TypeMap()), open).getOrThrow().catchAll.isNone())
+        @Expect(resolveEnum(configWith(typeMap), adopted).getOrThrow().catchAll.isNone())
+    }
+
+    @TestCase
+    func aVariantThatTakesTheCatchAllsNameFailsGeneration() {
+        // arrange
+        let sut = closedStringEnumeration("Kind", [("Unknown", "unknown")])
+
+        // act
+        let e = @AssertThrows[IllegalStateException](resolveEnum(configWith(TypeMap()), sut))
+
+        // assert
+        @Expect("`Kind` defines `Unknown` itself, which is taken by the catch-all variant", e.message)
+    }
+
     private static func closedStringEnumeration(name: String, entries: Array<(String, String)>): Enumeration {
         Enumeration(
             name: name,
-            enumerationType: EnumerationType.String,
+            enumerationType: EnumerationType(name: EnumerationBaseType.String),
             values: entries.map {
                 entry: (String, String) => EnumerationEntry(name: entry[0], value: IntegerOrString.String(entry[1]))
             }
@@ -209,7 +250,9 @@ class EmitDeclaredEnumTest {
                 EnumVariantIr(DocIr(), ident: "Markdown", value: IntegerOrString.String("Markdown"),
                     serializable: SerializableMemberOptions())
             ],
-            derives: [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable]
+            derives: [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable],
+            catchAll: EnumCatchAllIr(DocIr(documentation: "Anything else."), ident: "Unknown",
+                serializable: SerializableMemberOptions(other: true))
         )
 
         let expected = """
@@ -220,6 +263,10 @@ public enum MarkupKind{
 
     | Markdown
 
+    /**
+     * Anything else.
+     */
+    | @DeriveExtSerializable[other] Unknown(String)
 
 }
 """

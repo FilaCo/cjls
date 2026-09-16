@@ -33,4 +33,10 @@ public enum TextDocumentSaveReason {
      */
     | @DeriveExtSerializable[value: 3]
     FocusOut
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

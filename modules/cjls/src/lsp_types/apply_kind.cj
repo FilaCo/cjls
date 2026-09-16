@@ -33,4 +33,10 @@ public enum ApplyKind {
      */
     | @DeriveExtSerializable[value: 2]
     Merge
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

@@ -29,4 +29,10 @@ public enum TraceValue {
      */
     | @DeriveExtSerializable[value: "verbose"]
     Verbose
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

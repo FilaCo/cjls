@@ -34,4 +34,10 @@ public enum InsertTextFormat {
      */
     | @DeriveExtSerializable[value: 2]
     Snippet
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

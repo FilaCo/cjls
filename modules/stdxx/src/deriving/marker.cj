@@ -13,6 +13,7 @@ const ITEM_TAG = "tag"
 const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
 const ITEM_PAYLOAD = "payload"
+const ITEM_OTHER = "other"
 
 /**
  * Configures what `@DeriveExt[Serializable]` generates for the declaration it sits on - one marker
@@ -23,12 +24,14 @@ const ITEM_PAYLOAD = "payload"
  * | on          | option                    | meaning                                             |
  * |-------------|---------------------------|-----------------------------------------------------|
  * | type        | `skipNone`                | every optional field omits its key when `None`      |
- * | type        | `tag: "kind"`             | the enum is internally tagged by that field         |
+ * | type        | `tag: "kind"`             | the type is internally tagged by that field         |
+ * | struct      | `value: "delete"`         | the tag's value - required with `tag` on a struct   |
  * | type        | `transparent`             | the struct is its only field on the wire            |
  * | field       | `rename: "textDocument"`  | the name the field carries on the wire              |
  * | field       | `skipNone`                | this field omits its key when `None`                |
  * | enum variant| `value: "URI"`, `value: -1`| what the variant is on the wire, or its tag        |
  * | enum variant| `payload: ["key"]`        | the names of the variant's positional payload       |
+ * | enum variant| `other`                   | any value no other variant claims, kept as payload  |
  *
  * ```
  * @DeriveExt[Serializable]
@@ -134,8 +137,12 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
                 setItem(ITEM_SKIP_NONE, "true")
             }
         case "value" =>
-            if (expected(argument, position, [OnVariant], isFlag, false)) {
+            if (expected(argument, position, [OnVariant, OnType], isFlag, false)) {
                 setWireValueOption(argument, value)
+            }
+        case "other" =>
+            if (expected(argument, position, [OnVariant], isFlag, true)) {
+                setItem(ITEM_OTHER, "true")
             }
         case "payload" =>
             if (expected(argument, position, [OnVariant], isFlag, false)) {
@@ -145,7 +152,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
             DiagReportLevel.ERROR,
             tokens,
             "`@DeriveExtSerializable` has no option `${name}`",
-            "it takes: rename, skipNone, tag, transparent, value, payload"
+            "it takes: rename, skipNone, tag, transparent, value, payload, other"
         )
     }
 }
@@ -308,7 +315,8 @@ struct MarkerOptions {
         let tag!: ?String = None,
         let transparent!: Bool = false,
         let value!: ?WireValue = None,
-        let payload!: Array<String> = []
+        let payload!: Array<String> = [],
+        let other!: Bool = false
     ) {}
 }
 
@@ -356,6 +364,7 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
             message.getString(ITEM_PAYLOAD).split(",")
         } else {
             []
-        }
+        },
+        other: message.hasItem(ITEM_OTHER)
     )
 }

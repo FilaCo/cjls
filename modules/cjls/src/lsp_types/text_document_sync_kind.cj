@@ -36,4 +36,10 @@ public enum TextDocumentSyncKind {
      */
     | @DeriveExtSerializable[value: 2]
     Incremental
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

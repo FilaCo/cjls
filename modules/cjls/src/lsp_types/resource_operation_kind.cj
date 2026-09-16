@@ -29,4 +29,10 @@ public enum ResourceOperationKind {
      */
     | @DeriveExtSerializable[value: "delete"]
     Delete
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

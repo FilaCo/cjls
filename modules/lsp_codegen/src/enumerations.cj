@@ -1,12 +1,25 @@
 package lsp_codegen
 
 import std.ast.*
+import std.collection.any
 import stdxx.*
 
 struct EnumIr {
     EnumIr(let base: EnumBase, let doc: DocIr, let shape!: EnumShape = Declared, let isOpen!: Bool = false,
-        let ident!: String, let variants!: Array<EnumVariantIr>, let derives!: Array<DeriveIr> = []) {}
+        let ident!: String, let variants!: Array<EnumVariantIr>, let derives!: Array<DeriveIr> = [],
+        let catchAll!: ?EnumCatchAllIr = None) {}
 }
+
+/**
+ * The variant a closed enumeration reads any value it does not define into. The spec allows a
+ * client to send such values - a capability's `valueSet` may list kinds newer than ours - and without
+ * it one of them fails the whole message.
+ */
+struct EnumCatchAllIr {
+    EnumCatchAllIr(let doc: DocIr, let ident!: String, let serializable!: SerializableMemberOptions) {}
+}
+
+const CATCH_ALL_IDENT = "Unknown"
 
 /**
  * Where the constants of an enumeration land.
@@ -48,7 +61,7 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Aliased(_) | Skipped => return None
     }
 
-    let base = match (enumeration.enumerationType) {
+    let base = match (enumeration.enumerationType.name) {
         case String => StringBase
         case Integer => Int32Base
         case UInteger => UInt32Base
@@ -63,16 +76,30 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Adopted(_) => ([], false)
     }
 
+    let variants = enumeration.values.map {
+        it: EnumerationEntry => resolveEnumVariant(it, asConstructor: asConstructors)
+    }
+    var catchAll: ?EnumCatchAllIr = None
+    if (asConstructors) {
+        if (variants |> any {it: EnumVariantIr => it.ident == CATCH_ALL_IDENT}) {
+            throw IllegalStateException("`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant")
+        }
+        catchAll = EnumCatchAllIr(
+            DocIr(documentation: "A value this version of the protocol does not define."),
+            ident: CATCH_ALL_IDENT,
+            serializable: SerializableMemberOptions(other: true)
+        )
+    }
+
     EnumIr(
         base,
         resolveDoc(enumeration),
         shape: shape,
         isOpen: isOpen,
         ident: ident,
-        variants: enumeration.values.map {
-            it: EnumerationEntry => resolveEnumVariant(it, asConstructor: asConstructors)
-        },
-        derives: derives
+        variants: variants,
+        derives: derives,
+        catchAll: catchAll
     )
 }
 
@@ -166,11 +193,23 @@ extend CjEmitter {
         emit(quote(public enum $enumIdent))
         // body
         blockln {
-            => for (variant in closedEnum.variants) {
-                emitClosedEnumVariant(variant)
-                nl()
-            }
+            =>
+                for (variant in closedEnum.variants) {
+                    emitClosedEnumVariant(variant)
+                    nl()
+                }
+                if (let Some(catchAll) <- closedEnum.catchAll) {
+                    emitCatchAllVariant(catchAll, closedEnum.base)
+                }
         }
+    }
+
+    private func emitCatchAllVariant(catchAll: EnumCatchAllIr, base: EnumBase): Unit {
+        let ident = escapedIdent(catchAll.ident)
+        let marker = catchAll.serializable
+
+        emitDoc(catchAll.doc)
+        emitln(quote(| $marker $ident($base)))
     }
 
     private func emitClosedEnumVariant(closedEnumVariant: EnumVariantIr): Unit {

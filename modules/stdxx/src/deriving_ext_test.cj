@@ -91,6 +91,24 @@ public struct DerivedOpenCode {
 }
 
 @DeriveExt[Serializable]
+@DeriveExtSerializable[tag: "kind", value: "create", skipNone]
+struct DerivedCreateFile {
+    DerivedCreateFile(let uri!: String, let overwrite!: ?Bool = None) {}
+}
+
+@DeriveExt[Serializable]
+@DeriveExtSerializable[tag: "kind", value: "delete", skipNone]
+struct DerivedDeleteFile {
+    DerivedDeleteFile(let uri!: String, let recursive!: ?Bool = None) {}
+}
+
+@DeriveExt[Serializable]
+enum DerivedFileOperation {
+    | Create(DerivedCreateFile)
+    | Delete(DerivedDeleteFile)
+}
+
+@DeriveExt[Serializable]
 @DeriveExtSerializable[transparent]
 struct DerivedOpenUnsigned {
     DerivedOpenUnsigned(let value: UInt32) {}
@@ -337,6 +355,30 @@ enum DerivedSeverity {
     Fatal
     | @DeriveExtSerializable[value: 2]
     Warn
+}
+
+/**
+ * The shape `lsp_codegen` emits for a closed enumeration, `@Derive` included: the payload is what
+ * `Equatable` compares on.
+ */
+@DeriveExt[Serializable]
+@Derive[Equatable]
+enum DerivedSymbolKind {
+    | @DeriveExtSerializable[value: 1]
+    File
+    | @DeriveExtSerializable[value: 2]
+    Module
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
+}
+
+@DeriveExt[Serializable]
+@Derive[Equatable]
+enum DerivedMarkupKind {
+    | @DeriveExtSerializable[value: "plaintext"]
+    PlainText
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }
 
 @DeriveExt[Serializable]
@@ -652,5 +694,116 @@ class DeriveTransparentTest {
     func aValueOutsideTheFieldTypeThrows() {
         // act & assert
         @AssertThrows(DerivedOpenUnsigned.deserialize(DataModelInt(-1)))
+    }
+}
+
+@Test
+class DeriveTaggedStructTest {
+    @TestCase
+    func theTagIsWrittenAheadOfTheFields() {
+        // act
+        let fields = DerivedCreateFile(uri: "file:///a").serialize().asStructOrThrow().getFields()
+
+        // assert
+        @Expect(2, fields.size)
+        @Expect("kind", fields[0].getName())
+        @Expect("create", fields[0].getData().asStringOrThrow())
+        @Expect("uri", fields[1].getName())
+    }
+
+    @TestCase
+    func aTaggedStructRoundTrips() {
+        // act
+        let restored = DerivedDeleteFile.deserialize(DerivedDeleteFile(uri: "file:///a", recursive: true).serialize())
+
+        // assert
+        @Expect("file:///a", restored.uri)
+        @Expect(Some(true), restored.recursive)
+    }
+
+    @TestCase
+    func aForeignTagThrowsNamingIt() {
+        // arrange
+        let dms = DataModelStruct().add(field("kind", "delete")).add(field("uri", "file:///a"))
+
+        // act
+        let e = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(dms))
+
+        // assert
+        @Expect("unexpected `DerivedCreateFile` kind: delete", e.message)
+    }
+
+    @TestCase
+    func anAbsentTagThrows() {
+        // arrange
+        let dms = DataModelStruct().add(field("uri", "file:///a"))
+
+        // act
+        let e = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(dms))
+
+        // assert
+        @Expect("required field \"kind\" is absent", e.message)
+    }
+
+    /**
+     * Both structs read `{"uri"}` alike - only the tag keeps the first variant from taking the other's
+     * value.
+     */
+    @TestCase
+    func theTagPicksTheVariantOfAnUntaggedUnion() {
+        // arrange
+        let dms = DataModelStruct().add(field("kind", "delete")).add(field("uri", "file:///a"))
+
+        // act
+        let restored = DerivedFileOperation.deserialize(dms)
+
+        // assert
+        @Expect(match (restored) {
+            case Delete(op) => op.uri == "file:///a"
+            case _ => false
+        })
+    }
+}
+
+@Test
+class DeriveOtherVariantTest {
+    @TestCase
+    func aKnownValueStillReadsAsItsVariant() {
+        // act & assert
+        @Expect(DerivedSymbolKind.Module, DerivedSymbolKind.deserialize(DataModelInt(2)))
+        @Expect(DerivedMarkupKind.PlainText, DerivedMarkupKind.deserialize(DataModelString("plaintext")))
+    }
+
+    @TestCase
+    func anUnknownIntegerIsKeptAndWrittenBack() {
+        // act
+        let restored = DerivedSymbolKind.deserialize(DataModelInt(27))
+
+        // assert
+        @Expect(DerivedSymbolKind.Unknown(27), restored)
+        @Expect(27, restored.serialize().asIntOrThrow())
+    }
+
+    @TestCase
+    func anUnknownStringIsKeptAndWrittenBack() {
+        // act
+        let restored = DerivedMarkupKind.deserialize(DataModelString("asciidoc"))
+
+        // assert
+        @Expect(DerivedMarkupKind.Unknown("asciidoc"), restored)
+        @Expect("asciidoc", restored.serialize().asStringOrThrow())
+    }
+
+    @TestCase
+    func anUnknownValueOutsideThePayloadTypeThrows() {
+        // act & assert
+        @AssertThrows(DerivedSymbolKind.deserialize(DataModelInt(-1)))
+    }
+
+    @TestCase
+    func aValueOfTheWrongKindStillThrows() {
+        // act & assert
+        @AssertThrows[DataModelException](DerivedSymbolKind.deserialize(DataModelString("1")))
+        @AssertThrows[DataModelException](DerivedMarkupKind.deserialize(DataModelInt(1)))
     }
 }

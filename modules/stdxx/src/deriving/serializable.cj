@@ -33,8 +33,25 @@ func deriveSerializable(decl: Decl): Tokens {
     let typeArgs = typeArgsOf(decl)
     let whereClause = serializableWhereClause(decl)
 
-    var ctorArgs = Tokens()
+    var tagCheck = Tokens()
     var serializeChain = Tokens()
+    match (structTagOf(decl, typeOptions, fields)) {
+        case Invalid => return Tokens()
+        case Untagged => ()
+        case Tagged(name, value) =>
+            let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeIdent.value}` ${name.value}: ")
+            // checked before any field: an untagged union picks the first variant that reads, and two
+            // tagged structs often differ in nothing but the tag
+            tagCheck = quote(
+                let tag = dms.getOrThrow($name).asStringOrThrow()
+                if (tag != $value) {
+                    throw DataModelException($unexpected + tag)
+                }
+            )
+            serializeChain = quote(.add(field($name, $value)))
+    }
+
+    var ctorArgs = Tokens()
     for ((i, field) in fields.enumerate()) {
         if (i > 0) {
             ctorArgs += Tokens(Token(TokenKind.COMMA))
@@ -47,6 +64,7 @@ func deriveSerializable(decl: Decl): Tokens {
         extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
             public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
                 let dms = dm.asStructOrThrow()
+                $tagCheck
 
                 $typeIdent$typeArgs($ctorArgs)
             }
@@ -56,6 +74,37 @@ func deriveSerializable(decl: Decl): Tokens {
             }
         }
     )
+}
+
+private enum StructTag {
+    | Untagged
+    | Tagged(Token, Token)
+    | Invalid
+}
+
+private func structTagOf(decl: Decl, typeOptions: MarkerOptions, fields: ArrayList<DerivedField>): StructTag {
+    let typeIdent = decl.identifier
+    match ((typeOptions.tag, typeOptions.value)) {
+        case (None, None) => Untagged
+        case (Some(_), None) =>
+            report(typeIdent, "`tag` on a struct needs a `value`", "give the tag's value for this struct, e.g. `value: \"delete\"`")
+            Invalid
+        case (None, Some(_)) =>
+            report(typeIdent, "`value` on a struct needs a `tag`", "name the field it goes into, e.g. `tag: \"kind\"`")
+            Invalid
+        case (Some(_), Some(value)) where value.isInteger =>
+            report(typeIdent, "a struct's `value` has to be a string", "the tag field holds a string")
+            Invalid
+        case (Some(tag), Some(value)) =>
+            for (field in fields) {
+                if (field.wireName.value == tag) {
+                    report(field.ident, "the tag \"${tag}\" is also the wire name of a field",
+                        "drop the field - the tag is written in its place")
+                    return Invalid
+                }
+            }
+            Tagged(Token(TokenKind.STRING_LITERAL, tag), Token(TokenKind.STRING_LITERAL, value.text))
+    }
 }
 
 /**

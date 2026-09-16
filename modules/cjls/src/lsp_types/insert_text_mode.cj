@@ -39,4 +39,10 @@ public enum InsertTextMode {
      */
     | @DeriveExtSerializable[value: 2]
     AdjustIndentation
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

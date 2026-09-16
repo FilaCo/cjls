@@ -8,8 +8,12 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
     if (typeOptions.transparent) {
         return report(decl, "`transparent` does not apply to an enum", "it belongs on a struct or a class with one field")
     }
+    if (typeOptions.value.isSome()) {
+        return report(decl, "`value` on an enum belongs on its variants", "move it onto the variant it names")
+    }
 
     let variants = ArrayList<DerivedVariant>()
+    var other: ?DerivedVariant = None
     for (ctor in decl.constructors) {
         let ident = ctor.identifier
         let options = variantOptions.get(ident.value) ?? MarkerOptions()
@@ -20,30 +24,53 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
             payloadShapes.add(shapeOf(payloadType))
         }
 
-        variants.add(
-            DerivedVariant(
-                ident: ident,
-                value: options.value ?? WireValue.ofString(stripBackquotes(ident.value)),
-                payloadTypes: payloadTypes.toArray(),
-                payloadShapes: payloadShapes.toArray(),
-                payloadNames: options.payload
-            )
+        let variant = DerivedVariant(
+            ident: ident,
+            value: options.value ?? WireValue.ofString(stripBackquotes(ident.value)),
+            payloadTypes: payloadTypes.toArray(),
+            payloadShapes: payloadShapes.toArray(),
+            payloadNames: options.payload
         )
+        if (!options.other) {
+            variants.add(variant)
+            continue
+        }
+
+        if (other.isSome()) {
+            return report(ident, "an enum takes one `other` variant", "`${other.getOrThrow().ident.value}` already is")
+        }
+        if (options.value.isSome() || !options.payload.isEmpty()) {
+            return report(ident, "an `other` variant takes no `value` or `payload`",
+                "it has no value of its own - it holds whatever the wire carried")
+        }
+        if (payloadTypes.size != 1) {
+            return report(ident, "an `other` variant needs exactly one payload",
+                "it is where the unrecognised value goes, e.g. `Unknown(Int32)`")
+        }
+        other = variant
     }
 
     if (variants.isEmpty()) {
-        return report(decl, "`@DeriveExt[Serializable]` needs at least one variant", "there is nothing to serialize")
+        return report(decl, "`@DeriveExt[Serializable]` needs at least one variant besides `other`",
+            "there is nothing to recognise")
     }
 
     if (let Some(clash) <- duplicateWireValue(variants)) {
         return report(clash, "two variants share the same value on the wire", "give one of them a different `value:`")
     }
 
+    if (let Some(o) <- other) {
+        if (typeOptions.tag.isSome() || !isScalar(variants)) {
+            return report(o.ident, "`other` applies only to an enum whose variants are plain values",
+                "a tagged or an untagged enum has no single value to fall back on")
+        }
+    }
+
     match (typeOptions.tag) {
         case Some(tag) => taggedEnumExtension(decl, variants, tag, typeOptions.skipNone)
         case None =>
             if (isScalar(variants)) {
-                scalarEnumExtension(decl, variants)
+                scalarEnumExtension(decl, variants, other)
             } else {
                 untaggedEnumExtension(decl, variants)
             }
@@ -75,6 +102,18 @@ private struct DerivedVariant {
     }
 }
 
+private func isIntegerType(tokens: Tokens): Bool {
+    if (tokens.size != 1) {
+        return false
+    }
+
+    match (tokens[0].kind) {
+        case TokenKind.INT8 | TokenKind.INT16 | TokenKind.INT32 | TokenKind.INT64 | TokenKind.INTNATIVE
+            | TokenKind.UINT8 | TokenKind.UINT16 | TokenKind.UINT32 | TokenKind.UINT64 | TokenKind.UINTNATIVE => true
+        case _ => false
+    }
+}
+
 private func isScalar(variants: ArrayList<DerivedVariant>): Bool {
     for (variant in variants) {
         if (variant.payloadTypes.size > 0) {
@@ -88,7 +127,7 @@ private func isScalar(variants: ArrayList<DerivedVariant>): Bool {
 /**
  * Variants without a payload are the value itself - a string, or an integer when `value:` says so.
  */
-private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVariant>): Tokens {
+private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVariant>, other: ?DerivedVariant): Tokens {
     let isInteger = variants[0].value.isInteger
     for (variant in variants) {
         if (variant.value.isInteger != isInteger) {
@@ -124,13 +163,32 @@ private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVari
         )
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${decl.identifier.value}` value: ")
+    var fallback = quote(case value => throw DataModelException($unexpected + value.toString()))
+    if (let Some(o) <- other) {
+        let payloadType = o.payloadTypes[0]
+        if (isIntegerType(payloadType) != isInteger) {
+            return report(
+                o.ident,
+                "the payload of `other` has to be of the kind the values are",
+                "the values are ${if (isInteger) { "integers" } else { "strings" }}, `${payloadType.toString()}` is not"
+            )
+        }
+
+        let ident = o.ident
+        // read through the payload's own `Serializable`: it narrows the `Int64` the reader matched on, and
+        // throws on a value that does not fit instead of wrapping it
+        fallback = quote(case _ => $ident($payloadType.deserialize(dm)))
+        writeCases += quote(
+            case $ident(payload) => payload.serialize()
+        )
+    }
 
     enumExtension(
         decl,
         quote(
             match ($reader) {
                 $readCases
-                case value => throw DataModelException($unexpected + value.toString())
+                $fallback
             }
         ),
         quote(

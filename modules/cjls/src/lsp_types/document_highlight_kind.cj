@@ -32,4 +32,10 @@ public enum DocumentHighlightKind {
      */
     | @DeriveExtSerializable[value: 3]
     Write
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

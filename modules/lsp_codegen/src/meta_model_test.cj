@@ -640,9 +640,9 @@ class EnumerationTypeTest {
     @TestCase
     func variantsSerializeAsBaseKinds() {
         // act & assert
-        @Expect("{\"kind\":\"base\",\"name\":\"string\"}", wireOf(EnumerationType.String))
-        @Expect("{\"kind\":\"base\",\"name\":\"integer\"}", wireOf(EnumerationType.Integer))
-        @Expect("{\"kind\":\"base\",\"name\":\"uinteger\"}", wireOf(EnumerationType.UInteger))
+        @Expect("{\"kind\":\"base\",\"name\":\"string\"}", wireOf(EnumerationType(name: EnumerationBaseType.String)))
+        @Expect("{\"kind\":\"base\",\"name\":\"integer\"}", wireOf(EnumerationType(name: EnumerationBaseType.Integer)))
+        @Expect("{\"kind\":\"base\",\"name\":\"uinteger\"}", wireOf(EnumerationType(name: EnumerationBaseType.UInteger)))
     }
 
     @TestCase[json in [ "{\"kind\":\"base\",\"name\":\"string\"}", "{\"kind\":\"base\",\"name\":\"integer\"}", 
@@ -659,7 +659,7 @@ class EnumerationTypeTest {
             EnumerationType.deserialize(dmOf("{\"kind\":\"reference\",\"name\":\"string\"}")))
 
         // assert
-        @Expect("unexpected `kind` field value", e.message)
+        @Expect("unexpected `EnumerationType` kind: reference", e.message)
     }
 
     @TestCase
@@ -669,7 +669,7 @@ class EnumerationTypeTest {
             EnumerationType.deserialize(dmOf("{\"kind\":\"base\",\"name\":\"decimal\"}")))
 
         // assert
-        @Expect("invalid `EnumerationType` value", e.message)
+        @Expect("unexpected `EnumerationBaseType` value: decimal", e.message)
     }
 
     @TestCase

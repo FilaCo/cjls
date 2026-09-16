@@ -31,4 +31,10 @@ public enum CodeActionTriggerKind {
      */
     | @DeriveExtSerializable[value: 2]
     Automatic
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

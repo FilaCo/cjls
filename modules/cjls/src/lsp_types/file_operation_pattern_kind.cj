@@ -29,4 +29,10 @@ public enum FileOperationPatternKind {
      */
     | @DeriveExtSerializable[value: "folder"]
     Folder
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

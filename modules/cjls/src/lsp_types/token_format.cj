@@ -14,4 +14,10 @@ import jsonrpc.*
 public enum TokenFormat {
     | @DeriveExtSerializable[value: "relative"]
     Relative
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(String)
 }

@@ -22,4 +22,10 @@ public enum SymbolTag {
      */
     | @DeriveExtSerializable[value: 1]
     Deprecated
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

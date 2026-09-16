@@ -67,4 +67,10 @@ public enum SymbolKind {
     Operator
     | @DeriveExtSerializable[value: 26]
     TypeParameter
+
+    /**
+     * A value this version of the protocol does not define.
+     */
+    | @DeriveExtSerializable[other]
+    Unknown(UInt32)
 }

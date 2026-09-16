@@ -14,15 +14,26 @@ enum DeriveIr {
 }
 
 struct SerializableTypeOptions <: ToTokens {
-    SerializableTypeOptions(let transparent!: Bool = false) {}
+    SerializableTypeOptions(let transparent!: Bool = false, let tag!: ?SerializableTag = None) {}
 
     public func toTokens(): Tokens {
-        markerOf(if (transparent) {
-            [quote(transparent)]
-        } else {
-            []
-        })
+        let options = ArrayList<Tokens>()
+        if (transparent) {
+            options.add(quote(transparent))
+        }
+        if (let Some(t) <- tag) {
+            options.add(quote(tag: $(t.field), value: $(t.value)))
+        }
+
+        markerOf(options)
     }
+}
+
+/**
+ * A struct that always carries `field: value`, the way LSP marks `CreateFile` with `kind: 'create'`.
+ */
+struct SerializableTag {
+    SerializableTag(let field!: String, let value!: String) {}
 }
 
 /**
@@ -30,18 +41,22 @@ struct SerializableTypeOptions <: ToTokens {
  *       compile anywhere else.
  */
 struct SerializableMemberOptions <: ToTokens {
-    SerializableMemberOptions(let value!: ?IntegerOrString = None) {}
+    SerializableMemberOptions(let value!: ?IntegerOrString = None, let other!: Bool = false) {}
 
     public func toTokens(): Tokens {
-        markerOf(if (let Some(v) <- value) {
-            [quote(value: $v)]
-        } else {
-            []
-        })
+        let options = ArrayList<Tokens>()
+        if (let Some(v) <- value) {
+            options.add(quote(value: $v))
+        }
+        if (other) {
+            options.add(quote(other))
+        }
+
+        markerOf(options)
     }
 }
 
-private func markerOf(options: Array<Tokens>): Tokens {
+private func markerOf(options: Iterable<Tokens>): Tokens {
     match (joined(options)) {
         case Some(joinedOptions) => quote(@DeriveExtSerializable[$joinedOptions])
         case None => Tokens()
