@@ -204,6 +204,9 @@ private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVari
  * declaration order. The same rule - and the same caveat about an earlier variant shadowing a later
  * one - as `#[serde(untagged)]`.
  *
+ * A variant with one payload is that payload alone; one with several is a tuple, which travels the
+ * way JSON spells one - an array holding the payloads in order, of exactly that length.
+ *
  * Any exception means "not this variant", not just a `DataModelException`: reading an `Int32` out
  * of a value too large for it throws `OverflowException`, and a narrower variant failing that way
  * is exactly what the next one is for.
@@ -212,24 +215,51 @@ private func untaggedEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVa
     var attempts = Tokens()
     var writeCases = Tokens()
     for (variant in variants) {
-        if (variant.payloadTypes.size != 1) {
-            return report(
-                decl,
-                "an untagged `@DeriveExt[Serializable]` enum needs exactly one payload per variant",
-                "`${variant.ident.value}` carries ${variant.payloadTypes.size} - add `@DeriveExtSerializable[tag: \"...\"]` to make it tagged"
-            )
-        }
-
         let ident = variant.ident
-        let payloadType = variant.payloadTypes[0]
-        attempts += quote(
-            try {
-                return $ident($payloadType.deserialize(dm))
-            } catch (_: Exception) {}
-        )
-        writeCases += quote(
-            case $ident(payload) => payload.serialize()
-        )
+        match (variant.payloadTypes.size) {
+            case 0 => return report(
+                decl,
+                "an untagged `@DeriveExt[Serializable]` enum needs a payload on every variant",
+                "`${ident.value}` carries none - add `@DeriveExtSerializable[tag: \"...\"]` to make it tagged"
+            )
+            case 1 =>
+                let payloadType = variant.payloadTypes[0]
+                attempts += quote(
+                    try {
+                        return $ident($payloadType.deserialize(dm))
+                    } catch (_: Exception) {}
+                )
+                writeCases += quote(
+                    case $ident(payload) => payload.serialize()
+                )
+            case arity =>
+                let bindings = variant.payloadBindings()
+                var readArgs = Tokens()
+                var writeItems = Tokens()
+                for ((i, payloadType) in variant.payloadTypes |> enumerate) {
+                    if (i > 0) {
+                        readArgs += Tokens(Token(TokenKind.COMMA))
+                        writeItems += Tokens(Token(TokenKind.COMMA))
+                    }
+                    let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
+                    let binding = bindings[i]
+                    readArgs += quote($payloadType.deserialize(items[$index]))
+                    writeItems += quote($binding.serialize())
+                }
+                let size = Token(TokenKind.INTEGER_LITERAL, "${arity}")
+                let pattern = joinedTokens(bindings)
+                attempts += quote(
+                    try {
+                        let items = dm.asSeqOrThrow().getItems()
+                        if (items.size == $size) {
+                            return $ident($readArgs)
+                        }
+                    } catch (_: Exception) {}
+                )
+                writeCases += quote(
+                    case $ident($pattern) => DataModelSeq(ArrayList<DataModel>([$writeItems]))
+                )
+        }
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "no `${decl.identifier.value}` variant matched the value")
 

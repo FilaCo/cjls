@@ -416,6 +416,16 @@ enum DerivedOneOrMany<T> {
     | Several(Array<T>)
 }
 
+/**
+ * The shape of `ParameterInformation.label`: `string | [uinteger, uinteger]`.
+ */
+@DeriveExt[Serializable]
+enum DerivedLabel {
+    | Text(String)
+    | Offsets(UInt32, UInt32)
+    | Signed(Int64, Int64)
+}
+
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind"]
 enum DerivedShape {
@@ -549,6 +559,53 @@ class DeriveUntaggedEnumTest {
         // assert
         @Expect("one:x", describeOneOrMany(one))
         @Expect("several:x,y", describeOneOrMany(several))
+    }
+
+    @TestCase
+    func aVariantWithSeveralPayloadsIsReadFromAnArrayOfThatLength() {
+        // arrange
+        let pair = DataModelSeq(ArrayList<DataModel>([DataModelInt(3), DataModelInt(7)]))
+
+        // act & assert
+        @Expect("offsets:3..7", describeLabel(DerivedLabel.deserialize(pair)))
+        @Expect("text:x", describeLabel(DerivedLabel.deserialize(DataModelString("x"))))
+    }
+
+    @TestCase
+    func aVariantWithSeveralPayloadsIsWrittenAsAnArray() {
+        // act
+        let items = DerivedLabel.Offsets(3, 7).serialize().asSeqOrThrow().getItems()
+
+        // assert
+        @Assert(2, items.size)
+        @Expect(3, items[0].asIntOrThrow())
+        @Expect(7, items[1].asIntOrThrow())
+    }
+
+    @TestCase
+    func anArrayOfAnotherLengthMatchesNoTupleVariant() {
+        // arrange
+        let triple = DataModelSeq(ArrayList<DataModel>([DataModelInt(1), DataModelInt(2), DataModelInt(3)]))
+
+        // act & assert
+        @AssertThrows[DataModelException](DerivedLabel.deserialize(triple))
+    }
+
+    @TestCase
+    func aTupleWithAnUnreadableItemGivesWayToTheNextOne() {
+        // arrange
+        let negative = DataModelSeq(ArrayList<DataModel>([DataModelInt(-1), DataModelInt(2)]))
+
+        // act & assert
+        @Expect("signed:-1..2", describeLabel(DerivedLabel.deserialize(negative)))
+    }
+
+    private static func describeLabel(value: DerivedLabel): String {
+        match (value) {
+            case Text(s) => "text:${s}"
+            case Offsets(start, end) => "offsets:${start}..${end}"
+            case Signed(start, end) => "signed:${start}..${end}"
+        }
     }
 
     private static func describeWidth(value: DerivedNarrowOrWide): String {

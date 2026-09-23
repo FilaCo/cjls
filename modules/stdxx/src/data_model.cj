@@ -4,6 +4,7 @@ import stdx.serialization.serialization.*
 
 public interface DataModelShape {
     func asStructOrThrow(): DataModelStruct
+    func asSeqOrThrow(): DataModelSeq
     func asStringOrThrow(): String
     func asIntOrThrow(): Int64
     func asBoolOrThrow(): Bool
@@ -24,6 +25,13 @@ extend DataModel <: DataModelShape {
         match (this) {
             case dms: DataModelStruct => dms
             case _ => throw DataModelException("expected `DataModelStruct`")
+        }
+    }
+
+    public func asSeqOrThrow(): DataModelSeq {
+        match (this) {
+            case dmSeq: DataModelSeq => dmSeq
+            case _ => throw DataModelException("expected `DataModelSeq`")
         }
     }
 
