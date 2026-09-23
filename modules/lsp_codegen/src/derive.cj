@@ -14,12 +14,15 @@ enum DeriveIr {
 }
 
 struct SerializableTypeOptions <: ToTokens {
-    SerializableTypeOptions(let transparent!: Bool = false, let tag!: ?SerializableTag = None) {}
+    SerializableTypeOptions(let transparent!: Bool = false, let skipNone!: Bool = false, let tag!: ?SerializableTag = None) {}
 
     public func toTokens(): Tokens {
         let options = ArrayList<Tokens>()
         if (transparent) {
             options.add(quote(transparent))
+        }
+        if (skipNone) {
+            options.add(quote(skipNone))
         }
         if (let Some(t) <- tag) {
             options.add(quote(tag: $(t.field), value: $(t.value)))

@@ -51,7 +51,7 @@ class CjEmitter {
             if (line.isEmpty()) {
                 emit(" *")
             } else {
-                emit(" * ${line}")
+                emit(" * ${escapedCommentText(line)}")
             }
             nl()
         }
@@ -71,13 +71,13 @@ class CjEmitter {
         emitln(toks.toString())
     }
 
-    private func emit(s: String): Unit {
+    func emit(s: String): Unit {
         let indentBytes = Array<Byte>(indentation * indentWidth, repeat: b' ')
         let ws = unsafe { String.fromUtf8Unchecked(indentBytes) }
         output.write("${ws}${s}")
     }
 
-    private func emitln(s: String): Unit {
+    func emitln(s: String): Unit {
         emit(s)
         nl()
     }
@@ -85,4 +85,10 @@ class CjEmitter {
 
 struct DocComment {
     DocComment(let lines!: Array<String> = []) {}
+}
+
+// Block comments nest in Cangjie: a slash-star in the text - a glob such as `**` + `/` + `*.ts` - opens a
+// comment that the doc comment's own closing only ends, and the rest of the file is swallowed.
+func escapedCommentText(text: String): String {
+    text.replace("/*", "/\\*").replace("*/", "*\\/")
 }

@@ -3,6 +3,7 @@
  */
 package cjls.lsp_types
 
+import std.collection.*
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*
@@ -13,10 +14,73 @@ public type URI = String
 
 public type DocumentUri = String
 
-public type LSPAny = DataModel
+public type LSPAny = AnyValue
 
-public type LSPObject = DataModelStruct
-
-public type LSPArray = DataModelSeq
+public type ProgressToken = IntegerOrString
 
 public type ErrorCodes = ErrorCode
+
+/**
+ * Information about where a symbol is defined.
+ *
+ * Provides additional metadata over normal {@link Location location} definitions, including the range of
+ * the defining symbol
+ */
+public type DefinitionLink = LocationLink
+
+/**
+ * LSP arrays.
+ * @since 3.17.0
+ */
+public type LSPArray = Array<LSPAny>
+
+/**
+ * The declaration of a symbol representation as one or many {@link Location locations}.
+ */
+public type Declaration = Definition
+
+/**
+ * Information about where a symbol is declared.
+ *
+ * Provides additional metadata over normal {@link Location location} declarations, including the range of
+ * the declaring symbol.
+ *
+ * Servers should prefer returning `DeclarationLink` over `Declaration` if supported
+ * by the client.
+ */
+public type DeclarationLink = LocationLink
+
+/**
+ * An identifier to refer to a change annotation stored with a workspace edit.
+ */
+public type ChangeAnnotationIdentifier = String
+
+/**
+ * A document selector is the combination of one or many document filters.
+ *
+ * @sample `let sel:DocumentSelector = [{ language: 'typescript' }, { language: 'json', pattern: '**∕tsconfig.json' }]`;
+ *
+ * The use of a string as a document filter is deprecated @since 3.16.0.
+ */
+public type DocumentSelector = Array<DocumentFilter>
+
+/**
+ * LSP object definition.
+ * @since 3.17.0
+ */
+public type LSPObject = HashMap<String, LSPAny>
+
+/**
+ * The glob pattern to watch relative to the base path. Glob patterns can have the following syntax:
+ * - `*` to match zero or more characters in a path segment
+ * - `?` to match on one character in a path segment
+ * - `**` to match any number of path segments, including none
+ * - `{}` to group conditions (e.g. `**​/\*.{ts,js}` matches all TypeScript and JavaScript files)
+ * - `[]` to declare a range of characters to match in a path segment (e.g., `example.[0-9]` to match on `example.0`, `example.1`, …)
+ * - `[!...]` to negate a range of characters to match in a path segment (e.g., `example.[!0-9]` to match on `example.a`, `example.b`, but not `example.0`)
+ *
+ * @since 3.17.0
+ */
+public type Pattern = String
+
+public type RegularExpressionEngineKind = String

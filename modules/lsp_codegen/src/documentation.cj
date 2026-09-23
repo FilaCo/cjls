@@ -32,6 +32,46 @@ func resolveDoc(entry: EnumerationEntry): DocIr {
     )
 }
 
+func resolveDoc(structure: Structure): DocIr {
+    docOf(
+        documentation: structure.documentation,
+        since: structure.since,
+        sinceTags: structure.sinceTags,
+        proposed: structure.proposed,
+        deprecated: structure.deprecated
+    )
+}
+
+func resolveDoc(property: Property): DocIr {
+    docOf(
+        documentation: property.documentation,
+        since: property.since,
+        sinceTags: property.sinceTags,
+        proposed: property.proposed,
+        deprecated: property.deprecated
+    )
+}
+
+func resolveDoc(literal: StructureLiteral): DocIr {
+    docOf(
+        documentation: literal.documentation,
+        since: literal.since,
+        sinceTags: literal.sinceTags,
+        proposed: literal.proposed,
+        deprecated: literal.deprecated
+    )
+}
+
+func resolveDoc(alias: TypeAlias): DocIr {
+    docOf(
+        documentation: alias.documentation,
+        since: alias.since,
+        sinceTags: alias.sinceTags,
+        proposed: alias.proposed,
+        deprecated: alias.deprecated
+    )
+}
+
 private func docOf(documentation!: ?String, since!: ?String, sinceTags!: ?Array<String>, proposed!: ?Bool,
     deprecated!: ?String) {
     DocIr(documentation: documentation, since: since, sinceTags: sinceTags, proposed: proposed ?? false,

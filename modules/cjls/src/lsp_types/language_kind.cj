@@ -3,6 +3,7 @@
  */
 package cjls.lsp_types
 
+import std.collection.*
 import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.*

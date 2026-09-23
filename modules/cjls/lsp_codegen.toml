@@ -1,6 +1,7 @@
 [general]
 output-subpackage = "lsp_types"
 imports = [
+    "std.collection.*",
     "std.deriving.*",
     "stdx.serialization.serialization.*",
     "stdxx.*",
@@ -15,13 +16,10 @@ alias = "String"
 alias = "String"
 
 [types.LSPAny]
-alias = "DataModel"
+alias = "AnyValue"
 
-[types.LSPObject]
-alias = "DataModelStruct"
-
-[types.LSPArray]
-alias = "DataModelSeq"
+[types.ProgressToken]
+alias = "IntegerOrString"
 
 [types.ErrorCodes]
 alias = "ErrorCode"
