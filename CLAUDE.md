@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, and the work has proceeded bottom-up: the `jsonrpc` transport/peer layer is built and covered by tests, while the LSP layer above it is largely still to be written — `modules/cjls/src/run_server.cj` is a stub with the old server loop commented out, the protocol types are meant to be generated from `metaModel.json` and are not yet, and the handler-registration macros are partly stubs.
+`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, and the work has proceeded bottom-up: the `jsonrpc` transport/peer layer is built and covered by tests, while the LSP layer above it is largely still to be written — `modules/cjls/src/run_server.cj` is a stub with the old server loop commented out, the protocol types are generated from `metaModel.json` only partly (enumerations, aliases and the message-spec interfaces so far; structures, unions and messages are still to come), and the handler-registration macros are partly stubs.
 
-Read `modules/jsonrpc/DESIGN.md` before touching the RPC layer: it is the agreed target design (layering, concurrency, error-code and null modelling) and it records *why* several decisions went the way they did.
+There are no separate design documents: they went stale faster than the code moved and were removed on purpose. The code, its tests and this file are the source of truth — don't recreate a DESIGN.md, and don't argue with the current code on the strength of an old design.
 
 ## Build & test
 
@@ -64,7 +64,7 @@ Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` sits outs
 
 ### `jsonrpc` — a symmetric peer, not a server
 
-Layered exactly as `DESIGN.md` describes; all four layers are implemented:
+Four layers, all implemented:
 
 - **L1 model** (`body.cj`, `error.cj`) — `Body` is an enum of `Request(RequestBody) | Notification(NotificationBody) | Response(ResponseBody)`; `ResultOrError` and `RequestId = IntegerOrString` sit with it, while `ResponseError` and `ErrorCode` live in `error.cj` — that is where the `lsp`-level codes get appended. `ErrorCode` is an **open `Int32` newtype**, not a closed enum, so unknown codes survive a round-trip; new codes get added as further constants rather than by changing the type.
 - **L2 codec** (`body.cj`, `Body.serialize`/`deserialize`) — JSON-RPC has no discriminator field, so the *shape* is the discriminator: presence of `id`/`method`/`result`/`error` decides the variant.
