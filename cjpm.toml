@@ -16,11 +16,12 @@ script-dir = ""
 
 [dependencies]
 
-[target.x86_64-unknown-linux-gnu.bin-dependencies]
-path-option = ["third_party/stdx"]
+# [target.x86_64-unknown-linux-gnu.bin-dependencies]
+# path-option = ["third_party/stdx"]
 
 [target.aarch64-apple-darwin.bin-dependencies]
-path-option = ["third_party/stdx"]
+# TODO: platform-specific stdx path
+path-option = ["${CANGJIE_HOME}/third_party/stdx/static/stdx"]
 
-[target.x86_64-w64-mingw32.bin-dependencies]
-path-option = ["third_party/stdx"]
+# [target.x86_64-w64-mingw32.bin-dependencies]
+# path-option = ["third_party/stdx"]
