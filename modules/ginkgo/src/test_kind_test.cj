@@ -10,6 +10,16 @@ enum TestKind {
     | Word
     | Space
 
+    public func ordinal(): Int64 {
+        match (this) {
+            case Root => 0
+            case Inner => 1
+            case Leaf => 2
+            case Word => 3
+            case Space => 4
+        }
+    }
+
     public func toString(): String {
         match (this) {
             case Root => "Root"
