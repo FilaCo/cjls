@@ -1,0 +1,15 @@
+[package]
+cjc-version = "1.3.0"
+name = "rope"
+organization = ""
+description = "A persistent rope of UTF-8 text, with line and column conversions"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = ""
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]
