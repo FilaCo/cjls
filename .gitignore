@@ -2,7 +2,6 @@
 .vscode
 build-script-cache
 cov_output
-node_modules
 target
 /third_party
 *.gcda

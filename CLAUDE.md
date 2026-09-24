@@ -45,7 +45,13 @@ The `cjls` executable goes one step further: it is linked with `--static` (its `
 
 ### Commits
 
-Conventional Commits are enforced by commitlint via a husky `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); commitizen (`cz-conventional-changelog`) is configured.
+Conventional Commits are enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`, one binary: `brew install cocogitto`) on the `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); `cog commit feat jsonrpc "subject"` writes one for you. `cog.toml` lets merge and `fixup!`/`squash!`/`amend!` commits through, as commitlint did; a `git revert` message has to be reworded to `revert: ...`.
+
+The hooks are plain scripts in `.githooks/`, no hook framework and no Node: `commit-msg` runs `cog verify`, `pre-push` runs `cjpm test`. Git won't version where hooks live, so every clone activates them once:
+
+```
+git config core.hooksPath .githooks
+```
 
 ## Workspace layout
 
