@@ -48,6 +48,11 @@ public class Storage {
      * The revision of a snapshot, `None` for the root handle.
      */
     private let pinned: ?Int64
+
+    /**
+     * Whoever uses a snapshot asking it to stop: checked with every operation, as a write is.
+     */
+    private let cancelledBy: () -> Bool
     private let stack = ArrayList<ActiveQuery>()
     private let active = HashSet<DatabaseKey>()
 
@@ -58,35 +63,41 @@ public class Storage {
     private var depth: Int64 = 0
 
     public init() {
-        this(Runtime(), None)
+        this(Runtime(), None, {=> false})
     }
 
-    private init(runtime: Runtime, pinned: ?Int64) {
+    private init(runtime: Runtime, pinned: ?Int64, cancelledBy: () -> Bool) {
         this.runtime = runtime
         this.pinned = pinned
+        this.cancelledBy = cancelledBy
     }
 
     /**
      * Another handle of the same database, for another thread, pinned to the revision this one
-     * reads.
+     * reads. Its queries are `Cancelled` too once `cancelledBy` gives `true`: how whoever asked
+     * for the answer (an editor's `$/cancelRequest`) stops a computation of it midway.
      */
-    public func snapshot(): Storage {
-        Storage(runtime, pinned ?? runtime.revision)
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): Storage {
+        Storage(runtime, pinned ?? runtime.revision, cancelledBy)
     }
 
     /**
-     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
+     * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
+     * was asked to stop
      */
     public func unwindIfCancelled(): Unit {
+        checkAskedToStop()
         runtime.unwindIfCancelled(pinned)
     }
 
     /**
      * Runs one operation of this handle, which a write waits for if it is not inside another.
      *
-     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
+     * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
+     * was asked to stop
      */
     func read<T>(operation: () -> T): T {
+        checkAskedToStop()
         let outermost = depth == 0
         if (outermost) {
             runtime.beginRead(pinned)
@@ -101,6 +112,12 @@ public class Storage {
             if (outermost) {
                 runtime.endRead()
             }
+        }
+    }
+
+    private func checkAskedToStop(): Unit {
+        if (cancelledBy()) {
+            throw Cancelled()
         }
     }
 
