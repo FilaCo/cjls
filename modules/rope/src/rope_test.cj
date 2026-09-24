@@ -146,7 +146,9 @@ class RopeTest {
 
                 // assert
                 @Assert(position, naivePosition(text, offset, encoding))
-                @Assert(rope.offsetOf(position, encoding), offset)
+                // between the `\r` and the `\n` of a line end is past the line, which is before the `\r`
+                let insideLineEnd = offset > 0 && offset < text.size && text[offset - 1] == b'\r' && text[offset] == b'\n'
+                @Assert(rope.offsetOf(position, encoding), if (insideLineEnd) { offset - 1 } else { offset })
             }
         }
     }
@@ -179,10 +181,24 @@ class RopeTest {
         // arrange
         let rope = Rope("ab\r\ncd")
 
-        // act, assert
-        @Expect(rope.offsetOf(LineColumn(0, 99), Utf16), 3)
+        // act, assert - before the `\r`: text put at the end of the line must not split the `\r\n`
+        @Expect(rope.offsetOf(LineColumn(0, 99), Utf16), 2)
         @Expect(rope.offsetOf(LineColumn(1, 99), Utf16), 6)
         @Expect(rope.offsetOf(LineColumn(7, 0), Utf16), 6)
+    }
+
+    @TestCase
+    func typingAtTheEndOfAWindowsLineKeepsItsLineEnd() {
+        // arrange
+        let rope = Rope("let a\r\nlet b\r\n")
+
+        // act - an editor asking for the end of the line by a column past it
+        let offset = rope.offsetOf(LineColumn(0, 1_000_000), Utf16)
+        let edited = rope.insert(offset, " = 1")
+
+        // assert
+        @Expect(edited.toString(), "let a = 1\r\nlet b\r\n")
+        @Expect(edited.lineEnd(1), edited.size - 2)
     }
 
     @TestCase
@@ -193,7 +209,7 @@ class RopeTest {
         // act, assert
         @Expect(rope.lineCount, 3)
         @Expect(rope.lineStart(1), 5)
-        @Expect(rope.lineEnd(0), 4)
+        @Expect(rope.lineEnd(0), 3)
         @Expect(rope.lineStart(2), 7)
         @Expect(rope.lineEnd(2), 7)
         @Expect(rope.lineOf(4), 0)

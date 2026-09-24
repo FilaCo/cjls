@@ -287,6 +287,24 @@ func offsetAtUnits(node: Node, units: Int64, encoding: Encoding): Int64 {
 }
 
 /**
+ * The byte at `offset` under `node`, which holds more than `offset` bytes.
+ */
+func byteAt(node: Node, offset: Int64): Byte {
+    match (node) {
+        case leaf: Leaf => leaf.text[offset]
+        case branch: Branch =>
+            var remaining = offset
+            for (child in branch.children) {
+                if (remaining < child.summary.bytes) {
+                    return byteAt(child, remaining)
+                }
+                remaining -= child.summary.bytes
+            }
+            throw IndexOutOfBoundsException("offset ${offset} of a node of ${branch.summary.bytes} bytes")
+    }
+}
+
+/**
  * Whether `offset` under `node` falls between two characters.
  */
 func isCharBoundary(node: Node, offset: Int64): Bool {

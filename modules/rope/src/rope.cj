@@ -120,13 +120,19 @@ public struct Rope <: Equatable<Rope> & ToString {
     }
 
     /**
-     * The offset `line` ends at, before its line break if it has one.
+     * The offset `line` ends at, before its line break if it has one: before the `\r` of a `\r\n`,
+     * so an edit at the end of a line never splits one.
      *
      * @throws IndexOutOfBoundsException - if there is no such line
      */
     public func lineEnd(line: Int64): Int64 {
         if (line + 1 < lineCount) {
-            lineStart(line + 1) - 1
+            let lineFeed = lineStart(line + 1) - 1
+            if (lineFeed > 0 && byteAt(root, lineFeed - 1) == b'\r') {
+                lineFeed - 1
+            } else {
+                lineFeed
+            }
         } else {
             lineStart(line)
             size
@@ -176,7 +182,8 @@ public struct Rope <: Equatable<Rope> & ToString {
     }
 
     /**
-     * The line and column of `offset`, the column in columns of `encoding`.
+     * The line and column of `offset`, the column in columns of `encoding`. The `\r` of a `\r\n`
+     * is at the end of its line, so the offset after it is a column past the end.
      *
      * @throws IndexOutOfBoundsException - if `offset` does not lie within the text
      * @throws IllegalArgumentException - if it falls inside a character
