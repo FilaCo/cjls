@@ -1,6 +1,7 @@
 package cjsyntax
 
 import std.deriving.*
+import ginkgo.TokenSet
 import ginkgo.parsing.*
 
 /**
@@ -317,8 +318,8 @@ func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {
     m.complete(p, FuncDecl)
 }
 
-let OVERLOADABLE_OPERATORS: Array<SyntaxKind> = [Bang, Plus, Minus, StarStar, Star, Slash, Percent, LtLt, Lt, LtEq,
-    Gt, EqEq, BangEq, Amp, Caret, Pipe, Tilde]
+let OVERLOADABLE_OPERATORS = TokenSet<SyntaxKind>([Bang, Plus, Minus, StarStar, Star, Slash, Percent, LtLt, Lt, LtEq,
+    Gt, EqEq, BangEq, Amp, Caret, Pipe, Tilde])
 
 /**
  * A name, `main`, or for an `operator func`, the operator: `[]`, `()`, `>>`, `>=` and the plain ones.

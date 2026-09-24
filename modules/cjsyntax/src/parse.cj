@@ -115,51 +115,34 @@ struct Restrictions {
     }
 }
 
-/**
- * Keywords that are names wherever a name is expected (the compiler's contextual keywords).
- */
-let CONTEXTUAL_KEYWORDS: Array<SyntaxKind> = [PublicKw, PrivateKw, InternalKw, ProtectedKw, OverrideKw, RedefKw,
-    AbstractKw, SealedKw, OpenKw, CommonKw, SpecificKw, FeaturesKw]
+let MODIFIERS = TokenSet<SyntaxKind>([StaticKw, PublicKw, PrivateKw, InternalKw, ProtectedKw, OverrideKw, RedefKw,
+    AbstractKw, SealedKw, OpenKw, ForeignKw, InoutKw, MutKw, UnsafeKw, OperatorKw, ConstKw, CommonKw, SpecificKw])
 
-let MODIFIERS: Array<SyntaxKind> = [StaticKw, PublicKw, PrivateKw, InternalKw, ProtectedKw, OverrideKw, RedefKw,
-    AbstractKw, SealedKw, OpenKw, ForeignKw, InoutKw, MutKw, UnsafeKw, OperatorKw, ConstKw, CommonKw, SpecificKw]
+let PRIM_TYPES = TokenSet<SyntaxKind>([Int8Kw, Int16Kw, Int32Kw, Int64Kw, IntNativeKw, UInt8Kw, UInt16Kw, UInt32Kw,
+    UInt64Kw, UIntNativeKw, Float16Kw, Float32Kw, Float64Kw, RuneKw, BoolKw, NothingKw, UnitKw])
 
-let PRIM_TYPES: Array<SyntaxKind> = [Int8Kw, Int16Kw, Int32Kw, Int64Kw, IntNativeKw, UInt8Kw, UInt16Kw, UInt32Kw,
-    UInt64Kw, UIntNativeKw, Float16Kw, Float32Kw, Float64Kw, RuneKw, BoolKw, NothingKw, UnitKw]
-
-let LITERALS: Array<SyntaxKind> = [IntLit, FloatLit, RuneLit, ByteLit, RawStringLit, TrueKw, FalseKw]
-
-/**
- * What starts a declaration on its own, modifiers aside.
- */
-let DECL_KEYWORDS: Array<SyntaxKind> = [FuncKw, MacroKw, LetKw, VarKw, EnumKw, TypeKw, StructKw, ClassKw,
-    InterfaceKw, MainKw, ExtendKw, PropKw, InitKw, PackageKw, ImportKw]
-
-func isContextualKeyword(kind: SyntaxKind): Bool {
-    CONTEXTUAL_KEYWORDS.any {k => k == kind}
-}
+let LITERALS = TokenSet<SyntaxKind>([IntLit, FloatLit, RuneLit, ByteLit, RawStringLit, TrueKw, FalseKw])
 
 /**
  * An identifier, or a contextual keyword standing for one.
  */
 func atName(p: P, n: Int64): Bool {
     let k = p.nth(n)
-    k == Ident || isContextualKeyword(k)
-}
-
-func isPunctuation(kind: SyntaxKind): Bool {
-    !kind.isKeyword() && kind != Underscore && kind != InterpolationStart && kind.fixedText().isSome()
+    k == Ident || k.isContextualKeyword()
 }
 
 /**
- * A contextual keyword followed by an operator is a name in an expression: `open = true`, `public(x)`.
+ * A contextual keyword followed by an operator is a name in an expression: `open = true`, `public(x)`. The `}`
+ * ending an interpolation counts as one, as in `"${open}"`.
  */
 func atContextualKeywordAsName(p: P): Bool {
-    isContextualKeyword(p.current()) && isPunctuation(p.nth(1)) && !p.nthAt(1, Tilde) && !p.nthAt(1, At)
+    let next = p.nth(1)
+    p.current().isContextualKeyword() && (next.isPunctuation() || next == InterpolationEnd) && next != Tilde &&
+        next != At
 }
 
 func atModifier(p: P): Bool {
-    MODIFIERS.any {k => p.at(k)} && !atContextualKeywordAsName(p)
+    p.atAny(MODIFIERS) && !atContextualKeywordAsName(p)
 }
 
 func atBuiltinAnnotation(p: P): Bool {

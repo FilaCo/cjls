@@ -1,0 +1,482 @@
+// The shape of every node the Cangjie parser makes: which children it has, in what order. `syntax_codegen` makes
+// the node kinds of it, and the typed views of `cjsyntax.ast`. It is rust-analyzer's ungrammar:
+//
+//   Node = Rule          a node, or an enum of nodes if the rule only lists nodes: `Expr = BinExpr | ...`
+//   'text'               a token spelled so; `'Ident'`, a token of that kind; `'AnyToken'`, any token at all
+//   A B, A | B           a sequence, alternatives
+//   A?, A*, (A)          optional, repeated, grouped
+//   label:A              names what an accessor returns; in an enum, the variant
+//
+// Comments right above a rule document its node. What the grammar says holds of every tree without errors,
+// which the tests of `syntax_codegen` check; a tree with errors may lack any part and hold an `ErrorNode` anywhere.
+// A declaration anywhere starts with `Annotation* Modifiers?`: the parser reads those before knowing what follows.
+
+SourceFile =
+  ';'* FeaturesDirective? ';'* PackageHeader? (ImportDecl | ';')* (Decl | ';')*
+  (Annotation* Modifiers?)
+
+FeaturesDirective =
+  Annotation* Modifiers? 'features' '{' (NameRef ('.' NameRef)* (',' NameRef ('.' NameRef)*)* ','?)? '}'
+
+PackageHeader =
+  Annotation* Modifiers? 'macro'? 'package' NameRef ('::' NameRef)? ('.' NameRef)*
+
+ImportDecl =
+  Annotation* Modifiers? 'import' ImportTree
+
+// `a.b.c`, `a.b.*`, `a.b.c as d`, `a.{b, c.*}`, `org::a.b`
+ImportTree =
+  ImportTreeList
+| NameRef (('.' | '::') NameRef)* (('.' | '::') ('*' | ImportTreeList))? ImportAlias?
+
+ImportTreeList =
+  '{' (ImportTree (',' ImportTree)* ','?)? '}'
+
+ImportAlias =
+  'as' Name
+
+// a name being declared
+Name =
+  'Ident'
+| '[' ']' | '(' ')' | '>>' | '>='
+| '!' | '+' | '-' | '**' | '*' | '/' | '%' | '<<' | '<' | '<=' | '>' | '==' | '!=' | '&' | '^' | '|' | '~'
+
+// a name being used
+NameRef =
+  'Ident'
+
+Annotation =
+  '@' NameRef AnnotationArgList?
+
+AnnotationArgList =
+  '[' (Arg (',' Arg)* ','?)? ']'
+
+Modifiers =
+  ( 'static' | 'public' | 'private' | 'internal' | 'protected' | 'override' | 'redef' | 'abstract' | 'sealed'
+  | 'open' | 'foreign' | 'inout' | 'mut' | 'unsafe' | 'operator' | 'const' | 'common' | 'specific' )*
+
+Decl =
+  FuncDecl
+| MainDecl
+| MacroDecl
+| ClassDecl
+| InterfaceDecl
+| StructDecl
+| EnumDecl
+| ExtendDecl
+| TypeAliasDecl
+| VarDecl
+| PropDecl
+| InitDecl
+| FinalizerDecl
+| PrimaryInitDecl
+| EnumCtor
+| ForeignBlock
+| MacroExpandDecl
+
+FuncDecl =
+  Annotation* Modifiers? 'func' Name TypeParamList? ParamList* RetType? WhereClause? Block?
+
+MainDecl =
+  Annotation* Modifiers? 'main' TypeParamList? ParamList* RetType? WhereClause? Block?
+
+MacroDecl =
+  Annotation* Modifiers? 'macro' Name TypeParamList? ParamList* RetType? WhereClause? Block?
+
+ClassDecl =
+  Annotation* Modifiers? 'class' Name TypeParamList? TypeBoundList? WhereClause? DeclBody
+
+InterfaceDecl =
+  Annotation* Modifiers? 'interface' Name TypeParamList? TypeBoundList? WhereClause? DeclBody
+
+StructDecl =
+  Annotation* Modifiers? 'struct' Name TypeParamList? TypeBoundList? WhereClause? DeclBody
+
+EnumDecl =
+  Annotation* Modifiers? 'enum' Name TypeParamList? TypeBoundList? WhereClause? EnumBody
+
+ExtendDecl =
+  Annotation* Modifiers? 'extend' TypeParamList? Type TypeBoundList? WhereClause? DeclBody
+
+TypeAliasDecl =
+  Annotation* Modifiers? 'type' Name TypeParamList? '=' Type
+
+// `let`, `var` or `const`, of a name or a pattern
+VarDecl =
+  Annotation* Modifiers? ('let' | 'var')? (Pattern | Name) (':' Type)? ('=' Expr)?
+
+PropDecl =
+  Annotation* Modifiers? 'prop' Name ':' Type PropBody?
+
+InitDecl =
+  Annotation* Modifiers? 'init' TypeParamList? ParamList* RetType? WhereClause? Block?
+
+// `~init`
+FinalizerDecl =
+  Annotation* Modifiers? '~' 'init' TypeParamList? ParamList* RetType? WhereClause? Block?
+
+// a primary constructor, named as its type
+PrimaryInitDecl =
+  Annotation* Modifiers? Name TypeParamList? ParamList* RetType? WhereClause? Block?
+
+EnumCtor =
+  Annotation* Modifiers? Name ('(' (Type (',' Type)*)? ')')?
+
+ForeignBlock =
+  Annotation* Modifiers? '{' (Decl | ';')* '}'
+
+// a macro call on a declaration
+MacroExpandDecl =
+  Annotation* Modifiers? ('@' | '@!') NameRef ('.' NameRef)* MacroAttr?
+  (MacroArgs | Decl | Param)
+
+// the `{}` of a class, interface, struct or extend
+DeclBody =
+  '{' (Decl | ';')* '}'
+
+EnumBody =
+  '{' (Decl | '|' | '...' | ';')* '}'
+
+PropBody =
+  '{' (PropAccessor | ';')* '}'
+
+// `get()` or `set(v)` in a property
+PropAccessor =
+  Annotation* Modifiers? 'Ident' ParamList* Block
+
+TypeParamList =
+  '<' (TypeParam (',' TypeParam)* ','?)? '>'
+
+TypeParam =
+  Name
+
+WhereClause =
+  'where' GenericConstraint (',' GenericConstraint)*
+
+GenericConstraint =
+  Type TypeBoundList
+
+// `<: A & B`
+TypeBoundList =
+  '<:' Type ('&' Type)*
+
+ParamList =
+  '(' ((Param | MacroExpandDecl) (',' (Param | MacroExpandDecl))* ','?)? ')'
+
+Param =
+  Annotation* Modifiers? ('let' | 'var')?
+  ('...' | ('_' | Name) '!'? (':' Type)? ('=' Expr)?)
+
+RetType =
+  ':' Type
+
+Block =
+  '{' (Stmt | ';')* '}'
+
+Stmt =
+  DeclStmt:Decl
+| ExprStmt:Expr
+
+Type =
+  PathType
+| PrimType
+| TupleType
+| ParenType
+| FuncType
+| OptionType
+| ThisType
+| VArrayType
+
+PathType =
+  PathSegment ('.' PathSegment)*
+
+PathSegment =
+  NameRef TypeArgList?
+
+PrimType =
+  'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64' | 'UIntNative'
+| 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit'
+
+TupleType =
+  '(' (Type | NamedType) (',' (Type | NamedType))* ','? ')'
+
+// `name: T` in a tuple type
+NamedType =
+  Name ':' Type
+
+ParenType =
+  '(' (Type | NamedType) ','? ')'
+
+FuncType =
+  '(' ((Type | NamedType) (',' (Type | NamedType))* ','?)? ')' '->' ret:Type
+
+OptionType =
+  '?' Type
+
+ThisType =
+  'This'
+
+VArrayType =
+  'VArray' '<' Type ',' '$' 'IntLit' '>'
+
+TypeArgList =
+  '<' (Type (',' Type)* ','?)? '>'
+
+Pattern =
+  WildcardPat
+| LiteralPat
+| BindPat
+| TypePat
+| TuplePat
+| EnumPat
+
+WildcardPat =
+  '_'
+
+LiteralPat =
+  '-'? ('IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false')
+| StringLit
+| '(' ')'
+
+// a lone name: a binding, or an enum constructor without arguments
+BindPat =
+  Name
+
+TypePat =
+  ('_' | Name) ':' Type
+
+TuplePat =
+  '(' (Pattern (',' Pattern)* ','?)? ')'
+
+EnumPat =
+  PathSegment ('.' PathSegment)* ('(' (Pattern (',' Pattern)* ','?)? ')')?
+
+CatchPat =
+  ('_' | Name) (':' Type ('|' Type)*)?
+
+Expr =
+  Literal
+| StringLit
+| RefExpr
+| MemberAccessExpr
+| CallExpr
+| TrailingLambdaExpr
+| IndexExpr
+| OptionalExpr
+| UnaryExpr
+| BinExpr
+| IsExpr
+| AsExpr
+| RangeExpr
+| PostfixExpr
+| ParenExpr
+| TupleExpr
+| ArrayExpr
+| UnitExpr
+| IfExpr
+| LetExpr
+| MatchExpr
+| TryExpr
+| ForInExpr
+| WhileExpr
+| DoWhileExpr
+| ThrowExpr
+| ReturnExpr
+| BreakExpr
+| ContinueExpr
+| SpawnExpr
+| SynchronizedExpr
+| UnsafeExpr
+| LambdaExpr
+| ThisExpr
+| SuperExpr
+| WildcardExpr
+| TypeConvExpr
+| PrimTypeExpr
+| VArrayExpr
+| QuoteExpr
+| MacroExpandExpr
+
+Literal =
+  'IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false'
+
+StringLit =
+  'StringStart' ('StringContent' | Interpolation)* 'StringEnd'
+
+Interpolation =
+  'InterpolationStart' (Stmt | ';')* 'InterpolationEnd'
+
+RefExpr =
+  NameRef TypeArgList?
+
+MemberAccessExpr =
+  receiver:Expr '.' NameRef TypeArgList?
+
+CallExpr =
+  callee:Expr ArgList
+
+ArgList =
+  '(' (Arg (',' Arg)* ','?)? ')'
+
+Arg =
+  (NameRef ':' | 'inout')? Expr
+
+TrailingLambdaExpr =
+  callee:Expr lambda:LambdaExpr
+
+IndexExpr =
+  base:Expr '[' (indices:Expr (',' indices:Expr)* ','?)? ']'
+
+// `a?` before `.`, `(`, `[` or `{`
+OptionalExpr =
+  Expr '?'
+
+UnaryExpr =
+  op:('-' | '!') Expr
+
+// assignments included
+BinExpr =
+  lhs:Expr
+  op:( '**' | '*' | '/' | '%' | '+' | '-' | '<<' | '>>' | '<' | '<=' | '>' | '>=' | '==' | '!=' | '&' | '^' | '|'
+     | '&&' | '||' | '??' | '|>' | '~>'
+     | '=' | '+=' | '-=' | '*=' | '**=' | '/=' | '%=' | '&&=' | '||=' | '&=' | '|=' | '^=' | '<<=' | '>>=' )
+  rhs:Expr
+
+IsExpr =
+  Expr 'is' Type
+
+AsExpr =
+  Expr 'as' Type
+
+// `a..b`, `a..=b : step`; in an index, either end may be left out
+RangeExpr =
+  start:Expr? op:('..' | '..=') end:Expr? (':' step:Expr)?
+
+// `++` and `--`
+PostfixExpr =
+  Expr op:('++' | '--')
+
+ParenExpr =
+  '(' Expr ')'
+
+TupleExpr =
+  '(' Expr (',' Expr)* ','? ')'
+
+ArrayExpr =
+  '[' (Expr (',' Expr)* ','?)? ']'
+
+UnitExpr =
+  '(' ')'
+
+IfExpr =
+  'if' '(' condition:Expr ')' then:Block ('else' (elseBlock:Block | elseIf:IfExpr))?
+
+// `let pattern <- expr` in a condition
+LetExpr =
+  'let' Pattern ('|' Pattern)* '<-' Expr
+
+MatchExpr =
+  'match' ('(' Expr ')')? MatchBody
+
+MatchBody =
+  '{' (MatchCase | ';')* '}'
+
+MatchCase =
+  'case' (Pattern ('|' Pattern)* Guard? | condition:Expr) '=>' (Stmt | ';')*
+
+// `where expr`
+Guard =
+  'where' Expr
+
+TryExpr =
+  'try' ResourceList? Block CatchClause* FinallyClause?
+
+ResourceList =
+  '(' (ResourceDecl (',' ResourceDecl)* ','?)? ')'
+
+// `name: T = expr` in a try-with-resources
+ResourceDecl =
+  Name (':' Type)? '=' Expr
+
+CatchClause =
+  'catch' '(' CatchPat ')' Block
+
+FinallyClause =
+  'finally' Block
+
+ForInExpr =
+  'for' '(' Pattern 'in' Expr Guard? ')' Block
+
+WhileExpr =
+  'while' '(' Expr ')' Block
+
+DoWhileExpr =
+  'do' Block 'while' '(' Expr ')'
+
+ThrowExpr =
+  'throw' Expr
+
+ReturnExpr =
+  'return' Expr?
+
+BreakExpr =
+  'break'
+
+ContinueExpr =
+  'continue'
+
+SpawnExpr =
+  'spawn' ('(' context:Expr ')')? lambda:LambdaExpr
+
+SynchronizedExpr =
+  'synchronized' '(' Expr ')' Block
+
+UnsafeExpr =
+  'unsafe' Block
+
+LambdaExpr =
+  Annotation* '{' (LambdaParamList? '=>')? (Stmt | ';')* '}'
+
+LambdaParamList =
+  LambdaParam (',' LambdaParam)* ','?
+
+LambdaParam =
+  ('_' | Name) (':' Type)?
+
+ThisExpr =
+  'this'
+
+SuperExpr =
+  'super'
+
+WildcardExpr =
+  '_'
+
+TypeConvExpr =
+  PrimType '(' Expr ')'
+
+// `Int64` before `.`
+PrimTypeExpr =
+  'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64' | 'UIntNative'
+| 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit'
+
+VArrayExpr =
+  VArrayType ArgList?
+
+QuoteExpr =
+  'quote' '(' (QuoteInterpolation | 'AnyToken')* ')'
+
+// `$(expr)` in a quote
+QuoteInterpolation =
+  '$' '(' Expr ')'
+
+MacroExpandExpr =
+  ('@' | '@!') NameRef ('.' NameRef)* MacroAttr? (MacroArgs | MacroExpandExpr)
+
+// `[...]` after a macro name
+MacroAttr =
+  '[' 'AnyToken'* ']'
+
+// `(...)` after a macro name
+MacroArgs =
+  '(' 'AnyToken'* ')'

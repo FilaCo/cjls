@@ -1,0 +1,208 @@
+# The kinds of Cangjie's tokens, and of the few nodes `cangjie.ungram` has no rule for. `syntax_codegen` makes
+# `src/syntax_kind.cj` of both files, and `src/ast/nodes.cj` of the grammar: change these, never what they make, then
+#
+#     cjpm build && target/release/bin/syntax_codegen modules/cjsyntax/syntax_kinds.toml
+#
+# Each kind is a `name`, with a `doc` if it needs one, and a `text` if it is spelled one way only.
+
+grammar = "cangjie.ungram"
+kinds-output = "src/syntax_kind.cj"
+kinds-package = "cjsyntax"
+ast-output = "src/ast/nodes.cj"
+ast-package = "cjsyntax.ast"
+
+# What the parser skips; `buildTree` weaves it back into the tree.
+trivia = [
+    { name = "Whitespace", doc = "spaces, tabs and form feeds" },
+    { name = "Newline", doc = "one or more line breaks in a row: what ends a statement" },
+    { name = "LineComment" },
+    { name = "BlockComment", doc = "`/* */`, which nest" },
+]
+
+# Kinds the lexer and the parser use, but a tree never holds.
+special = [
+    { name = "Eof", doc = "what the parser reads past the end; never in a tree" },
+    { name = "BuiltinAnnotationName", doc = "the contextual kind of an `Ident` naming a builtin annotation; never in a tree" },
+]
+
+# What the lexer cuts out of the text, the longest match first.
+punctuation = [
+    { name = "Dot", text = "." },
+    { name = "Comma", text = "," },
+    { name = "LParen", text = "(" },
+    { name = "RParen", text = ")" },
+    { name = "LBracket", text = "[" },
+    { name = "RBracket", text = "]" },
+    { name = "LBrace", text = "{" },
+    { name = "RBrace", text = "}" },
+    { name = "StarStar", text = "**" },
+    { name = "Star", text = "*" },
+    { name = "Percent", text = "%" },
+    { name = "Slash", text = "/" },
+    { name = "Plus", text = "+" },
+    { name = "Minus", text = "-" },
+    { name = "PlusPlus", text = "++" },
+    { name = "MinusMinus", text = "--" },
+    { name = "AmpAmp", text = "&&" },
+    { name = "PipePipe", text = "||" },
+    { name = "PipeGt", text = "|>" },
+    { name = "TildeGt", text = "~>" },
+    { name = "Bang", text = "!" },
+    { name = "Amp", text = "&" },
+    { name = "Pipe", text = "|" },
+    { name = "Caret", text = "^" },
+    { name = "Tilde", text = "~" },
+    { name = "LtLt", text = "<<" },
+    { name = "Colon", text = ":" },
+    { name = "ColonColon", text = "::" },
+    { name = "Semicolon", text = ";" },
+    { name = "Eq", text = "=" },
+    { name = "PlusEq", text = "+=" },
+    { name = "MinusEq", text = "-=" },
+    { name = "StarEq", text = "*=" },
+    { name = "StarStarEq", text = "**=" },
+    { name = "SlashEq", text = "/=" },
+    { name = "PercentEq", text = "%=" },
+    { name = "AmpAmpEq", text = "&&=" },
+    { name = "PipePipeEq", text = "||=" },
+    { name = "AmpEq", text = "&=" },
+    { name = "PipeEq", text = "|=" },
+    { name = "CaretEq", text = "^=" },
+    { name = "LtLtEq", text = "<<=" },
+    { name = "Arrow", text = "->" },
+    { name = "LArrow", text = "<-" },
+    { name = "FatArrow", text = "=>" },
+    { name = "DotDot", text = ".." },
+    { name = "DotDotEq", text = "..=" },
+    { name = "DotDotDot", text = "..." },
+    { name = "Hash", text = "#" },
+    { name = "At", text = "@" },
+    { name = "AtBang", text = "@!" },
+    { name = "Question", text = "?" },
+    { name = "Lt", text = "<" },
+    { name = "Gt", text = ">" },
+    { name = "LtEq", text = "<=" },
+    { name = "LtColon", text = "<:" },
+    { name = "EqEq", text = "==" },
+    { name = "BangEq", text = "!=" },
+    { name = "Dollar", text = "$" },
+    { name = "Backslash", text = "\\" },
+]
+
+# Punctuation only the parser makes, of joint pieces: `>`, `=` and `?` are lexed alone, as only the parser can
+# tell `a >> b` from the end of `Array<Array<T>>`.
+glued-punctuation = [
+    { name = "GtGt", text = ">>" },
+    { name = "GtEq", text = ">=" },
+    { name = "GtGtEq", text = ">>=" },
+    { name = "QuestionQuestion", text = "??" },
+]
+
+# Tokens of text that varies, and ones of fixed text the lexer makes its own way. A `word` is spelled like an
+# identifier, and `SyntaxKind.keyword` knows it along with the keywords.
+tokens = [
+    { name = "ErrorToken", doc = "a character the lexer does not know" },
+    { name = "IntLit" },
+    { name = "FloatLit" },
+    { name = "RuneLit", doc = "`r'a'`" },
+    { name = "ByteLit", doc = "`b'a'`" },
+    { name = "RawStringLit", doc = "`#\"...\"#`: one token, as it has no interpolation" },
+    { name = "StringStart", doc = "the opening quote(s) of a string: `\"`, `'`, `\"\"\"`, `'''`, `J\"`" },
+    { name = "StringContent", doc = "text between the quotes and interpolations, escapes included" },
+    { name = "StringEnd", doc = "the closing quote(s)" },
+    { name = "InterpolationStart", text = "${" },
+    { name = "InterpolationEnd", text = "}", doc = "the `}` closing an interpolation" },
+    { name = "Ident", doc = "an identifier, backquoted or not" },
+    { name = "DollarIdent", doc = "`$name`, in a quote" },
+    { name = "Underscore", text = "_", word = true, doc = "`_`" },
+]
+
+# Words the lexer never takes for identifiers. The `contextual` ones are names wherever a name fits, and the
+# parser remaps them to `Ident` there.
+keywords = [
+    { name = "Int8Kw", text = "Int8" },
+    { name = "Int16Kw", text = "Int16" },
+    { name = "Int32Kw", text = "Int32" },
+    { name = "Int64Kw", text = "Int64" },
+    { name = "IntNativeKw", text = "IntNative" },
+    { name = "UInt8Kw", text = "UInt8" },
+    { name = "UInt16Kw", text = "UInt16" },
+    { name = "UInt32Kw", text = "UInt32" },
+    { name = "UInt64Kw", text = "UInt64" },
+    { name = "UIntNativeKw", text = "UIntNative" },
+    { name = "Float16Kw", text = "Float16" },
+    { name = "Float32Kw", text = "Float32" },
+    { name = "Float64Kw", text = "Float64" },
+    { name = "RuneKw", text = "Rune" },
+    { name = "BoolKw", text = "Bool" },
+    { name = "NothingKw", text = "Nothing" },
+    { name = "UnitKw", text = "Unit" },
+    { name = "StructKw", text = "struct" },
+    { name = "EnumKw", text = "enum" },
+    { name = "VArrayKw", text = "VArray" },
+    { name = "ThisTypeKw", text = "This" },
+    { name = "PackageKw", text = "package" },
+    { name = "ImportKw", text = "import" },
+    { name = "ClassKw", text = "class" },
+    { name = "InterfaceKw", text = "interface" },
+    { name = "FuncKw", text = "func" },
+    { name = "MacroKw", text = "macro" },
+    { name = "QuoteKw", text = "quote" },
+    { name = "LetKw", text = "let" },
+    { name = "VarKw", text = "var" },
+    { name = "ConstKw", text = "const" },
+    { name = "TypeKw", text = "type" },
+    { name = "InitKw", text = "init" },
+    { name = "ThisKw", text = "this" },
+    { name = "SuperKw", text = "super" },
+    { name = "IfKw", text = "if" },
+    { name = "ElseKw", text = "else" },
+    { name = "CaseKw", text = "case" },
+    { name = "TryKw", text = "try" },
+    { name = "CatchKw", text = "catch" },
+    { name = "FinallyKw", text = "finally" },
+    { name = "ForKw", text = "for" },
+    { name = "DoKw", text = "do" },
+    { name = "WhileKw", text = "while" },
+    { name = "ThrowKw", text = "throw" },
+    { name = "ReturnKw", text = "return" },
+    { name = "ContinueKw", text = "continue" },
+    { name = "BreakKw", text = "break" },
+    { name = "InKw", text = "in" },
+    { name = "MatchKw", text = "match" },
+    { name = "WhereKw", text = "where" },
+    { name = "ExtendKw", text = "extend" },
+    { name = "WithKw", text = "with" },
+    { name = "PropKw", text = "prop" },
+    { name = "StaticKw", text = "static" },
+    { name = "PublicKw", text = "public", contextual = true },
+    { name = "PrivateKw", text = "private", contextual = true },
+    { name = "InternalKw", text = "internal", contextual = true },
+    { name = "ProtectedKw", text = "protected", contextual = true },
+    { name = "OverrideKw", text = "override", contextual = true },
+    { name = "RedefKw", text = "redef", contextual = true },
+    { name = "AbstractKw", text = "abstract", contextual = true },
+    { name = "SealedKw", text = "sealed", contextual = true },
+    { name = "OpenKw", text = "open", contextual = true },
+    { name = "ForeignKw", text = "foreign" },
+    { name = "InoutKw", text = "inout" },
+    { name = "MutKw", text = "mut" },
+    { name = "UnsafeKw", text = "unsafe" },
+    { name = "OperatorKw", text = "operator" },
+    { name = "SpawnKw", text = "spawn" },
+    { name = "SynchronizedKw", text = "synchronized" },
+    { name = "MainKw", text = "main" },
+    { name = "IsKw", text = "is" },
+    { name = "AsKw", text = "as" },
+    { name = "TrueKw", text = "true" },
+    { name = "FalseKw", text = "false" },
+    { name = "CommonKw", text = "common", contextual = true },
+    { name = "SpecificKw", text = "specific", contextual = true },
+    { name = "FeaturesKw", text = "features", contextual = true },
+]
+
+# Nodes `cangjie.ungram` has no rule for.
+nodes = [
+    { name = "ErrorNode", doc = "what could not be parsed" },
+    { name = "TokenTree", doc = "balanced tokens, kept as they are" },
+]

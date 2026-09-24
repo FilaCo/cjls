@@ -702,7 +702,7 @@ func matchCase(p: P, hasSelector: Bool): Unit {
 func returnExpr(p: P): CompletedMarker<SyntaxKind> {
     let m = p.start()
     p.bump(ReturnKw)
-    let noValue = (atDeclStart(p) && !isContextualKeyword(p.current())) ||
+    let noValue = (atDeclStart(p) && !p.current().isContextualKeyword()) ||
         p.atAny([Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]) || p.atEof()
     if (!noValue) {
         exprOrError(p, Restrictions.NONE)
