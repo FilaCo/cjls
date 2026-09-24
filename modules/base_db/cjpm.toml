@@ -1,0 +1,20 @@
+[package]
+cjc-version = "1.3.0"
+name = "base_db"
+organization = ""
+description = "The inputs of the analysis, on calca: the files' texts, and their parses"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = ""
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]
+calca = { path = "../calca" }
+cjsyntax = { path = "../cjsyntax" }
+ginkgo = { path = "../ginkgo" }
+rope = { path = "../rope" }
+vfs = { path = "../vfs" }
