@@ -155,7 +155,7 @@ extend CjEmitter {
 
     private func emitAdoptedVariant(adoptedConst: EnumVariantIr, targetType: Tokens): Unit {
         let constIdent = escapedIdent(adoptedConst.ident)
-        let constValue = adoptedConst.value
+        let constValue = literalOf(adoptedConst.value)
 
         emitDoc(adoptedConst.doc)
         emitln(quote(static prop $constIdent: $targetType { get() { $targetType($constValue) } }))
@@ -181,7 +181,7 @@ extend CjEmitter {
 
     private func emitOpenEnumVariant(openEnumVariant: EnumVariantIr, enumIdent: Token): Unit {
         let enumVariantIdent = escapedIdent(openEnumVariant.ident)
-        let enumVariantValue = openEnumVariant.value
+        let enumVariantValue = literalOf(openEnumVariant.value)
 
         emitDoc(openEnumVariant.doc)
         emitln(quote(public static const $enumVariantIdent: $enumIdent = $enumIdent($enumVariantValue)))

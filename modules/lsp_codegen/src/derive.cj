@@ -49,7 +49,8 @@ struct SerializableMemberOptions <: ToTokens {
     public func toTokens(): Tokens {
         let options = ArrayList<Tokens>()
         if (let Some(v) <- value) {
-            options.add(quote(value: $v))
+            let literal = literalOf(v)
+            options.add(quote(value: $literal))
         }
         if (other) {
             options.add(quote(other))
@@ -63,6 +64,18 @@ private func markerOf(options: Iterable<Tokens>): Tokens {
     match (joined(options)) {
         case Some(joinedOptions) => quote(@DeriveExtSerializable[$joinedOptions])
         case None => Tokens()
+    }
+}
+
+/**
+ * @note a function rather than `ToTokens` on `IntegerOrString`: this package can't extend an
+ *       imported type with an imported interface, and implementing it in `stdxx` would link
+ *       `std.ast` - and the compiler's parser under it - into the server.
+ */
+func literalOf(value: IntegerOrString): Tokens {
+    match (value) {
+        case Integer(int) => int.toTokens()
+        case String(str) => str.toTokens()
     }
 }
 

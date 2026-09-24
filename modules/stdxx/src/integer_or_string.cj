@@ -1,13 +1,12 @@
 package stdxx
 
-import std.ast.*
 import stdx.serialization.serialization.*
 
 /**
  * `integer | string` type.
  */
 public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equatable<IntegerOrString> & Equatable<Int32> &
-    Equatable<String> & Hashable & ToTokens {
+    Equatable<String> & Hashable {
     | Integer(Int32)
     | String(String)
 
@@ -93,13 +92,6 @@ public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equata
         match (this) {
             case Integer(int) => int.hashCode()
             case String(str) => str.hashCode()
-        }
-    }
-
-    public func toTokens(): Tokens {
-        match (this) {
-            case Integer(int) => int.toTokens()
-            case String(str) => str.toTokens()
         }
     }
 }
