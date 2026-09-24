@@ -8,22 +8,22 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
 1. **Find the spec.** Every message the client sends has a generated `<TypeName>Spec` in `cjls.lsp_types` — `HoverRequestSpec`, `DidOpenTextDocumentNotificationSpec`. It fixes the method, the params type and the result type.
 
-2. **Write the handler** as a plain function in the feature's file, marked `@Handler` (from `cjls.macros`). Params come last; before them, take only what the handler uses:
+2. **Write the handler** as a plain function in the feature's file, marked `@LspHandler` (from `cjls.macros`). Params come last; before them, take only what the handler uses:
 
    ```cangjie
-   @Handler[readonly]
+   @LspHandler[readonly]
    func handleHover(db: DatabaseSnapshot, cancellation: CancellationToken, params: HoverParams): Nullable<Hover> {
        ...
    }
    ```
 
-   - `@Handler[readonly]` if it only answers a question (`hover`, `definition`, `completion`) — the default for requests. It runs on a thread of its own against a snapshot taken when the message arrived.
-   - `@Handler` if it changes state (`didOpen`, `didChange`, configuration). It runs on the read loop, in arrival order, and nothing else is read until it returns — keep it short.
+   - `@LspHandler[readonly]` if it only answers a question (`hover`, `definition`, `completion`) — the default for requests. It runs on a thread of its own against a snapshot taken when the message arrived.
+   - `@LspHandler` if it changes state (`didOpen`, `didChange`, configuration). It runs on the read loop, in arrival order, and nothing else is read until it returns — keep it short.
 
    | argument | available to |
    |---|---|
-   | `Database` | `@Handler` only — the handler that changes the inputs |
-   | `DatabaseSnapshot` | `@Handler[readonly]` only |
+   | `Database` | `@LspHandler` only — the handler that changes the inputs |
+   | `DatabaseSnapshot` | `@LspHandler[readonly]` only |
    | `Client`, `CancellationToken`, `Logger` | both |
 
    Taking one the mode doesn't offer fails to compile. The `Logger` already carries the method and request id; add attributes rather than formatting them into the message.
@@ -34,4 +34,4 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
 5. **Test the function directly**, next to it in `<feature>_test.cj`: call it with the arguments it takes (`Database().snapshot()`, `CancellationToken()`, `NoopLogger()`, …). Only behaviour of the server itself — lifecycle, dispatch, threading — is tested through `Server`, in `cjls.server`.
 
-Don't await a `Client.request` from a `@Handler` without `readonly`: its answer can only arrive through the read loop that the handler is holding.
+Don't await a `Client.request` from a `@LspHandler` without `readonly`: its answer can only arrive through the read loop that the handler is holding.

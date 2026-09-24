@@ -7,7 +7,7 @@ import std.ast.*
  * overload of the same name that takes the context instead and extracts the rest from it:
  *
  * ```cangjie
- * @Handler[readonly]
+ * @LspHandler[readonly]
  * func handleHover(db: DatabaseSnapshot, cancellation: CancellationToken, params: HoverParams): Nullable<Hover>
  * // adds
  * func handleHover(context: ReadOnlyContext, params: HoverParams): Nullable<Hover> {
@@ -15,17 +15,17 @@ import std.ast.*
  * }
  * ```
  *
- * The params come last. `@Handler` runs on the read loop with a `Context`, `@Handler[readonly]` on
+ * The params come last. `@LspHandler` runs on the read loop with a `Context`, `@LspHandler[readonly]` on
  * a thread of its own with a `ReadOnlyContext`; an argument the context cannot give fails to
  * compile inside the added overload.
  */
-public macro Handler(input: Tokens): Tokens {
+public macro LspHandler(input: Tokens): Tokens {
     withContextOverload(input, quote(Context))
 }
 
-public macro Handler(attrs: Tokens, input: Tokens): Tokens {
+public macro LspHandler(attrs: Tokens, input: Tokens): Tokens {
     if (attrs.size != 1 || attrs[0].value != "readonly") {
-        diagReport(DiagReportLevel.ERROR, attrs, "`@Handler` takes no option but `readonly`", "write `@Handler[readonly]`, or `@Handler` for a handler that runs on the read loop")
+        diagReport(DiagReportLevel.ERROR, attrs, "`@LspHandler` takes no option but `readonly`", "write `@LspHandler[readonly]`, or `@LspHandler` for a handler that runs on the read loop")
         return input
     }
     withContextOverload(input, quote(ReadOnlyContext))
@@ -35,7 +35,7 @@ private func withContextOverload(input: Tokens, context: Tokens): Tokens {
     let handler = match (parseDecl(input)) {
         case fd: FuncDecl => fd
         case _ =>
-            diagReport(DiagReportLevel.ERROR, input, "`@Handler` goes on a function", "")
+            diagReport(DiagReportLevel.ERROR, input, "`@LspHandler` goes on a function", "")
             return input
     }
     let params = handler.funcParams

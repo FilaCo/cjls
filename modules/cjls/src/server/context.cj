@@ -31,14 +31,14 @@ public class ReadOnlyContext {
 }
 
 /**
- * A type a `@Handler` function can take before its params, the way axum's `FromRequestParts` is.
+ * A type a `@LspHandler` function can take before its params, the way axum's `FromRequestParts` is.
  */
 public interface FromContext<T> {
     static func from(ctx: Context): T
 }
 
 /**
- * A type a `@Handler[readonly]` function can take before its params.
+ * A type a `@LspHandler[readonly]` function can take before its params.
  */
 public interface FromReadOnlyContext<T> {
     static func from(ctx: ReadOnlyContext): T

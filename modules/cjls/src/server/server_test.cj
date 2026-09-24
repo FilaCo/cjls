@@ -11,7 +11,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
 import cjls.lsp_types.*
-import cjls.macros.Handler
+import cjls.macros.LspHandler
 
 /**
  * A request as the connection would hand it over, with its answer caught on a queue so a test can
@@ -69,7 +69,7 @@ let describedClients = LinkedBlockingQueue<Client>()
 /**
  * Tells what it was given: the line and the cancellation in its answer, the client on a queue.
  */
-@Handler[readonly]
+@LspHandler[readonly]
 func describeHover(client: Client, cancellation: CancellationToken, params: HoverParams): Nullable<Hover> {
     describedClients.add(client)
     let described = "${params.position.line}:${cancellation.isCancelled}"

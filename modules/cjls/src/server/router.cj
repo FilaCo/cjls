@@ -17,7 +17,7 @@ import cjls.lsp_types.*
  * ```
  *
  * The spec gives the method and the types; a handler takes a context and the params, and returns
- * the result, and the compiler holds it to all of them. `@Handler` makes a function of the params
+ * the result, and the compiler holds it to all of them. `@LspHandler` makes a function of the params
  * and what it needs from the context into one.
  *
  * The context says how the handler runs. With a `Context` it runs on the read loop itself, in
