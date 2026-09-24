@@ -5,7 +5,6 @@ import std.collection.concurrent.*
 import std.sync.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import stdxx.*
 
 public class Connection <: Resource {
     private let locker = Mutex()

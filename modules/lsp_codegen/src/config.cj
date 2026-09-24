@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.fs.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 import cjtoml.*
 
 struct Config {

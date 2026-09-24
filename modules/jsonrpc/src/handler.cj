@@ -1,6 +1,5 @@
 package jsonrpc
 
-import stdxx.*
 
 /**
  * What the connection hands inbound messages to. Both callbacks run on the read

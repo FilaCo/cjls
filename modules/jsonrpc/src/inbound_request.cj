@@ -1,7 +1,6 @@
 package jsonrpc
 
 import std.sync.AtomicBool
-import stdxx.*
 
 /**
  * A peer request handed to a `Handler`, together with the one right to answer it.

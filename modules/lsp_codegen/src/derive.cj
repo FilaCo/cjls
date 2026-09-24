@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.ast.*
 import std.collection.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 /**
  * An interface a generated declaration derives.

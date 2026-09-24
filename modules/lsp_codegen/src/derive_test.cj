@@ -3,7 +3,7 @@ package lsp_codegen
 import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 private func emittedDerives(derives: Array<DeriveIr>): String {
     let output = ByteBuffer()

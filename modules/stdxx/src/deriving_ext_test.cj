@@ -5,6 +5,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import std.collection.*
 import stdx.serialization.serialization.*
+import stdxx.serialization.*
 import stdxx.deriving.*
 
 @DeriveExt[Serializable]
@@ -79,7 +80,7 @@ struct DerivedAndDescribed {
 }
 
 /**
- * The shape `lsp_codegen` emits for an open enumeration: marker between the two derives.
+ * An open enumeration: a newtype with constants, the marker between the two derives.
  */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[transparent]
@@ -172,51 +173,45 @@ class DeriveSerializableTest {
     @TestCase
     func derivingLeavesRoomForDerive() {
         // arrange
-        let described = DerivedAndDescribed(name: "cjls")
+        let described = DerivedAndDescribed(name: "x")
 
         // act & assert
-        @Expect("cjls", described.serialize().asStructOrThrow().getOrThrow("name").asStringOrThrow())
-        @Expect("DerivedAndDescribed(name: cjls)", described.toString())
+        @Expect("x", described.serialize().asStructOrThrow().getOrThrow("name").asStringOrThrow())
+        @Expect("DerivedAndDescribed(name: x)", described.toString())
+    }
+
+    @TestCase
+    func renameAndBackquotesDecideTheWireName() {
+        // arrange
+        let names = DerivedNames(document: "file:///a.cj", `type`: "cangjie")
+
+        // act
+        let dms = names.serialize().asStructOrThrow()
+        let restored = DerivedNames.deserialize(dms)
+
+        // assert
+        @Expect("file:///a.cj", dms.getOrThrow("textDocument").asStringOrThrow())
+        @Expect("cangjie", dms.getOrThrow("type").asStringOrThrow())
+        @Expect(dms.getOrNone("document").isNone())
+        @Expect("file:///a.cj", restored.document)
+        @Expect("cangjie", restored.`type`)
     }
 }
 
 @Test
 class DeriveSerializableNullabilityTest {
     @TestCase
-    func anAbsentOptionalIsWrittenAsNull() {
+    func withoutSkipNoneEveryFieldIsWritten() {
         // arrange
-        let shapes = DerivedShapes(required: "r", nullable: Value("n"))
-
-        // act
-        let dms = shapes.serialize().asStructOrThrow()
-
-        // assert
-        @Assert(dms.getOrThrow("optional") is DataModelNull)
-        @Assert(dms.getOrThrow("optionalNullable") is DataModelNull)
-    }
-
-    @TestCase
-    func aPresentOptionalIsWritten() {
-        // arrange
-        let shapes = DerivedShapes(required: "r", nullable: Value("n"), optional: "o")
+        let shapes = DerivedShapes(required: "r", nullable: Null, optional: "o")
 
         // act
         let dms = shapes.serialize().asStructOrThrow()
 
         // assert
         @Expect("o", dms.getOrThrow("optional").asStringOrThrow())
-    }
-
-    @TestCase
-    func aNullNullableIsAlwaysWritten() {
-        // arrange
-        let shapes = DerivedShapes(required: "r", nullable: Null)
-
-        // act
-        let dms = shapes.serialize().asStructOrThrow()
-
-        // assert
-        @Assert(dms.getOrThrow("nullable") is DataModelNull)
+        @Expect(dms.getOrThrow("nullable") is DataModelNull)
+        @Expect(dms.getOrThrow("optionalNullable") is DataModelNull)
     }
 
     @TestCase
@@ -231,40 +226,43 @@ class DeriveSerializableNullabilityTest {
         let restored = DerivedShapes.deserialize(dms)
 
         // assert
-        @Assert(restored.optional.isNone())
-        @Assert(restored.nullable.isNull())
+        @Expect(restored.optional.isNone())
+        @Expect(restored.nullable.isNull())
     }
 
     @TestCase
     func anOptionalNullableTellsAbsentFromNull() {
         // arrange
+        let absent = DataModelStruct().add(field("required", "r")).add(Field("nullable", DataModelNull()))
         let present = DataModelStruct()
             .add(field("required", "r"))
             .add(Field("nullable", DataModelNull()))
             .add(Field("optionalNullable", DataModelNull()))
-        let absent = DataModelStruct().add(field("required", "r")).add(Field("nullable", DataModelNull()))
 
         // act
-        let restoredNull = DerivedShapes.deserialize(present)
         let restoredAbsent = DerivedShapes.deserialize(absent)
+        let restoredNull = DerivedShapes.deserialize(present)
 
         // assert
-        @Assert(restoredNull.optionalNullable.getOrThrow().isNull())
-        @Assert(restoredAbsent.optionalNullable.isNone())
+        @Expect(restoredAbsent.optionalNullable.isNone())
+        @Expect(restoredNull.optionalNullable.getOrThrow().isNull())
     }
 }
 
 @Test
 class DeriveSkipNoneTest {
     @TestCase
-    func onTheTypeItOmitsEveryNoneField() {
+    func onTheTypeItOmitsEveryNoneFieldAndReadsThemBack() {
         // act
         let dms = DerivedSkipped(required: "r").serialize().asStructOrThrow()
+        let restored = DerivedSkipped.deserialize(dms)
 
         // assert
-        @Assert(dms.getOrNone("optional").isNone())
-        @Assert(dms.getOrNone("optionalNullable").isNone())
-        @Expect("r", dms.getOrThrow("required").asStringOrThrow())
+        @Expect(dms.getOrNone("optional").isNone())
+        @Expect(dms.getOrNone("optionalNullable").isNone())
+        @Expect("r", restored.required)
+        @Expect(restored.optional.isNone())
+        @Expect(restored.optionalNullable.isNone())
     }
 
     @TestCase
@@ -273,7 +271,7 @@ class DeriveSkipNoneTest {
         let dms = DerivedSkipped(required: "r", optionalNullable: Null).serialize().asStructOrThrow()
 
         // assert
-        @Assert(dms.getOrThrow("optionalNullable") is DataModelNull)
+        @Expect(dms.getOrThrow("optionalNullable") is DataModelNull)
     }
 
     @TestCase
@@ -282,8 +280,8 @@ class DeriveSkipNoneTest {
         let dms = DerivedPartlySkipped().serialize().asStructOrThrow()
 
         // assert
-        @Assert(dms.getOrNone("skipped").isNone())
-        @Assert(dms.getOrThrow("kept") is DataModelNull)
+        @Expect(dms.getOrNone("skipped").isNone())
+        @Expect(dms.getOrThrow("kept") is DataModelNull)
     }
 
     @TestCase
@@ -293,7 +291,7 @@ class DeriveSkipNoneTest {
         let restored = DerivedPublicSkipped.deserialize(dms)
 
         // assert
-        @Assert(dms.getOrNone("optional").isNone())
+        @Expect(dms.getOrNone("optional").isNone())
         @Expect("r", restored.required)
     }
 
@@ -304,43 +302,13 @@ class DeriveSkipNoneTest {
         let restored = DerivedRenamedAndSkipped.deserialize(DataModelStruct().add(field("textDocument", "file:///a.cj")))
 
         // assert
-        @Assert(dms.getOrNone("textDocument").isNone())
-        @Expect("file:///a.cj", restored.document ?? "<none>")
-    }
-
-    @TestCase
-    func omittedFieldsRoundTrip() {
-        // act
-        let restored = DerivedSkipped.deserialize(DerivedSkipped(required: "r").serialize())
-
-        // assert
-        @Expect("r", restored.required)
-        @Assert(restored.optional.isNone())
-        @Assert(restored.optionalNullable.isNone())
-    }
-}
-
-@Test
-class DeriveSerializableNamingTest {
-    @TestCase
-    func renameAndBackquotesDecideTheWireName() {
-        // arrange
-        let names = DerivedNames(document: "file:///a.cj", `type`: "cangjie")
-
-        // act
-        let dms = names.serialize().asStructOrThrow()
-        let restored = DerivedNames.deserialize(dms)
-
-        // assert
-        @Expect("file:///a.cj", dms.getOrThrow("textDocument").asStringOrThrow())
-        @Expect("cangjie", dms.getOrThrow("type").asStringOrThrow())
-        @Assert(dms.getOrNone("document").isNone())
-        @Expect("file:///a.cj", restored.document)
-        @Expect("cangjie", restored.`type`)
+        @Expect(dms.getOrNone("textDocument").isNone())
+        @Expect(Some("file:///a.cj"), restored.document)
     }
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedBaseTypes {
     | @DeriveExtSerializable[value: "URI"]
     Uri
@@ -350,6 +318,7 @@ enum DerivedBaseTypes {
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedSeverity {
     | @DeriveExtSerializable[value: 1]
     Fatal
@@ -358,8 +327,7 @@ enum DerivedSeverity {
 }
 
 /**
- * The shape `lsp_codegen` emits for a closed enumeration, `@Derive` included: the payload is what
- * `Equatable` compares on.
+ * A closed enumeration open to values it does not know; `Equatable` compares the payload too.
  */
 @DeriveExt[Serializable]
 @Derive[Equatable]
@@ -382,6 +350,7 @@ enum DerivedMarkupKind {
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedErrorCode {
     | @DeriveExtSerializable[value: -32700]
     ParseError
@@ -392,6 +361,7 @@ enum DerivedErrorCode {
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedNarrowOrWide {
     | Narrow(Int32)
     | Wide(Int64)
@@ -399,6 +369,7 @@ enum DerivedNarrowOrWide {
 
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind", skipNone]
+@Derive[Equatable]
 enum DerivedTaggedPayload {
     | @DeriveExtSerializable[value: "note", payload: ["text", "detail"]]
     Note(String, ?String)
@@ -418,6 +389,7 @@ enum DerivedOneOrMany<T> {
 
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind"]
+@Derive[Equatable]
 enum DerivedShape {
     | @DeriveExtSerializable[value: "circle", payload: ["radius"]]
     Circle(Int64)
@@ -435,37 +407,21 @@ class DeriveScalarEnumTest {
         @Expect("URI", DerivedBaseTypes.Uri.serialize().asStringOrThrow())
         @Expect("integer", DerivedBaseTypes.Numeric.serialize().asStringOrThrow())
         @Expect("Boolean", DerivedBaseTypes.Boolean.serialize().asStringOrThrow())
-    }
-
-    @TestCase
-    func aStringEnumRoundTrips() {
-        // act
-        let restored = DerivedBaseTypes.deserialize(DataModelString("integer"))
-
-        // assert
-        @Assert(matchesNumeric(restored))
+        @Expect(DerivedBaseTypes.Numeric, DerivedBaseTypes.deserialize(DataModelString("integer")))
     }
 
     @TestCase
     func anIntegerEnumTravelsAsANumber() {
-        // act
-        let dm = DerivedSeverity.Warn.serialize()
-        let restored = DerivedSeverity.deserialize(DataModelInt(1))
-
-        // assert
-        @Expect(2, dm.asIntOrThrow())
-        @Assert(matchesFatal(restored))
+        // act & assert
+        @Expect(2, DerivedSeverity.Warn.serialize().asIntOrThrow())
+        @Expect(DerivedSeverity.Fatal, DerivedSeverity.deserialize(DataModelInt(1)))
     }
 
     @TestCase
     func aNegativeValueSurvivesTheTwoTokensItIsMadeOf() {
-        // act
-        let dm = DerivedErrorCode.ParseError.serialize()
-        let restored = DerivedErrorCode.deserialize(DataModelInt(-32601))
-
-        // assert
-        @Expect(-32700, dm.asIntOrThrow())
-        @Assert(matchesMethodNotFound(restored))
+        // act & assert
+        @Expect(-32700, DerivedErrorCode.ParseError.serialize().asIntOrThrow())
+        @Expect(DerivedErrorCode.MethodNotFound, DerivedErrorCode.deserialize(DataModelInt(-32601)))
     }
 
     @TestCase
@@ -476,26 +432,41 @@ class DeriveScalarEnumTest {
         // assert
         @Expect("unexpected `DerivedBaseTypes` value: nope", e.message)
     }
+}
 
-    private static func matchesNumeric(value: DerivedBaseTypes): Bool {
-        match (value) {
-            case Numeric => true
-            case _ => false
-        }
+@Test
+class DeriveOtherVariantTest {
+    @TestCase
+    func aKnownValueStillReadsAsItsVariant() {
+        // act & assert
+        @Expect(DerivedSymbolKind.Module, DerivedSymbolKind.deserialize(DataModelInt(2)))
+        @Expect(DerivedMarkupKind.PlainText, DerivedMarkupKind.deserialize(DataModelString("plaintext")))
     }
 
-    private static func matchesMethodNotFound(value: DerivedErrorCode): Bool {
-        match (value) {
-            case MethodNotFound => true
-            case _ => false
-        }
+    @TestCase
+    func anUnknownValueIsKeptAndWrittenBack() {
+        // act
+        let symbol = DerivedSymbolKind.deserialize(DataModelInt(27))
+        let markup = DerivedMarkupKind.deserialize(DataModelString("asciidoc"))
+
+        // assert
+        @Expect(DerivedSymbolKind.Unknown(27), symbol)
+        @Expect(27, symbol.serialize().asIntOrThrow())
+        @Expect(DerivedMarkupKind.Unknown("asciidoc"), markup)
+        @Expect("asciidoc", markup.serialize().asStringOrThrow())
     }
 
-    private static func matchesFatal(value: DerivedSeverity): Bool {
-        match (value) {
-            case Fatal => true
-            case _ => false
-        }
+    @TestCase
+    func anUnknownValueOutsideThePayloadTypeThrows() {
+        // act & assert
+        @AssertThrows(DerivedSymbolKind.deserialize(DataModelInt(-1)))
+    }
+
+    @TestCase
+    func aValueOfTheWrongKindStillThrows() {
+        // act & assert
+        @AssertThrows[DataModelException](DerivedSymbolKind.deserialize(DataModelString("1")))
+        @AssertThrows[DataModelException](DerivedMarkupKind.deserialize(DataModelInt(1)))
     }
 }
 
@@ -509,26 +480,28 @@ class DeriveUntaggedEnumTest {
             DataModelSeq(ArrayList<DataModel>([DataModelString("a"), DataModelString("b")])))
 
         // assert
-        @Expect("single:one", describe(single))
-        @Expect("many:a,b", describe(many))
+        @Expect(match (single) {
+            case Single(s) => s == "one"
+            case _ => false
+        })
+        @Expect(match (many) {
+            case Many(items) => items == ["a", "b"]
+            case _ => false
+        })
     }
 
     @TestCase
     func aVariantSerializesAsItsPayloadAlone() {
         // act & assert
         @Expect("one", DerivedScalarOrList.Single("one").serialize().asStringOrThrow())
-        @Assert(DerivedScalarOrList.Many(["a"]).serialize() is DataModelSeq)
+        @Expect(DerivedScalarOrList.Many(["a"]).serialize() is DataModelSeq)
     }
 
     @TestCase
     func aVariantThatOverflowsGivesWayToTheNextOne() {
-        // act
-        let wide = DerivedNarrowOrWide.deserialize(DataModelInt(5_000_000_000))
-        let narrow = DerivedNarrowOrWide.deserialize(DataModelInt(7))
-
-        // assert
-        @Expect("wide:5000000000", describeWidth(wide))
-        @Expect("narrow:7", describeWidth(narrow))
+        // act & assert
+        @Expect(DerivedNarrowOrWide.Wide(5_000_000_000), DerivedNarrowOrWide.deserialize(DataModelInt(5_000_000_000)))
+        @Expect(DerivedNarrowOrWide.Narrow(7), DerivedNarrowOrWide.deserialize(DataModelInt(7)))
     }
 
     @TestCase
@@ -547,76 +520,14 @@ class DeriveUntaggedEnumTest {
         let several = DerivedOneOrMany<String>.deserialize(DerivedOneOrMany.Several(["x", "y"]).serialize())
 
         // assert
-        @Expect("one:x", describeOneOrMany(one))
-        @Expect("several:x,y", describeOneOrMany(several))
-    }
-
-    @TestCase
-    func aVariantWithSeveralPayloadsIsReadFromAnArrayOfThatLength() {
-        // arrange
-        let pair = DataModelSeq(ArrayList<DataModel>([DataModelInt(3), DataModelInt(7)]))
-
-        // act & assert
-        @Expect("offsets:3..7", describeLabel(DerivedLabel.deserialize(pair)))
-        @Expect("text:x", describeLabel(DerivedLabel.deserialize(DataModelString("x"))))
-    }
-
-    @TestCase
-    func aVariantWithSeveralPayloadsIsWrittenAsAnArray() {
-        // act
-        let items = DerivedLabel.Offsets(3, 7).serialize().asSeqOrThrow().getItems()
-
-        // assert
-        @Assert(2, items.size)
-        @Expect(3, items[0].asIntOrThrow())
-        @Expect(7, items[1].asIntOrThrow())
-    }
-
-    @TestCase
-    func anArrayOfAnotherLengthMatchesNoTupleVariant() {
-        // arrange
-        let triple = DataModelSeq(ArrayList<DataModel>([DataModelInt(1), DataModelInt(2), DataModelInt(3)]))
-
-        // act & assert
-        @AssertThrows[DataModelException](DerivedLabel.deserialize(triple))
-    }
-
-    @TestCase
-    func aTupleWithAnUnreadableItemGivesWayToTheNextOne() {
-        // arrange
-        let negative = DataModelSeq(ArrayList<DataModel>([DataModelInt(-1), DataModelInt(2)]))
-
-        // act & assert
-        @Expect("signed:-1..2", describeLabel(DerivedLabel.deserialize(negative)))
-    }
-
-    private static func describeLabel(value: DerivedLabel): String {
-        match (value) {
-            case Text(s) => "text:${s}"
-            case Offsets(start, end) => "offsets:${start}..${end}"
-            case Signed(start, end) => "signed:${start}..${end}"
-        }
-    }
-
-    private static func describeWidth(value: DerivedNarrowOrWide): String {
-        match (value) {
-            case Narrow(n) => "narrow:${n}"
-            case Wide(n) => "wide:${n}"
-        }
-    }
-
-    private static func describe(value: DerivedScalarOrList): String {
-        match (value) {
-            case Single(s) => "single:${s}"
-            case Many(items) => "many:${String.join(items, delimiter: ",")}"
-        }
-    }
-
-    private static func describeOneOrMany(value: DerivedOneOrMany<String>): String {
-        match (value) {
-            case One(s) => "one:${s}"
-            case Several(items) => "several:${String.join(items, delimiter: ",")}"
-        }
+        @Expect(match (one) {
+            case One(s) => s == "x"
+            case _ => false
+        })
+        @Expect(match (several) {
+            case Several(items) => items == ["x", "y"]
+            case _ => false
+        })
     }
 }
 
@@ -643,24 +554,21 @@ class DeriveTaggedEnumTest {
         @Expect(1, dms.getFields().size)
     }
 
-    @TestCase
-    func everyShapeRoundTrips() {
+    @TestCase[shape in [DerivedShape.Circle(5), DerivedShape.Rect(3, 4), DerivedShape.Point]]
+    func everyShapeRoundTrips(shape: DerivedShape) {
         // act & assert
-        @Expect("circle:5", describe(DerivedShape.deserialize(DerivedShape.Circle(5).serialize())))
-        @Expect("rect:3x4", describe(DerivedShape.deserialize(DerivedShape.Rect(3, 4).serialize())))
-        @Expect("point", describe(DerivedShape.deserialize(DerivedShape.Point.serialize())))
+        @Expect(shape, DerivedShape.deserialize(shape.serialize()))
     }
 
     @TestCase
     func anOptionalPayloadFollowsTheSameRulesAsAField() {
         // act
         let dms = DerivedTaggedPayload.Note("hello", None).serialize().asStructOrThrow()
-        let restored = DerivedTaggedPayload.deserialize(dms)
 
         // assert
-        @Assert(dms.getOrNone("detail").isNone())
+        @Expect(dms.getOrNone("detail").isNone())
         @Expect("hello", dms.getOrThrow("text").asStringOrThrow())
-        @Assert(describeNote(restored) == "hello/<none>")
+        @Expect(DerivedTaggedPayload.Note("hello", None), DerivedTaggedPayload.deserialize(dms))
     }
 
     @TestCase
@@ -674,72 +582,28 @@ class DeriveTaggedEnumTest {
         // assert
         @Expect("unexpected `DerivedShape` kind: hexagon", e.message)
     }
-
-    private static func describeNote(value: DerivedTaggedPayload): String {
-        match (value) {
-            case Note(text, detail) => "${text}/${detail ?? "<none>"}"
-        }
-    }
-
-    private static func describe(value: DerivedShape): String {
-        match (value) {
-            case Circle(r) => "circle:${r}"
-            case Rect(w, h) => "rect:${w}x${h}"
-            case Point => "point"
-        }
-    }
 }
 
 @Test
 class DeriveTransparentTest {
     @TestCase
     func aTransparentStructTravelsAsItsOnlyField() {
-        // act
-        let dm = DerivedOpenCode.PARSE_ERROR.serialize()
-
-        // assert
-        @Expect(-32700, dm.asIntOrThrow())
+        // act & assert
+        @Expect(-32700, DerivedOpenCode.PARSE_ERROR.serialize().asIntOrThrow())
+        @Expect("refactor", DerivedOpenKind(value: "refactor").serialize().asStringOrThrow())
     }
 
     @TestCase
     func aValueOutsideTheKnownConstantsRoundTrips() {
-        // act
-        let restored = DerivedOpenCode.deserialize(DataModelInt(-1))
-
-        // assert
-        @Expect(-1i32, restored.value)
-        @Expect(DerivedOpenCode(-1), restored)
+        // act & assert
+        @Expect(DerivedOpenCode(-1), DerivedOpenCode.deserialize(DataModelInt(-1)))
+        @Expect("x", DerivedOpenKind.deserialize(DataModelString("x")).value)
     }
 
     @TestCase
-    func anUnsignedFieldRoundTrips() {
-        // act
-        let restored = DerivedOpenUnsigned.deserialize(DerivedOpenUnsigned(7).serialize())
-
-        // assert
-        @Expect(7u32, restored.value)
-    }
-
-    @TestCase
-    func aNamedFieldRoundTrips() {
-        // act
-        let dm = DerivedOpenKind(value: "refactor").serialize()
-        let restored = DerivedOpenKind.deserialize(dm)
-
-        // assert
-        @Expect("refactor", dm.asStringOrThrow())
-        @Expect("refactor", restored.value)
-    }
-
-    @TestCase
-    func aValueOfTheWrongKindThrows() {
+    func aValueTheFieldCannotHoldThrows() {
         // act & assert
         @AssertThrows[DataModelException](DerivedOpenCode.deserialize(DataModelString("-1")))
-    }
-
-    @TestCase
-    func aValueOutsideTheFieldTypeThrows() {
-        // act & assert
         @AssertThrows(DerivedOpenUnsigned.deserialize(DataModelInt(-1)))
     }
 }
@@ -769,36 +633,23 @@ class DeriveTaggedStructTest {
     }
 
     @TestCase
-    func aForeignTagThrowsNamingIt() {
+    func aForeignOrAbsentTagThrows() {
         // arrange
-        let dms = DataModelStruct().add(field("kind", "delete")).add(field("uri", "file:///a"))
+        let otherTag = DataModelStruct().add(field("kind", "delete")).add(field("uri", "file:///a"))
+        let absent = DataModelStruct().add(field("uri", "file:///a"))
 
         // act
-        let e = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(dms))
+        let onOtherTag = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(otherTag))
+        let onAbsent = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(absent))
 
         // assert
-        @Expect("unexpected `DerivedCreateFile` kind: delete", e.message)
+        @Expect("unexpected `DerivedCreateFile` kind: delete", onOtherTag.message)
+        @Expect("required field \"kind\" is absent", onAbsent.message)
     }
 
-    @TestCase
-    func anAbsentTagThrows() {
-        // arrange
-        let dms = DataModelStruct().add(field("uri", "file:///a"))
-
-        // act
-        let e = @AssertThrows[DataModelException](DerivedCreateFile.deserialize(dms))
-
-        // assert
-        @Expect("required field \"kind\" is absent", e.message)
-    }
-
-    /**
-     * Both structs read `{"uri"}` alike - only the tag keeps the first variant from taking the other's
-     * value.
-     */
     @TestCase
     func theTagPicksTheVariantOfAnUntaggedUnion() {
-        // arrange
+        // arrange - both structs read `{"uri"}` alike; only the tag keeps the first from taking it
         let dms = DataModelStruct().add(field("kind", "delete")).add(field("uri", "file:///a"))
 
         // act
@@ -809,48 +660,5 @@ class DeriveTaggedStructTest {
             case Delete(op) => op.uri == "file:///a"
             case _ => false
         })
-    }
-}
-
-@Test
-class DeriveOtherVariantTest {
-    @TestCase
-    func aKnownValueStillReadsAsItsVariant() {
-        // act & assert
-        @Expect(DerivedSymbolKind.Module, DerivedSymbolKind.deserialize(DataModelInt(2)))
-        @Expect(DerivedMarkupKind.PlainText, DerivedMarkupKind.deserialize(DataModelString("plaintext")))
-    }
-
-    @TestCase
-    func anUnknownIntegerIsKeptAndWrittenBack() {
-        // act
-        let restored = DerivedSymbolKind.deserialize(DataModelInt(27))
-
-        // assert
-        @Expect(DerivedSymbolKind.Unknown(27), restored)
-        @Expect(27, restored.serialize().asIntOrThrow())
-    }
-
-    @TestCase
-    func anUnknownStringIsKeptAndWrittenBack() {
-        // act
-        let restored = DerivedMarkupKind.deserialize(DataModelString("asciidoc"))
-
-        // assert
-        @Expect(DerivedMarkupKind.Unknown("asciidoc"), restored)
-        @Expect("asciidoc", restored.serialize().asStringOrThrow())
-    }
-
-    @TestCase
-    func anUnknownValueOutsideThePayloadTypeThrows() {
-        // act & assert
-        @AssertThrows(DerivedSymbolKind.deserialize(DataModelInt(-1)))
-    }
-
-    @TestCase
-    func aValueOfTheWrongKindStillThrows() {
-        // act & assert
-        @AssertThrows[DataModelException](DerivedSymbolKind.deserialize(DataModelString("1")))
-        @AssertThrows[DataModelException](DerivedMarkupKind.deserialize(DataModelInt(1)))
     }
 }

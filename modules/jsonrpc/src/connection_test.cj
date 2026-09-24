@@ -6,7 +6,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.{IntegerOrString, Nullable}
+import stdxx.serialization.*
 
 func boolOf(dm: DataModel): Bool {
     (dm as DataModelBool).getOrThrow().getValue()

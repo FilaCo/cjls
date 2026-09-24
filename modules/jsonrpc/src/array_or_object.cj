@@ -1,7 +1,11 @@
-package stdxx
+package jsonrpc
 
 import stdx.serialization.serialization.*
+import stdxx.UnexpectedVariantException
 
+/**
+ * The params of a request or a notification: JSON-RPC allows only a structured value there.
+ */
 public enum ArrayOrObject <: Serializable<ArrayOrObject> {
     | Array(DataModelSeq)
     | Object(DataModelStruct)
@@ -22,17 +26,6 @@ public enum ArrayOrObject <: Serializable<ArrayOrObject> {
             case Array(dms) => dms
             case Object(dms) => dms
         }
-    }
-
-    public func isArray(): Bool {
-        match (this) {
-            case Array(_) => true
-            case Object(_) => false
-        }
-    }
-
-    public func isObject(): Bool {
-        !isArray()
     }
 
     /**

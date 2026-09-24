@@ -1,7 +1,8 @@
 package jsonrpc
 
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.{IntegerOrString, Nullable, UnexpectedVariantException}
+import stdxx.serialization.*
 
 public type RequestId = IntegerOrString
 

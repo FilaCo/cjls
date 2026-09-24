@@ -6,7 +6,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.IntegerOrString
+import stdxx.serialization.*
 
 private func dmOf(json: String) {
     DataModel.fromJson(JsonValue.fromStr(json))

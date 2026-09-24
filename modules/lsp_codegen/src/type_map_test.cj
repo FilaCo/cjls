@@ -6,7 +6,7 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 
 /**
  * `unmarshal` reads a path, so the TOML under test has to reach the disk first.

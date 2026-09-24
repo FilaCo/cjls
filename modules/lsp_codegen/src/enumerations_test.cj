@@ -5,7 +5,7 @@ import std.fs.Path
 import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 private func enumerationOf(name: String, values: Array<EnumerationEntry>): Enumeration {
     Enumeration(name: name, enumerationType: EnumerationType(name: EnumerationBaseType.Integer), values: values, supportsCustomValues: true)

@@ -1,7 +1,8 @@
 package lsp_codegen
 
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.IntegerOrString
+import stdxx.serialization.*
 import stdxx.deriving.*
 
 /**
