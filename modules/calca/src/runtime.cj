@@ -52,14 +52,18 @@ class Runtime {
     private let table = AtomicReference<IngredientTable>(IngredientTable([]))
     private let tableLock = Mutex()
 
+    /**
+     * What a write goes through: it waits here for every operation in flight to end, and one that
+     * begins meanwhile is cancelled.
+     */
     private let gate = Mutex()
-    private let released: Condition
-    private var handles: Int64 = 0
+    private let drained: Condition
+    private var inFlight: Int64 = 0
     private let writePending = AtomicBool(false)
 
     init() {
         gate.lock()
-        released = gate.condition()
+        drained = gate.condition()
         gate.unlock()
     }
 
@@ -112,35 +116,43 @@ class Runtime {
         table.store(IngredientTable(grown))
     }
 
-    func attach(): Unit {
+    /**
+     * Begins an operation of a handle outside any query, which a write waits for.
+     *
+     * @throws Cancelled - if a write is pending, or the handle is pinned to a revision gone by
+     */
+    func beginRead(pinned: ?Int64): Unit {
         synchronized(gate) {
-            handles++
+            unwindIfCancelled(pinned)
+            inFlight++
         }
     }
 
-    func detach(): Unit {
+    func endRead(): Unit {
         synchronized(gate) {
-            handles--
-            released.notifyAll()
+            inFlight--
+            if (inFlight == 0) {
+                drained.notifyAll()
+            }
         }
     }
 
     /**
-     * Cancels the queries of every other handle, waits for all of them to close, and opens a new
-     * revision, which it returns.
+     * Cancels the operations in flight, waits for them to end, and makes `change` in a new
+     * revision, which it is given. Holds the gate throughout, so nothing begins until it is done.
      */
-    func beginWrite(): Int64 {
-        writePending.store(true)
+    func write<T>(change: (Int64) -> T): T {
         synchronized(gate) {
-            while (handles > 1) {
-                released.wait()
+            writePending.store(true)
+            try {
+                while (inFlight > 0) {
+                    drained.wait()
+                }
+                change(revision_.fetchAdd(1) + 1)
+            } finally {
+                writePending.store(false)
             }
         }
-        revision_.fetchAdd(1) + 1
-    }
-
-    func endWrite(): Unit {
-        writePending.store(false)
     }
 
     /**
@@ -153,9 +165,17 @@ class Runtime {
         }
     }
 
-    func unwindIfCancelled(): Unit {
+    /**
+     * @throws Cancelled - if a write is pending, or `pinned` is a revision gone by
+     */
+    func unwindIfCancelled(pinned: ?Int64): Unit {
         if (writePending.load()) {
             throw Cancelled()
+        }
+        if (let Some(revision) <- pinned) {
+            if (revision != this.revision) {
+                throw Cancelled()
+            }
         }
     }
 }

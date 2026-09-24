@@ -26,17 +26,18 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
      * The value of the function at `key`: remembered, if nothing it read has changed since, else
      * computed again. Recorded as read by the query running.
      *
-     * @throws Cancelled - if a write is waiting for this handle to close
+     * @throws Cancelled - if a write is pending, or `db` is a snapshot of a revision gone by
      * @throws CycleException - if the value is already being computed on this handle
      */
     public func fetch(db: D, key: K, execute: (D, K) -> V): V {
         let storage = db.storage
-        storage.unwindIfCancelled()
-        let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute)}
-        let id = memos.intern(key)
-        let memo = memos.fetchMemo(db, storage, id, key)
-        storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
-        memo.value
+        storage.read {
+            let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute)}
+            let id = memos.intern(key)
+            let memo = memos.fetchMemo(db, storage, id, key)
+            storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
+            memo.value
+        }
     }
 }
 

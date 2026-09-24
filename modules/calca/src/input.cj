@@ -19,13 +19,14 @@ public class InputIngredient {
      */
     public func create(db: Database, durability: Durability, fill: (InputRow) -> Unit): Id {
         let storage = db.storage
-        storage.ensureOpen()
-        let table = table(storage.runtime)
-        synchronized(table.lock) {
-            let id = Id(table.rows)
-            fill(InputRow(this, storage.runtime, id, durability))
-            table.rows++
-            id
+        storage.read {
+            let table = table(storage.runtime)
+            synchronized(table.lock) {
+                let id = Id(table.rows)
+                fill(InputRow(this, storage.runtime, id, durability))
+                table.rows++
+                id
+            }
         }
     }
 
@@ -34,8 +35,9 @@ public class InputIngredient {
      */
     public func get<T>(db: Database, field: Int64, id: Id): T {
         let storage = db.storage
-        storage.unwindIfCancelled()
-        column<T>(storage.runtime, field).get(storage, id)
+        storage.read {
+            column<T>(storage.runtime, field).get(storage, id)
+        }
     }
 
     public func set<T>(db: Database, field: Int64, id: Id): Setter<T> {
@@ -94,19 +96,17 @@ public class Setter<T> {
     }
 
     /**
-     * Cancels what other handles compute, waits for them all to close, then sets the field in a new
-     * revision. Returns the value it had.
+     * Cancels what is in flight on the snapshots, waits for it to end, then sets the field in a new
+     * revision, which leaves every snapshot taken before it cancelled. Returns the value it had.
      *
-     * @throws IllegalStateException - if the handle is closed, or is inside a query
+     * @throws IllegalStateException - if the handle is a snapshot, or is inside a query
      */
     public func to(value: T): T {
-        let revision = storage.beginWrite()
-        try {
+        storage.write {
+            revision =>
             let old = column.replace(id, value, durability, revision)
             storage.runtime.changed(old.durability.max(durability ?? old.durability), revision)
             old.value
-        } finally {
-            storage.endWrite()
         }
     }
 }

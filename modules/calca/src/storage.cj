@@ -4,9 +4,9 @@ import std.collection.*
 import std.sync.*
 
 /**
- * What a database is to the code `@CalcaInput` and `@CalcaTracked` generate: something that hands out its
- * `Storage`. A project declares its own interface on top of it, for the tracked functions to take,
- * and a class implementing that:
+ * What a database is to the code `@CalcaInput`, `@CalcaInterned` and `@CalcaTracked` generate:
+ * something that hands out its `Storage`. A project declares its own interface on top of it, for
+ * the tracked functions to take, and a class implementing that:
  *
  * ```cangjie
  * public interface Db <: Database {}
@@ -23,8 +23,8 @@ public interface Database {
     prop storage: Storage
 
     /**
-     * Throws `Cancelled` if a write is waiting for this handle to close. Every query already checks;
-     * this is for long computations of one's own between them.
+     * Throws `Cancelled` if a write is pending, or this is a snapshot of a revision gone by. Every
+     * query already checks; this is for long computations of one's own between them.
      */
     func unwindIfCancelled(): Unit {
         storage.unwindIfCancelled()
@@ -33,76 +33,90 @@ public interface Database {
 
 /**
  * One handle of a database: the state all handles share, and what this one is computing. A handle
- * is used from one thread at a time; `snapshot` gives another thread a handle of its own.
+ * is used from one thread at a time.
  *
- * Changing an input waits for every other handle to close, after cancelling what they compute, so
- * every snapshot must be closed, or the next write waits forever.
+ * `Storage()` makes a database and its root handle, which always reads the current revision and is
+ * the only one that changes inputs. `snapshot` gives another thread a handle pinned to the revision
+ * current when it was taken. Changing an input cancels what is in flight on the snapshots and waits
+ * for that to end, never for a snapshot as such: one used after it is simply `Cancelled`, so there
+ * is nothing to close, and a snapshot forgotten holds up nothing.
  */
-public class Storage <: Resource {
+public class Storage {
     let runtime: Runtime
+
+    /**
+     * The revision of a snapshot, `None` for the root handle.
+     */
+    private let pinned: ?Int64
     private let stack = ArrayList<ActiveQuery>()
     private let active = HashSet<DatabaseKey>()
-    private let closed = AtomicBool(false)
+
+    /**
+     * How many operations of this handle are nested in one another: only the outermost one goes
+     * through the gate.
+     */
+    private var depth: Int64 = 0
 
     public init() {
-        this(Runtime())
+        this(Runtime(), None)
     }
 
-    private init(runtime: Runtime) {
+    private init(runtime: Runtime, pinned: ?Int64) {
         this.runtime = runtime
-        runtime.attach()
+        this.pinned = pinned
     }
 
     /**
-     * Another handle of the same database, for another thread. It reads the revision that is
-     * current until it is closed.
-     *
-     * @throws IllegalStateException - if this handle is closed
+     * Another handle of the same database, for another thread, pinned to the revision this one
+     * reads.
      */
     public func snapshot(): Storage {
-        ensureOpen()
-        Storage(runtime)
-    }
-
-    public func isClosed(): Bool {
-        closed.load()
+        Storage(runtime, pinned ?? runtime.revision)
     }
 
     /**
-     * Lets a write waiting on this handle proceed. Idempotent.
-     */
-    public func close(): Unit {
-        if (closed.compareAndSwap(false, true)) {
-            runtime.detach()
-        }
-    }
-
-    /**
-     * @throws Cancelled - if a write is waiting for this handle to close
+     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
      */
     public func unwindIfCancelled(): Unit {
-        runtime.unwindIfCancelled()
+        runtime.unwindIfCancelled(pinned)
     }
 
-    func ensureOpen(): Unit {
-        if (isClosed()) {
-            throw IllegalStateException("the database handle is closed")
+    /**
+     * Runs one operation of this handle, which a write waits for if it is not inside another.
+     *
+     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
+     */
+    func read<T>(operation: () -> T): T {
+        let outermost = depth == 0
+        if (outermost) {
+            runtime.beginRead(pinned)
+        } else {
+            runtime.unwindIfCancelled(pinned)
+        }
+        depth++
+        try {
+            operation()
+        } finally {
+            depth--
+            if (outermost) {
+                runtime.endRead()
+            }
         }
     }
 
     /**
-     * @throws IllegalStateException - if this handle is closed, or is inside a query
+     * Makes `change` in a new revision, once what is in flight on the snapshots has ended.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
      */
-    func beginWrite(): Int64 {
-        ensureOpen()
-        if (!active.isEmpty()) {
+    func write<T>(change: (Int64) -> T): T {
+        if (pinned.isSome()) {
+            throw IllegalStateException("a snapshot cannot change an input")
+        }
+        if (depth > 0) {
             throw IllegalStateException("an input cannot change while a query runs")
         }
-        runtime.beginWrite()
-    }
-
-    func endWrite(): Unit {
-        runtime.endWrite()
+        runtime.write(change)
     }
 
     /**

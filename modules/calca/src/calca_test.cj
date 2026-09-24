@@ -1,6 +1,7 @@
 package calca
 
 import std.collection.*
+import std.collection.concurrent.*
 import std.sync.*
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -8,6 +9,11 @@ import calca.macros.*
 
 interface TestDb <: Database {
     func log(event: String): Unit
+
+    /**
+     * Blocks the query calling it until the test releases it.
+     */
+    func park(): Unit
 }
 
 /**
@@ -32,11 +38,19 @@ class Events {
     }
 }
 
-class TestDatabase <: TestDb & Resource {
-    private TestDatabase(private let storage_: Storage, let events: Events) {}
+/**
+ * Where a query calling `park` waits: it says it is there on `parked`, and goes on once `released`.
+ */
+class Parking {
+    let parked = LinkedBlockingQueue<Unit>(1)
+    let released = LinkedBlockingQueue<Unit>(1)
+}
+
+class TestDatabase <: TestDb {
+    private TestDatabase(private let storage_: Storage, let events: Events, let parking: Parking) {}
 
     init() {
-        this(Storage(), Events())
+        this(Storage(), Events(), Parking())
     }
 
     public prop storage: Storage {
@@ -49,16 +63,13 @@ class TestDatabase <: TestDb & Resource {
         events.add(event)
     }
 
+    public func park(): Unit {
+        parking.parked.add(())
+        parking.released.remove()
+    }
+
     func snapshot(): TestDatabase {
-        TestDatabase(storage_.snapshot(), events)
-    }
-
-    public func isClosed(): Bool {
-        storage_.isClosed()
-    }
-
-    public func close(): Unit {
-        storage_.close()
+        TestDatabase(storage_.snapshot(), events, parking)
     }
 }
 
@@ -100,6 +111,14 @@ func firstWord(db: TestDb, file: SourceFile): Name {
 func firstWordLength(db: TestDb, file: SourceFile): Int64 {
     db.log("firstWordLength(${file})")
     nameLength(db, firstWord(db, file))
+}
+
+@CalcaTracked
+func parkedLength(db: TestDb, file: SourceFile): Int64 {
+    let text = file.text(db)
+    db.park()
+    file.path(db)
+    text.size
 }
 
 @CalcaTracked
@@ -384,10 +403,7 @@ class CalcaTest {
         db.events.take()
 
         // act
-        var result = 0
-        try (snapshot = db.snapshot()) {
-            result = length(snapshot, file)
-        }
+        let result = length(db.snapshot(), file)
 
         // assert
         @Expect(result, 5)
@@ -395,52 +411,82 @@ class CalcaTest {
     }
 
     @TestCase
-    func aWriteCancelsASnapshotAndWaitsForItToClose(): Unit {
+    func aWriteWaitsForAQueryInFlightAndCancelsIt(): Unit {
         // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let snapshot = db.snapshot()
+        let probe = db.snapshot()
+        let reader = spawn {
+            try {
+                parkedLength(snapshot, file)
+                false
+            } catch (_: Cancelled) {
+                true
+            }
+        }
+        db.parking.parked.remove()
 
         // act
         let write = spawn {
             file.setText(db).to("bye")
         }
-        let cancelled = waitForCancellation(snapshot)
-        let blocked = !write.tryGet().isSome()
-        snapshot.close()
+        waitForPendingWrite(probe)
+        let blocked = write.tryGet().isNone()
+        db.parking.released.add(())
+        let cancelled = reader.get()
         let old = write.get()
 
         // assert
-        @Expect(cancelled)
         @Expect(blocked)
+        @Expect(cancelled)
         @Expect(old, "hello")
         @Expect(file.text(db), "bye")
     }
 
     @TestCase
-    func aQueryOnASnapshotBeingCancelledThrows(): Unit {
+    func aSnapshotUsedAfterAWriteIsCancelled(): Unit {
         // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let snapshot = db.snapshot()
-        let write = spawn {
-            file.setText(db).to("bye")
-        }
-        waitForCancellation(snapshot)
+        @Expect(length(snapshot, file), 5)
 
         // act
-        let thrown = try {
-            length(snapshot, file)
-            false
-        } catch (_: Cancelled) {
-            true
-        }
+        file.setText(db).to("bye")
 
         // assert
-        @Expect(thrown)
-        snapshot.close()
-        write.get()
-        @Expect(length(db, file), 3)
+        @AssertThrows[Cancelled](length(snapshot, file))
+        @AssertThrows[Cancelled](file.text(snapshot))
+        @AssertThrows[Cancelled](SourceFile(snapshot, "b.cj", ""))
+        @Expect(length(db.snapshot(), file), 3)
+    }
+
+    @TestCase
+    func aForgottenSnapshotHoldsUpNoWrite(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let forgotten = db.snapshot()
+        length(forgotten, file)
+
+        // act
+        let old = file.setText(db).to("bye")
+
+        // assert
+        @Expect(old, "hello")
+        @Expect(file.text(db), "bye")
+    }
+
+    @TestCase
+    func aSnapshotCannotChangeAnInput(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+
+        // act, assert
+        @AssertThrows[IllegalStateException](file.setText(db.snapshot()).to("bye"))
+        @Expect(file.text(db), "hello")
     }
 
     @TestCase
@@ -488,13 +534,10 @@ class CalcaTest {
         let name = Name(db, "x")
 
         // act
-        var fromSnapshot = Option<Name>.None
-        try (snapshot = db.snapshot()) {
-            fromSnapshot = Name(snapshot, "x")
-        }
+        let fromSnapshot = Name(db.snapshot(), "x")
 
         // assert
-        @Expect(fromSnapshot, Some(name))
+        @Expect(fromSnapshot, name)
     }
 
     @TestCase
@@ -528,17 +571,16 @@ class CalcaTest {
     }
 
     /**
-     * Spins until the write spawned has asked every other handle to close, which it does before it
-     * waits for them.
+     * Spins until the write spawned has cancelled what is in flight, which it does before it waits:
+     * `probe` is a snapshot of the revision before it, so it throws from then on.
      */
-    private func waitForCancellation(db: TestDatabase): Bool {
+    private func waitForPendingWrite(probe: TestDatabase): Unit {
         while (true) {
             try {
-                db.unwindIfCancelled()
+                probe.unwindIfCancelled()
             } catch (_: Cancelled) {
-                return true
+                return
             }
         }
-        false
     }
 }

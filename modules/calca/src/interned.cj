@@ -22,15 +22,19 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
      */
     public func intern(db: Database, fields: K): Id {
         let storage = db.storage
-        storage.ensureOpen()
-        table(storage.runtime).intern(fields)
+        storage.read {
+            table(storage.runtime).intern(fields)
+        }
     }
 
     /**
      * The fields interned as `id`.
      */
     public func lookup(db: Database, id: Id): K {
-        table(db.storage.runtime).lookup(id)
+        let storage = db.storage
+        storage.read {
+            table(storage.runtime).lookup(id)
+        }
     }
 
     /**
