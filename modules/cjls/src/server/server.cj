@@ -66,7 +66,9 @@ class Server <: Handler {
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
-                let parts = ReadOnlyParts(router.db.snapshot(), client, request.cancellation, logger)
+                let cancellation = request.cancellation
+                let snapshot = router.db.snapshot(cancelledBy: {=> cancellation.isCancelled})
+                let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
                 spawn {
                     answer(request, logger) {handler(parts, request.params)}
                 }
@@ -134,8 +136,22 @@ class Server <: Handler {
 }
 
 /**
- * Answers `request` with what `handler` gives; a query the files changed under is answered
- * `ContentModified`, for the client to ask again if it still cares. Never throws, so it is a safe body for a `spawn`:
+ * Why a query of `request` was `Cancelled`: the client cancelled the request, or the files changed
+ * under it, which the client may ask again for.
+ */
+private func cancelledError(request: InboundRequest, logger: Logger): ResponseError {
+    if (request.cancellation.isCancelled) {
+        logger.debug("cancelled", [("reason", "the client cancelled it")])
+        ResponseError(ErrorCode.REQUEST_CANCELLED, "the request was cancelled")
+    } else {
+        logger.debug("cancelled", [("reason", "the content was modified")])
+        ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")
+    }
+}
+
+/**
+ * Answers `request` with what `handler` gives; a query cancelled midway is answered
+ * `RequestCancelled` or `ContentModified`, see `cancelledError`. Never throws, so it is a safe body for a `spawn`:
  * a thread that throws dumps its stack even when nobody reads its future.
  *
  * @return whether the handler succeeded
@@ -145,8 +161,7 @@ private func answer(request: InboundRequest, logger: Logger, handler: () -> Data
     let answer = try {
         ResultOrError.Result(handler())
     } catch (_: Cancelled) {
-        logger.debug("cancelled", [("reason", "the content was modified")])
-        ResultOrError.Error(ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified"))
+        ResultOrError.Error(cancelledError(request, logger))
     } catch (e: Exception) {
         logFailure(logger, e)
         ResultOrError.Error(responseErrorOf(e))

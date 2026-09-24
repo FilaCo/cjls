@@ -14,7 +14,7 @@ package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
 calca = { path = "../calca" }
-index_map = { path = "../index_map" }
 jsonrpc = { path = "../jsonrpc" }
+loupe = { path = "../loupe" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }

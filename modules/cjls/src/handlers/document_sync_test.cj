@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import stdxx.Nullable
 import rope.{Encoding, Rope}
-import cjls.vfs.VfsPath
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*

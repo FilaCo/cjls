@@ -17,6 +17,7 @@ public func router(): Router {
         .route(DidOpenTextDocumentNotificationSpec(), handleDidOpen)
         .route(DidChangeTextDocumentNotificationSpec(), handleDidChange)
         .route(DidCloseTextDocumentNotificationSpec(), handleDidClose)
+        .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
 }
 
 /**
@@ -26,6 +27,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
     ServerCapabilities(
         positionEncoding: positionEncodingKind(encoding),
         textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
-            TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental))
+            TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
+        documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true)
     )
 }

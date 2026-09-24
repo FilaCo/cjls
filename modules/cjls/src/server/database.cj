@@ -2,8 +2,8 @@ package cjls.server
 
 import std.collection.HashMap
 import rope.{Encoding, Rope}
-import cjls.vfs.*
-import cjls.db.*
+import loupe.vfs.*
+import loupe.db.*
 
 /**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
@@ -49,10 +49,11 @@ public class Database <: FromContext<Database> {
     }
 
     /**
-     * The state as it is now, for a handler running on a thread of its own.
+     * The state as it is now, for a handler running on a thread of its own. Its queries stop,
+     * `Cancelled`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
-    public func snapshot(): DatabaseSnapshot {
-        DatabaseSnapshot(analysis.snapshot(), vfs.paths, encoding)
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): DatabaseSnapshot {
+        DatabaseSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, encoding)
     }
 }
 

@@ -11,7 +11,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
 import rope.Rope
-import cjls.vfs.VfsPath
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 
@@ -255,6 +255,30 @@ class ServerDispatchTest {
 
         // assert
         @Expect(ErrorCode.CONTENT_MODIFIED, asked.answer().getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aQueryOfARequestTheClientCancelledStopsMidway() {
+        // arrange - the handler parks with its snapshot until the request is cancelled
+        let release = LinkedBlockingQueue<Bool>()
+        let path = VfsPath.file("/a.cj")
+        let db = Database()
+        db.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(db).route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                release.remove()
+                ctx.db.sourceFile(path).getOrThrow().text(ctx.db.analysis)
+                Nullable<Hover>.Null
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+        server.onRequest(asked.request)
+
+        // act
+        asked.request.cancellation.cancel()
+        release.add(true)
+
+        // assert
+        @Expect(ErrorCode.REQUEST_CANCELLED, asked.answer().getErrorOrThrow().code)
     }
 
     @TestCase

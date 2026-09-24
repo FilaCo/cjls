@@ -1,4 +1,4 @@
-package cjls.db
+package loupe.db
 
 import std.sync.*
 import std.unittest.*
@@ -6,7 +6,7 @@ import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
 import rope.Rope
-import cjls.vfs.*
+import loupe.vfs.*
 
 let lineCountRuns = AtomicInt64(0)
 

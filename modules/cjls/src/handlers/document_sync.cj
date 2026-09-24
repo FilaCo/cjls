@@ -2,8 +2,8 @@ package cjls.handlers
 
 import std.fs.{File, FSException}
 import stdx.log.Logger
-import rope.{Encoding, LineColumn, Rope}
-import cjls.vfs.VfsPath
+import rope.{Encoding, Rope}
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -71,10 +71,6 @@ func edited(text: Rope, changes: Array<TextDocumentContentChangeEvent>, encoding
         }
     }
     result
-}
-
-func lineColumn(position: Position): LineColumn {
-    LineColumn(Int64(position.line), Int64(position.character))
 }
 
 /**

@@ -1,11 +1,11 @@
-package cjls.db
+package loupe.db
 
 import std.collection.*
 import std.sync.*
 import calca.*
 import calca.macros.*
 import rope.Rope
-import cjls.vfs.*
+import loupe.vfs.*
 
 /**
  * One file's text as the analysis sees it. The database keeps one per `FileId`, made the first time
@@ -38,8 +38,11 @@ public class RootDatabase <: Database {
         }
     }
 
-    public func snapshot(): RootDatabase {
-        RootDatabase(storage_.snapshot(), files)
+    /**
+     * Its queries are `Cancelled` once `cancelledBy` gives `true`, as well as once the files change.
+     */
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): RootDatabase {
+        RootDatabase(storage_.snapshot(cancelledBy: cancelledBy), files)
     }
 
     /**

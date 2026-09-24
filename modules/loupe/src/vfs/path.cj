@@ -1,4 +1,4 @@
-package cjls.vfs
+package loupe.vfs
 
 import std.collection.*
 

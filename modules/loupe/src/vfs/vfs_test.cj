@@ -1,4 +1,4 @@
-package cjls.vfs
+package loupe.vfs
 
 import std.unittest.*
 import std.unittest.testmacro.*
