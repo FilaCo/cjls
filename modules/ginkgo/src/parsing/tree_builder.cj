@@ -14,7 +14,7 @@ public interface TriviaRules<K> where K <: Kind<K> {
      * How many of `trivia`, the trivia right before a node of `kind`, belong inside it rather than to its parent,
      * counted from the end: a doc comment with the declaration after it, say. By default none.
      */
-    func attachedTrivia(kind: K, trivia: Array<(K, String)>): Int64 {
+    func attachedTrivia(_: K, _: Array<(K, String)>): Int64 {
         0
     }
 }

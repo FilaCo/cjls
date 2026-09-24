@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "modules/cjls",
+    "modules/cjsyntax",
     "modules/cjtoml",
     "modules/ginkgo",
     "modules/index_map",
