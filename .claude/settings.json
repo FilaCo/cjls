@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/bash",
+            "args": [
+              "-c",
+              "[ -f \"$HOME/.cangjie/envsetup.sh\" ] && [ -n \"$CLAUDE_ENV_FILE\" ] || exit 0; source \"$HOME/.cangjie/envsetup.sh\" >/dev/null 2>&1; for v in CANGJIE_HOME PATH DYLD_FALLBACK_LIBRARY_PATH SDKROOT; do printf \"export %s=%q\\n\" \"$v\" \"${!v}\"; done >> \"$CLAUDE_ENV_FILE\""
+            ],
+            "statusMessage": "Loading the Cangjie SDK environment"
+          }
+        ]
+      }
+    ]
+  }
+}

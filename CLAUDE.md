@@ -10,7 +10,7 @@ There are no separate design documents: they went stale faster than the code mov
 
 ## Build & test
 
-The toolchain is `cjpm` (Cangjie package manager / `cjc`). It is not on `PATH` by default — source the SDK env first (once per shell):
+The toolchain is `cjpm` (Cangjie package manager / `cjc`). It is not on `PATH` by default. In Claude Code sessions it is, subagent worktrees included: a `SessionStart` hook in `.claude/settings.json` runs `envsetup.sh` once and hands its exports to every Bash command, so don't `source` it there. In a shell of your own, source it first (once per shell):
 
 ```
 source ~/.cangjie/envsetup.sh
