@@ -12,20 +12,19 @@ import cjls.lsp_types.*
  * Router()
  *     .withState(Database())
  *     .route(InitializeRequestSpec(), handleInitialize)
- *     .readonly(HoverRequestSpec(), handleHover)
- *     .route(CancelNotificationSpec()) {client: Client, params => client.cancel(params.id)}
+ *     .route(HoverRequestSpec(), handleHover)
+ *     .route(CancelNotificationSpec()) {ctx: Context, params => ctx.client.cancel(params.id)}
  * ```
  *
- * The spec gives the method and the types. A handler takes its params last, before them up to three
- * of what it needs from the server - `Database` or `DatabaseSnapshot`, `Client`,
- * `CancellationToken`, `Logger`, or the whole `Context` - and returns its result; the compiler holds
- * it to all of them. There is an overload per count because Cangjie has no variadic generics.
+ * The spec gives the method and the types; a handler takes a context and the params, and returns
+ * the result, and the compiler holds it to all of them. `@Handler` makes a function of the params
+ * and what it needs from the context into one.
  *
- * `route` runs a handler on the read loop itself, in arrival order, with the `Database` to itself:
- * it is how the inputs change, and nothing else is read while it runs, so it must not take long.
- * `readonly` runs it on a thread of its own against a `DatabaseSnapshot` taken when its message
- * arrived, so it sees every change before it and none after, and any number run at once. A handler
- * asking for the `Database` does not compile under `readonly`.
+ * The context says how the handler runs. With a `Context` it runs on the read loop itself, in
+ * arrival order, with the `Database` to itself: it is how the inputs change, and nothing else is
+ * read while it runs, so it must not take long. With a `ReadOnlyContext` it runs on a thread of its
+ * own against a `DatabaseSnapshot` taken when its message arrived, so it sees every change before
+ * it and none after, and any number run at once.
  */
 public class Router {
     var db = Database()
@@ -40,92 +39,19 @@ public class Router {
         this
     }
 
-    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (P) -> R): Router {
-        exclusive(spec) {_, params => handler(params)}
-    }
-
-    public func route<A, P, R>(spec: LspInboundRequest<P, R>, handler: (A, P) -> R): Router
-        where A <: FromContext<A> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), params)}
-    }
-
-    public func route<A, B, P, R>(spec: LspInboundRequest<P, R>, handler: (A, B, P) -> R): Router
-        where A <: FromContext<A>, B <: FromContext<B> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), params)}
-    }
-
-    public func route<A, B, C, P, R>(spec: LspInboundRequest<P, R>, handler: (A, B, C, P) -> R): Router
-        where A <: FromContext<A>, B <: FromContext<B>, C <: FromContext<C> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), C.from(ctx), params)}
-    }
-
-    public func route<P>(spec: LspInboundNotification<P>, handler: (P) -> Unit): Router {
-        exclusive(spec) {_, params => handler(params)}
-    }
-
-    public func route<A, P>(spec: LspInboundNotification<P>, handler: (A, P) -> Unit): Router
-        where A <: FromContext<A> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), params)}
-    }
-
-    public func route<A, B, P>(spec: LspInboundNotification<P>, handler: (A, B, P) -> Unit): Router
-        where A <: FromContext<A>, B <: FromContext<B> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), params)}
-    }
-
-    public func route<A, B, C, P>(spec: LspInboundNotification<P>, handler: (A, B, C, P) -> Unit): Router
-        where A <: FromContext<A>, B <: FromContext<B>, C <: FromContext<C> {
-        exclusive(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), C.from(ctx), params)}
-    }
-
-    public func readonly<P, R>(spec: LspInboundRequest<P, R>, handler: (P) -> R): Router {
-        concurrent(spec) {_, params => handler(params)}
-    }
-
-    public func readonly<A, P, R>(spec: LspInboundRequest<P, R>, handler: (A, P) -> R): Router
-        where A <: FromReadOnlyContext<A> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), params)}
-    }
-
-    public func readonly<A, B, P, R>(spec: LspInboundRequest<P, R>, handler: (A, B, P) -> R): Router
-        where A <: FromReadOnlyContext<A>, B <: FromReadOnlyContext<B> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), params)}
-    }
-
-    public func readonly<A, B, C, P, R>(spec: LspInboundRequest<P, R>, handler: (A, B, C, P) -> R): Router
-        where A <: FromReadOnlyContext<A>, B <: FromReadOnlyContext<B>, C <: FromReadOnlyContext<C> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), C.from(ctx), params)}
-    }
-
-    public func readonly<P>(spec: LspInboundNotification<P>, handler: (P) -> Unit): Router {
-        concurrent(spec) {_, params => handler(params)}
-    }
-
-    public func readonly<A, P>(spec: LspInboundNotification<P>, handler: (A, P) -> Unit): Router
-        where A <: FromReadOnlyContext<A> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), params)}
-    }
-
-    public func readonly<A, B, P>(spec: LspInboundNotification<P>, handler: (A, B, P) -> Unit): Router
-        where A <: FromReadOnlyContext<A>, B <: FromReadOnlyContext<B> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), params)}
-    }
-
-    public func readonly<A, B, C, P>(spec: LspInboundNotification<P>, handler: (A, B, C, P) -> Unit): Router
-        where A <: FromReadOnlyContext<A>, B <: FromReadOnlyContext<B>, C <: FromReadOnlyContext<C> {
-        concurrent(spec) {ctx, params => handler(A.from(ctx), B.from(ctx), C.from(ctx), params)}
-    }
-
     /**
      * @throws IllegalArgumentException - if the method already has a handler
      */
-    private func exclusive<P, R>(spec: LspInboundRequest<P, R>, handler: (Context, P) -> R): Router {
+    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context, P) -> R): Router {
         add(requests, spec.method, RequestRoute.Exclusive({
             ctx, params => spec.encodeResult(handler(ctx, spec.decodeParams(params)))
         }))
     }
 
-    private func exclusive<P>(spec: LspInboundNotification<P>, handler: (Context, P) -> Unit): Router {
+    /**
+     * @throws IllegalArgumentException - if the method already has a handler
+     */
+    public func route<P>(spec: LspInboundNotification<P>, handler: (Context, P) -> Unit): Router {
         add(notifications, spec.method, NotificationRoute.Exclusive({
             ctx, params => handler(ctx, spec.decodeParams(params))
         }))
@@ -135,14 +61,18 @@ public class Router {
      * @throws IllegalArgumentException - if the method already has a handler, or is one of the
      * lifecycle's: whatever arrives after it must see the state it leaves
      */
-    private func concurrent<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext, P) -> R): Router {
+    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext, P) -> R): Router {
         refuseLifecycle(spec.method)
         add(requests, spec.method, RequestRoute.ReadOnly({
             ctx, params => spec.encodeResult(handler(ctx, spec.decodeParams(params)))
         }))
     }
 
-    private func concurrent<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext, P) -> Unit): Router {
+    /**
+     * @throws IllegalArgumentException - if the method already has a handler, or is one of the
+     * lifecycle's: whatever arrives after it must see the state it leaves
+     */
+    public func route<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext, P) -> Unit): Router {
         refuseLifecycle(spec.method)
         add(notifications, spec.method, NotificationRoute.ReadOnly({
             ctx, params => handler(ctx, spec.decodeParams(params))
@@ -171,6 +101,6 @@ enum NotificationRoute {
 private func refuseLifecycle(method: String): Unit {
     if (method == InitializeRequestSpec.METHOD || method == ShutdownRequestSpec.METHOD ||
         method == ExitNotificationSpec.METHOD) {
-        throw IllegalArgumentException("\"${method}\" cannot be `readonly`")
+        throw IllegalArgumentException("\"${method}\" cannot be handled with a `ReadOnlyContext`")
     }
 }

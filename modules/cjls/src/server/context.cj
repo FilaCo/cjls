@@ -5,48 +5,40 @@ import stdx.serialization.serialization.*
 import jsonrpc.*
 
 /**
- * What a handler registered with `route` may take besides its params. It runs on the read loop,
- * so it may take the `Database` itself.
+ * What a handler that runs on the read loop gets besides its params - the `Database` itself among
+ * them, since nothing else runs meanwhile.
  */
-public class Context <: FromContext<Context> {
+public class Context {
     Context(
         public let db: Database,
         public let client: Client,
         public let cancellation: CancellationToken,
         public let logger: Logger
     ) {}
-
-    public static func from(ctx: Context): Context {
-        ctx
-    }
 }
 
 /**
- * What a `readonly` handler may take besides its params: a snapshot in place of the database, so
- * such a handler cannot change the inputs.
+ * What a handler that runs on a thread of its own gets besides its params: a snapshot in place of
+ * the database, so such a handler cannot change the inputs.
  */
-public class ReadOnlyContext <: FromReadOnlyContext<ReadOnlyContext> {
+public class ReadOnlyContext {
     ReadOnlyContext(
         public let db: DatabaseSnapshot,
         public let client: Client,
         public let cancellation: CancellationToken,
         public let logger: Logger
     ) {}
-
-    public static func from(ctx: ReadOnlyContext): ReadOnlyContext {
-        ctx
-    }
 }
 
 /**
- * A type a `route` handler can take as an argument, the way axum's `FromRequestParts` is.
+ * A type a `@Handler` function can take before its params, the way axum's `FromRequestParts` is.
  */
 public interface FromContext<T> {
     static func from(ctx: Context): T
 }
 
 /**
- * A type a `readonly` handler can take as an argument.
+ * A type a `@Handler[readonly]` function can take before its params.
  */
 public interface FromReadOnlyContext<T> {
     static func from(ctx: ReadOnlyContext): T
@@ -54,7 +46,7 @@ public interface FromReadOnlyContext<T> {
 
 /**
  * Where the query database goes. It holds nothing yet, but is already split the way it will be: a
- * `route` handler changes the database, a `readonly` one reads a snapshot of it.
+ * handler given a `Context` changes the database, one given a `ReadOnlyContext` reads a snapshot.
  */
 public class Database <: FromContext<Database> {
     public init() {}
@@ -135,8 +127,8 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     }
 
     /**
-     * @note never await the answer from a `route` handler: it can only arrive through the read loop
-     * that handler is holding
+     * @note never await the answer from a handler given a `Context`: it can only arrive through the
+     * read loop that handler is holding
      *
      * @throws IllegalStateException - if the client is not connected yet
      * @throws RpcException - if params are not serialized to array|object|null

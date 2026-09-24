@@ -11,6 +11,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
 import cjls.lsp_types.*
+import cjls.macros.Handler
 
 /**
  * A request as the connection would hand it over, with its answer caught on a queue so a test can
@@ -47,8 +48,8 @@ func initializeParams(): ArrayOrObject {
  */
 func lifecycleRouter(): Router {
     Router()
-        .route(InitializeRequestSpec()) {_ => InitializeResult(capabilities: ServerCapabilities())}
-        .route(ShutdownRequestSpec()) {_ => ()}
+        .route(InitializeRequestSpec()) {_: Context, _ => InitializeResult(capabilities: ServerCapabilities())}
+        .route(ShutdownRequestSpec()) {_: Context, _ => ()}
 }
 
 func serverOf(router: Router, client!: Client = Client()): Server {
@@ -61,6 +62,19 @@ func initialized(router: Router, client!: Client = Client()): Server {
     server.onRequest(asked.request)
     asked.answer().getResultOrThrow()
     server
+}
+
+let describedClients = LinkedBlockingQueue<Client>()
+
+/**
+ * Tells what it was given: the line and the cancellation in its answer, the client on a queue.
+ */
+@Handler[readonly]
+func describeHover(client: Client, cancellation: CancellationToken, params: HoverParams): Nullable<Hover> {
+    describedClients.add(client)
+    let described = "${params.position.line}:${cancellation.isCancelled}"
+    Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+        MarkupContent(kind: MarkupKind.PlainText, value: described))))
 }
 
 @Test
@@ -82,7 +96,7 @@ class ServerLifecycleTest {
     func aNotificationBeforeInitializeIsDropped() {
         // arrange - a `route` handler runs within `onNotification`: once that returns, it has run or never will
         let ran = AtomicBool(false)
-        let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_ => ran.store(true)})
+        let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context, _ => ran.store(true)})
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
@@ -201,8 +215,8 @@ class ServerDispatchTest {
         // arrange - the handler parks until released; `onRequest` returning while it is parked
         // shows it did not run on the calling thread
         let release = LinkedBlockingQueue<Bool>()
-        let server = initialized(lifecycleRouter().readonly(HoverRequestSpec()) {
-            _ =>
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
+            _: ReadOnlyContext, _ =>
                 release.remove()
                 Nullable<Hover>.Null
         })
@@ -221,12 +235,7 @@ class ServerDispatchTest {
     func aHandlerGetsItsParamsAndWhatItAsksFor() {
         // arrange
         let client = Client()
-        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
-            ctx: Context, own: Client, cancellation: CancellationToken, params =>
-                let seen = "${params.position.line}:${cancellation.isCancelled}:${refEq(own, ctx.client)}"
-                Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
-                    MarkupContent(kind: MarkupKind.PlainText, value: seen))))
-        }, client: client)
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec(), describeHover), client: client)
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
         asked.request.cancellation.cancel()
 
@@ -235,15 +244,16 @@ class ServerDispatchTest {
 
         // assert
         let contents = asked.answer().getResultOrThrow().asStructOrThrow().getOrThrow("contents").asStructOrThrow()
-        @Expect("3:true:true", contents.getOrThrow("value").asStringOrThrow())
+        @Expect("3:true", contents.getOrThrow("value").asStringOrThrow())
+        @Expect(refEq(client, describedClients.remove()))
     }
 
     @TestCase
     func aHandlerThatThrowsAnswersWithItsError() {
         // arrange
         let server = initialized(Router()
-            .route(InitializeRequestSpec()) {_ => InitializeResult(capabilities: ServerCapabilities())}
-            .route(ShutdownRequestSpec()) {_ => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
+            .route(InitializeRequestSpec()) {_: Context, _ => InitializeResult(capabilities: ServerCapabilities())}
+            .route(ShutdownRequestSpec()) {_: Context, _ => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
         let asked = Asked(ShutdownRequestSpec.METHOD)
 
         // act
@@ -256,7 +266,7 @@ class ServerDispatchTest {
     @TestCase
     func aNotificationHandlerThatThrowsDoesNotStopTheServer() {
         // arrange
-        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_ => throw Exception("no")})
+        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context, _ => throw Exception("no")})
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
@@ -274,12 +284,12 @@ class RouterTest {
     @TestCase
     func twoHandlersForOneMethodAreRefused() {
         // act & assert
-        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_ => ()})
+        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_: Context, _ => ()})
     }
 
     @TestCase
     func aLifecycleMethodHandledOffTheReadLoopIsRefused() {
         // act & assert - whatever arrives after `shutdown` has to see the state it leaves
-        @AssertThrows[IllegalArgumentException](Router().readonly(ShutdownRequestSpec()) {_ => ()})
+        @AssertThrows[IllegalArgumentException](Router().route(ShutdownRequestSpec()) {_: ReadOnlyContext, _ => ()})
     }
 }

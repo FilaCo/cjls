@@ -9,9 +9,10 @@ import cjls.server.*
 public func router(): Router {
     Router()
         .route(InitializeRequestSpec(), handleInitialize)
-        .route(ShutdownRequestSpec()) {_ => ()}
-        // `route`, so it is acted on the moment it is read rather than queued behind the work it cancels
-        .route(CancelNotificationSpec()) {client: Client, params => client.cancel(params.id)}
+        .route(ShutdownRequestSpec()) {_: Context, _ => ()}
+        // on the read loop, so it is acted on the moment it is read rather than queued behind the
+        // work it cancels
+        .route(CancelNotificationSpec()) {ctx: Context, params => ctx.client.cancel(params.id)}
 }
 
 /**
