@@ -90,8 +90,8 @@ public class Connection <: Resource {
                 }
 
                 match (body) {
-                    case Request(req) => spawn {serveRequest(req)}
-                    case Notification(note) => spawn {serveNotification(note)}
+                    case Request(req) => dispatchRequest(req)
+                    case Notification(note) => dispatchNotification(note)
                     case Response(resp) => complete(resp)
                 }
             }
@@ -100,31 +100,44 @@ public class Connection <: Resource {
         }
     }
 
-    // @note every `spawn`ed body catches internally: an exception escaping a thread
-    // is dumped to stderr by the runtime even when nobody reads its future.
-    private func serveRequest(req: RequestBody): Unit {
+    /**
+     * Registers the id and hands the request over on the read loop itself, so a
+     * handler sees requests and notifications in exactly the order they arrived.
+     *
+     * @throws TransportException - if the frame cannot be written
+     */
+    private func dispatchRequest(req: RequestBody): Unit {
+        let cancellation = CancellationToken()
+        if (inflight.addIfAbsent(req.id, cancellation).isSome()) {
+            // the id is taken, so a response carrying it would be ambiguous
+            send(
+                ResponseBody
+                    .error(Value(req.id),
+                        ResponseError(ErrorCode.INVALID_REQUEST, "request id ${req.id} is already in flight"))
+                    .enveloped())
+            return
+        }
+
+        let request = InboundRequest(req.id, req.method, req.params, cancellation, {
+            resultOrError => answer(req, resultOrError)
+        })
         try {
-            let cancelToken = CancellationToken()
-            if (inflight.addIfAbsent(req.id, cancelToken).isSome()) {
-                // the id is taken, so a response carrying it would be ambiguous
-                send(
-                    ResponseBody
-                        .error(Value(req.id),
-                            ResponseError(ErrorCode.INVALID_REQUEST, "request id ${req.id} is already in flight"))
-                        .enveloped())
-                return
-            }
+            handler.onRequest(request)
+        } catch (e: Exception) {
+            // a no-op when the handler answered before it threw
+            request.respond(ResultOrError.Error(responseErrorOf(e)))
+        }
+    }
 
-            let resultOrError = try {
-                handler.onRequest(req.method, req.params, cancelToken)
-            } catch (e: RpcException) {
-                ResultOrError.Error(e.responseError)
-            } catch (e: Exception) {
-                ResultOrError.Error(ResponseError(ErrorCode.INTERNAL_ERROR, e.message))
-            } finally {
-                inflight.remove(req.id)
-            }
-
+    /**
+     * Delivers an answer from whichever thread the handler gave it on.
+     *
+     * @note never throws: the thread answering may be a handler's own `spawn`, with
+     * nobody above it to catch
+     */
+    private func answer(req: RequestBody, resultOrError: ResultOrError): Unit {
+        inflight.remove(req.id)
+        try {
             send(ResponseBody(Value(req.id), resultOrError).enveloped())
         } catch (e: Exception) {
             if (isClosed()) {
@@ -132,14 +145,15 @@ public class Connection <: Resource {
                 logger.debug("dropped the answer to \"${req.method}\" - the connection is closed")
                 return
             }
-            logger.error("serve request \"${req.method}\" failed", [("cause", e)])
+            logger.error("answer to \"${req.method}\" failed", [("cause", e)])
         }
     }
 
-    private func serveNotification(note: NotificationBody): Unit {
+    private func dispatchNotification(note: NotificationBody): Unit {
         try {
             handler.onNotification(note.method, note.params)
         } catch (e: Exception) {
+            // nobody is waiting on a notification's outcome, so there is no one to tell
             logger.error("serve notification \"${note.method}\" failed", [("cause", e)])
         }
     }

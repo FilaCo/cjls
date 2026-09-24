@@ -94,17 +94,28 @@ class FakeTransport <: JsonRpcTransport {
  * A `Handler` whose behaviour each test supplies as a lambda. Handled notification
  * methods are recorded on a blocking queue so a test can wait for one to land
  * instead of sleeping.
+ *
+ * Requests are answered from a thread of the handler's own unless `inPlace` is
+ * set - the tests that park a handler mid-request would otherwise park the read
+ * loop with it. In place, a throw from `onRequestFn` escapes to the connection.
  */
 class FakeHandler <: Handler {
     var onRequestFn: (String, ?ArrayOrObject, CancellationToken) -> ResultOrError = {
         _, _, _ => Result(DataModelNull())
     }
     var onNotificationFn: (String, ?ArrayOrObject) -> Unit = {_, _ => ()}
+    var inPlace = false
 
     let notified = LinkedBlockingQueue<String>()
 
-    public func onRequest(method: String, params: ?ArrayOrObject, cancel: CancellationToken): ResultOrError {
-        onRequestFn(method, params, cancel)
+    public func onRequest(request: InboundRequest): Unit {
+        if (inPlace) {
+            request.respond(onRequestFn(request.method, request.params, request.cancellation))
+            return
+        }
+        spawn {
+            request.respondWith {=> onRequestFn(request.method, request.params, request.cancellation)}
+        }
     }
 
     public func onNotification(method: String, params: ?ArrayOrObject): Unit {
@@ -115,10 +126,33 @@ class FakeHandler <: Handler {
 }
 
 /**
+ * A `Handler` that does nothing with a request but keep it, so a test can answer
+ * it by hand whenever and however often it likes.
+ */
+class KeepingHandler <: Handler {
+    let received = LinkedBlockingQueue<InboundRequest>()
+
+    public func onRequest(request: InboundRequest): Unit {
+        received.add(request)
+    }
+
+    public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
+}
+
+class AnswerThenThrowHandler <: Handler {
+    public func onRequest(request: InboundRequest): Unit {
+        request.respond(Result(DataModelInt(42)))
+        throw IllegalStateException("too late to matter")
+    }
+
+    public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
+}
+
+/**
  * `serve` blocks on the read queue, so every test runs it off-thread and talks to
  * the connection through the fake's queues.
  */
-func serving(handler: FakeHandler): (Connection, FakeTransport) {
+func serving(handler: Handler): (Connection, FakeTransport) {
     let transport = FakeTransport()
     let connection = Connection(transport, handler, getGlobalLogger())
     spawn {connection.serve()}
@@ -205,6 +239,43 @@ class ConnectionServeRequestTest {
         // arrange - a handler bug is not a protocol error, but it still owes the
         // peer a response rather than silence
         let handler = FakeHandler()
+        handler.onRequestFn = {_, _, _ => throw IllegalStateException("handler blew up")}
+        let (_, transport) = serving(handler)
+
+        // act
+        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
+        let err = transport.nextWritten().getResponseBodyOrThrow().resultOrError.getErrorOrThrow()
+
+        // assert
+        @Expect(ErrorCode.INTERNAL_ERROR, err.code)
+        @Expect("handler blew up", err.message)
+    }
+
+    @TestCase
+    func serveTurnsAThrowFromAnInPlaceHandlerIntoItsError() {
+        // arrange - no `respondWith` here: the throw escapes `onRequest` itself, and
+        // the connection answers for the handler
+        let handler = FakeHandler()
+        handler.inPlace = true
+        handler.onRequestFn = {
+            method, _, _ => throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method: ${method}")
+        }
+        let (_, transport) = serving(handler)
+
+        // act
+        transport.feed(RequestBody(Integer(1), "nope").enveloped())
+        let resp = transport.nextWritten().getResponseBodyOrThrow()
+
+        // assert
+        @Expect(Integer(1), resp.id.getOrThrow())
+        @Expect(ErrorCode.METHOD_NOT_FOUND, resp.resultOrError.getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func serveTurnsAnUnexpectedThrowFromAnInPlaceHandlerIntoAnInternalError() {
+        // arrange
+        let handler = FakeHandler()
+        handler.inPlace = true
         handler.onRequestFn = {_, _, _ => throw IllegalStateException("handler blew up")}
         let (_, transport) = serving(handler)
 
@@ -321,6 +392,112 @@ class ConnectionServeNotificationTest {
         // assert
         @Expect(Integer(1), written.id.getOrThrow())
         @Expect(42, written.resultOrError.getResultOrThrow().asIntOrThrow())
+    }
+}
+
+@Test
+class ConnectionDeliveryOrderTest {
+    @TestCase
+    func serveHandsMessagesOverInTheOrderTheyArrived() {
+        // arrange - requests answered in place log into the same queue as the
+        // notifications, so the queue is the order the handler saw them in
+        let handler = FakeHandler()
+        handler.inPlace = true
+        handler.onRequestFn = {
+            method, _, _ =>
+                handler.notified.add(method)
+                Result(DataModelNull())
+        }
+        let (_, transport) = serving(handler)
+        let methods = ["didOpen", "hover", "didChange", "didChange", "completion", "didClose"]
+
+        // act
+        for (i in 0..methods.size) {
+            let method = methods[i]
+            if (method == "hover" || method == "completion") {
+                transport.feed(RequestBody(Integer(Int32(i)), method).enveloped())
+            } else {
+                transport.feed(NotificationBody(method).enveloped())
+            }
+        }
+
+        // assert
+        for (method in methods) {
+            @Expect(method, handler.notified.remove())
+        }
+    }
+
+    @TestCase
+    func aRequestCanBeAnsweredAfterItsHandlerReturned() {
+        // arrange
+        let handler = KeepingHandler()
+        let (_, transport) = serving(handler)
+        transport.feed(RequestBody(Integer(1), "slow").enveloped())
+        let request = handler.received.remove()
+
+        // act - the handler has long returned; the answer comes from the test's thread
+        @Assert(!request.isAnswered)
+        request.respond(Result(DataModelInt(42)))
+        let resp = transport.nextWritten().getResponseBodyOrThrow()
+
+        // assert
+        @Expect(Integer(1), resp.id.getOrThrow())
+        @Expect(42, resp.resultOrError.getResultOrThrow().asIntOrThrow())
+    }
+
+    @TestCase
+    func onlyTheFirstAnswerReachesThePeer() {
+        // arrange
+        let handler = KeepingHandler()
+        let (_, transport) = serving(handler)
+        transport.feed(RequestBody(Integer(1), "twice").enveloped())
+        let request = handler.received.remove()
+
+        // act
+        let first = request.respond(Result(DataModelInt(1)))
+        let second = request.respond(Result(DataModelInt(2)))
+        transport.feed(RequestBody(Integer(2), "next").enveloped())
+        handler.received.remove().respond(Result(DataModelInt(3)))
+
+        // assert - the frame after the first answer is the next request's, not a
+        // second answer to the first
+        @Assert(first)
+        @Assert(!second)
+        @Expect(1, transport.nextWritten().getResponseBodyOrThrow().resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(Integer(2), transport.nextWritten().getResponseBodyOrThrow().id.getOrThrow())
+    }
+
+    @TestCase
+    func aThrowAfterAnsweringLeavesTheAnswerAlone() {
+        // arrange - the connection's fallback error must not follow an answer out
+        let (_, transport) = serving(AnswerThenThrowHandler())
+
+        // act
+        transport.feed(RequestBody(Integer(1), "answered").enveloped())
+        transport.feed(RequestBody(Integer(2), "answered").enveloped())
+        let first = transport.nextWritten().getResponseBodyOrThrow()
+        let second = transport.nextWritten().getResponseBodyOrThrow()
+
+        // assert
+        @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(Integer(2), second.id.getOrThrow())
+    }
+
+    @TestCase
+    func anAnswerOnAClosedConnectionIsDroppedQuietly() {
+        // arrange - a handler thread finishing after shutdown has nobody above it to
+        // catch a throw
+        let handler = KeepingHandler()
+        let (connection, transport) = serving(handler)
+        transport.feed(RequestBody(Integer(1), "slow").enveloped())
+        let request = handler.received.remove()
+
+        // act
+        connection.close()
+        request.respond(Result(DataModelInt(42)))
+
+        // assert - it returned, and the cancellation had already told it to stop
+        @Assert(request.cancellation.isCancelled)
     }
 }
 
