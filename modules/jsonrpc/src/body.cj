@@ -27,7 +27,7 @@ public enum Body <: Serializable<Body> {
             let error = dms.getOrNone("error")
 
             match ((result, error)) {
-                case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST, "malformed json")
+                case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST, "a response carries both \"result\" and \"error\"")
                 case (Some(result), None) => return ResponseBody(Nullable.deserialize(id), Result(result)).enveloped()
                 case (None, Some(error)) => return ResponseBody(Nullable.deserialize(id),
                     ResultOrError.Error(ResponseError.deserialize(error))).enveloped()
@@ -56,30 +56,6 @@ public enum Body <: Serializable<Body> {
                 }
         }
         dms
-    }
-
-    public func isRequest(): Bool {
-        if (let Request(_) <- this) {
-            return true
-        }
-
-        false
-    }
-
-    public func isNotification(): Bool {
-        if (let Notification(_) <- this) {
-            return true
-        }
-
-        false
-    }
-
-    public func isResponse(): Bool {
-        if (let Response(_) <- this) {
-            return true
-        }
-
-        false
     }
 
     /**
@@ -127,13 +103,7 @@ public enum Body <: Serializable<Body> {
 public struct RequestBody {
     public RequestBody(
         public let id: RequestId,
-        /**
-         * The method to be invoked.
-         */
         public let method: String,
-        /**
-         * The method's params.
-         */
         public let params!: ?ArrayOrObject = None
     ) {}
 
@@ -143,16 +113,7 @@ public struct RequestBody {
 }
 
 public struct NotificationBody {
-    public NotificationBody(
-        /**
-         * The method to be invoked.
-         */
-        public let method: String,
-        /**
-         * The method's params.
-         */
-        public let params!: ?ArrayOrObject = None
-    ) {}
+    public NotificationBody(public let method: String, public let params!: ?ArrayOrObject = None) {}
 
     public func enveloped(): Body {
         Notification(this)
@@ -160,23 +121,10 @@ public struct NotificationBody {
 }
 
 public struct ResponseBody {
-    public ResponseBody(
-        /**
-         * The request id.
-         */
-        public let id: Nullable<RequestId>, public let resultOrError: ResultOrError) {}
-
-    public static func result<R>(id: Nullable<RequestId>, data: R): ResponseBody where R <: Serializable<R> {
-        ResponseBody(id, Result(data.serialize()))
-    }
-
-    public static func result(id: Nullable<RequestId>, data: DataModel): ResponseBody {
-        ResponseBody(id, Result(data))
-    }
-
-    public static func error(id: Nullable<RequestId>, error: ResponseError): ResponseBody {
-        ResponseBody(id, ResultOrError.Error(error))
-    }
+    /**
+     * @param id - `Null` when the request it answers could not be read far enough to have one
+     */
+    public ResponseBody(public let id: Nullable<RequestId>, public let resultOrError: ResultOrError) {}
 
     public func enveloped(): Body {
         Response(this)
@@ -193,10 +141,6 @@ public enum ResultOrError {
         }
 
         false
-    }
-
-    public func isError(): Bool {
-        !isResult()
     }
 
     /**

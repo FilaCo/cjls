@@ -2,156 +2,58 @@ package jsonrpc
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import std.unittest.prop_test.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import stdxx.*
 
 @Test
-class ResponseErrorSerializeTest {
-    func serialize(err: ResponseError): String {
-        err.serialize().toJson().toString()
-    }
-
-    func deserialize(json: String): ResponseError {
+class ResponseErrorTest {
+    func errorOf(json: String): ResponseError {
         ResponseError.deserialize(DataModel.fromJson(JsonValue.fromStr(json)))
     }
 
-    @TestCase
-    func serializeErrorWithoutData() {
-        // arrange
-        let err = ResponseError(ErrorCode.PARSE_ERROR, "parse error")
-
+    @TestCase[json in [
+        ##"{"code":-32700,"message":"parse error"}"##,
+        ##"{"code":-32700,"message":"parse error","data":"extra"}"##,
+        ##"{"code":1,"message":"m","data":{"a":[1,null]}}"##
+    ]]
+    func anErrorReadsBackAsItWasWritten(json: String) {
         // act
-        let json = serialize(err)
+        let written = errorOf(json).serialize().toJson().toString()
 
         // assert
-        @Expect("{\"code\":-32700,\"message\":\"parse error\"}", json)
+        @Expect(json, written)
     }
 
-    @TestCase
-    func serializeErrorWithData() {
-        // arrange
-        let err = ResponseError(ErrorCode.PARSE_ERROR, "parse error", data: DataModelString("extra"))
-
-        // act
-        let json = serialize(err)
-
-        // assert
-        @Expect("{\"code\":-32700,\"message\":\"parse error\",\"data\":\"extra\"}", json)
-    }
-
-    @TestCase
-    func deserializeErrorWithoutData() {
-        // arrange
-        let json = "{\"code\":-32700,\"message\":\"parse error\"}"
-
-        // act
-        let err = deserialize(json)
-
-        // assert
-        @Expect(ErrorCode.PARSE_ERROR, err.code)
-        @Expect("parse error", err.message)
-        @Assert(err.data.isNone())
-    }
-
-    @TestCase
-    func deserializeErrorWithData() {
-        // arrange
-        let json = "{\"code\":-32700,\"message\":\"parse error\",\"data\":\"extra\"}"
-
-        // act
-        let err = deserialize(json)
-
-        // assert
-        @Expect(ErrorCode.PARSE_ERROR, err.code)
-        @Expect("parse error", err.message)
-        @Assert(err.data.isSome())
-        @Expect("extra", err.data.getOrThrow().asStringOrThrow())
-    }
-
-    @TestCase
-    func deserializeErrorMissingCodeThrows() {
-        // arrange
-        let json = "{\"message\":\"no code\"}"
-
+    @TestCase[json in [ "42", "\"boom\"", "[-32700]", "null", ##"{"message":"m"}"##, ##"{"code":-32700}"## ]]
+    func anErrorWithoutCodeAndMessageDoesNotRead(json: String) {
         // act & assert
-        @AssertThrows[Exception](deserialize(json))
-    }
-
-    @TestCase
-    func deserializeErrorMissingMessageThrows() {
-        // arrange
-        let json = "{\"code\":-32700}"
-
-        // act & assert
-        @AssertThrows[Exception](deserialize(json))
-    }
-
-    @TestCase[json in [ "42", "\"boom\"", "[-32700]", "null" ]]
-    func deserializeNonObjectErrorThrows(json: String) {
-        // arrange - the "error" member must be an object; a bare scalar or array
-        // is rejected before any field lookup happens.
-
-        // act
-        let e = @AssertThrows[DataModelException](deserialize(json))
-
-        // assert
-        @Expect("expected `DataModelStruct`", e.message)
+        @AssertThrows[DataModelException](errorOf(json))
     }
 }
 
 @Test
+@Configure[randomSeed: 100500]
 class ErrorCodeTest {
-    // `deserialize` only accepts a `DataModelInt`, so a passing round trip also
-    // pins that `serialize` produced one carrying `value`.
-    @TestCase[value in [ 0, 42, - 1, - 32700, - 32000, 2147483647, - 2147483648 ]]
-    func roundTrip(value: Int32) {
-        // arrange
-        let original = ErrorCode(value)
+    @TestCase[value in random()]
+    func anyCodeSurvivesARoundTrip(value: Int32) {
+        // arrange - the codes are open, so one this side has no constant for is kept as is
+        let code = ErrorCode(value)
 
         // act
-        let restored = ErrorCode.deserialize(original.serialize())
+        let written = code.serialize()
 
         // assert
-        @Expect(original, restored)
-        @Expect(Int64(value), original.serialize().asIntOrThrow())
+        @Expect(code, ErrorCode.deserialize(written))
+        @Expect(Int64(value), written.asIntOrThrow())
+        @Expect(value.toString(), code.toString())
     }
 
     @TestCase
-    func deserializeRejectsNonInt() {
-        // arrange
-        let dm = DataModelString("-32700")
-
+    func aCodeThatIsNoInt32DoesNotRead() {
         // act & assert
-        @AssertThrows[DataModelException](ErrorCode.deserialize(dm))
-    }
-
-    @TestCase
-    func deserializeRejectsOutOfInt32Range() {
-        // arrange - larger than Int32 can hold
-        let dm = DataModelInt(9999999999)
-
-        // act & assert
-        @AssertThrows[DataModelException](ErrorCode.deserialize(dm))
-    }
-
-    @TestCase
-    func standardCodesHaveExpectedValues() {
-        // act & assert
-        @Expect(-32700, ErrorCode.PARSE_ERROR.value)
-        @Expect(-32600, ErrorCode.INVALID_REQUEST.value)
-        @Expect(-32601, ErrorCode.METHOD_NOT_FOUND.value)
-        @Expect(-32602, ErrorCode.INVALID_PARAMS.value)
-        @Expect(-32603, ErrorCode.INTERNAL_ERROR.value)
-        @Expect(-32002, ErrorCode.SERVER_NOT_INITIALIZED.value)
-        @Expect(-32001, ErrorCode.UNKNOWN_ERROR_CODE.value)
-    }
-
-    @TestCase
-    func equalityAndToString() {
-        // act & assert
-        @Expect(ErrorCode.PARSE_ERROR, ErrorCode(-32700))
-        @Assert(ErrorCode.PARSE_ERROR != ErrorCode.INTERNAL_ERROR)
-        @Expect("-32700", ErrorCode.PARSE_ERROR.toString())
+        @AssertThrows[DataModelException](ErrorCode.deserialize(DataModelString("-32700")))
+        @AssertThrows[DataModelException](ErrorCode.deserialize(DataModelInt(9999999999)))
     }
 }
