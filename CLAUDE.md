@@ -58,6 +58,7 @@ git config core.hooksPath .githooks
 
 Eight members declared in the root `cjpm.toml`, each its own package:
 
+- **`modules/calca`** (`static`) — the incremental computation engine, salsa's model in Cangjie, for the frontend to be built on. Depends on `index_map`. Two packages: `calca`, the runtime, and `calca.macros`, the macros that are its API; a user imports both. See *`calca`* under Architecture.
 - **`modules/stdxx`** (`static`) — foundation library, three packages, no project dependencies. Import what you use by name; nothing imports `stdxx.*` whole.
   - `stdxx` — the sum types (`IntegerOrString`, `Nullable`) and their exceptions.
   - `stdxx.serialization` — the `DataModel` helpers (`data_model.cj`) and `AnyValue`, a serializable `DataModel` (`LSPAny` aliases it; an imported type can't be extended with an imported interface, so `DataModel` itself never can be).
@@ -80,7 +81,7 @@ Eight members declared in the root `cjpm.toml`, each its own package:
 
 All the libraries are `static` deliberately — see the linking constraint above.
 
-Dependencies flow one way: `cjls → jsonrpc → stdxx`, and `cjsyntax → ginkgo`. `lsp_codegen` sits outside both chains, on `cjtoml` (which depends on nothing) and `stdxx`.
+Dependencies flow one way: `cjls → jsonrpc → stdxx`; `calca → index_map` and `cjsyntax → ginkgo`. `lsp_codegen` sits outside that chain, on `cjtoml` (which depends on nothing) and `stdxx`.
 
 Editor integrations live outside the workspace, under **`editors/<editor>/`**, the way rust-analyzer keeps `editors/code`. First-class targets are Neovim, VS Code and Zed. `editors/nvim/lsp/cjls.lua` is a `vim.lsp.Config` in `nvim-lspconfig`'s own format, so it can go upstream verbatim; with `editors/nvim` on the `runtimepath`, `vim.lsp.enable('cjls')` picks it up. Its root is simply the nearest `cjpm.toml` — a workspace member, not the workspace, for now (cjpm has no metadata command to ask).
 
@@ -103,6 +104,38 @@ Four layers, all implemented:
 - `TransportException` — **the framing itself is lost**. There is no next message to find; the loop ends.
 
 **Lifecycle.** Transports and `Connection` implement `Resource` (`isClosed()`/`close()`, so `try-with-resource` works). `close()` is idempotent and safe from any thread — it is the only way to end a `serve()` loop blocked on a read from this side. Closing settles everything outstanding rather than leaving it dangling: the transport is closed, in-flight handlers get their tokens cancelled, and every caller waiting in `await()` is woken with an error. The same applies when the peer hangs up — `serve()` abandons pending requests as it unwinds, so no `await()` can outlive its connection. When adding a shutdown path, preserve that invariant.
+
+### `calca` — incremental computation, the salsa way
+
+The API is salsa's, spelled in Cangjie; every macro is `Calca`-prefixed:
+
+```cangjie
+@CalcaInput
+public struct SourceFile {
+    public let path: String   // a getter only
+    public var text: String   // a getter and a setter
+}
+
+@CalcaInterned
+public struct Name {
+    public let text: String   // fields are `let`: they are the identity
+}
+
+@CalcaTracked
+public func lineCount(db: Db, file: SourceFile): Int64 { file.text(db).split("\n").size }
+
+let file = SourceFile(db, "a.cj", "…")             // salsa: SourceFile::new(db, …)
+file.text(db)
+file.setText(db).to("…")                           // .withDurability(Durability.High).to(…)
+Name(db, "x") == Name(db, "x")                     // one Id
+```
+
+- **A database** is the user's interface over `Database` (salsa's `trait Db: salsa::Database`) and a class implementing it with a `prop storage: Storage` — a prop, since a `let` cannot implement an interface's. A `Storage` is one *handle*, used from one thread at a time: `Storage()` makes a database and its root handle, which reads the current revision and is the only one that changes inputs; `storage.snapshot()` gives another thread a handle pinned to the revision current then (salsa's `db.clone()`), and the class wraps that in a `snapshot()` of its own type.
+- **Writes wait for operations, not for handles** — IntelliJ's read actions rather than salsa's handle count, because Cangjie has no deterministic destruction: `~init` runs only once the GC collects, which without allocation pressure is never, and a snapshot escapes any lexical scope. Every operation outside a query (a tracked call, a field read, an input created, a value interned) goes through the gate in `Runtime`, counted in flight, released in `finally`; nested ones only check. A write cancels what is in flight (the next calca call there throws `Cancelled`), waits for the count to drop to zero, and opens a new revision holding the gate. A snapshot used after that is `Cancelled` too, so one answer never mixes revisions, and there is nothing to close: a forgotten snapshot holds up nothing. A write from a snapshot or from inside a query is an `IllegalStateException`. A long computation of one's own calls `db.unwindIfCancelled()`, or the write waits for it.
+- **The engine** is salsa's red-green algorithm: a memo records what it read, is reused when nothing did change (checked cheaply by `Durability` first, then dependency by dependency, which may execute those), and a value computed again equal to the old one keeps its old `changedAt` (backdating), so what read it does not run again — hence `@CalcaTracked` results are `Equatable`, unless `@CalcaTracked[noEq]`. A function needing its own value, on one handle, is a `CycleException`, including when the cycle is only found while verifying.
+- **Interned values** live as long as their database — no garbage collection yet — so neither interning nor reading one records a dependency. The table is an `IndexMap` of the fields, as a generated `CalcaFields_<Name>` struct (a tuple cannot be `Hashable`), and a value's `Id` is its index; a tracked function's keys are interned the same way.
+- **Generated code** keeps one process-wide descriptor per input type, interned type and tracked function in a static (`InputIngredient`, `InternedIngredient`, `TrackedFunction`), holding an ingredient index reserved at initialization; each database creates the matching per-database state lazily at that index. The body of a tracked function goes to `fetch` with every call, never into the static — see the static-initialization rule under macro mechanics.
+- **Not there yet:** tracked structs, accumulators, tracked functions of more than one argument (the `CalcaFields_` generator is there for their key), tracked methods, LRU, collecting interned values. Two handles computing the same memo at once both compute it; the last one stored wins.
 
 ### Serialization: `DataModel`, and the two independent null axes
 
@@ -169,7 +202,7 @@ The design is rust-analyzer's, piece for piece: rowan's trees in `ginkgo`, its `
 
 ### Macro-package mechanics
 
-The one macro package is `stdxx.deriving`, using `std.ast.*`. Generated code is emitted as `quote(...)` templates with `$`-interpolation — the output must be valid Cangjie against the target interfaces, and names them unqualified, so the using package imports what it refers to: `@DeriveExt[Serializable]` needs `stdx.serialization.serialization.*`, `stdxx.serialization.*` and `stdxx.deriving.*`, plus `stdxx.Nullable` when a field uses it (`deriving_ext_imports_test.cj` pins that set). A macro package compiles even when the code it *emits* would not, so a green build of the macro package is no evidence the codegen is correct — a build of a package *using* it is. Don't have a macro emit new top-level declarations that need initializing: the order packages are initialized in is not defined.
+The macro packages are `stdxx.deriving`, `cjls.macros` and `calca.macros`, using `std.ast.*`. Generated code is emitted as `quote(...)` templates with `$`-interpolation — the output must be valid Cangjie against the target interfaces, and names them unqualified, so the using package imports what it refers to: `@DeriveExt[Serializable]` needs `stdx.serialization.serialization.*`, `stdxx.serialization.*` and `stdxx.deriving.*`, plus `stdxx.Nullable` when a field uses it (`deriving_ext_imports_test.cj` pins that set). A macro package compiles even when the code it *emits* would not, so a green build of the macro package is no evidence the codegen is correct — a build of a package *using* it is. A macro may emit a static (or a global) only if its initializer reaches nothing the user wrote: cjc checks statically for use before initialization, following calls through function bodies, so an initializer capturing a function whose body can reach the static again — any two `@CalcaTracked` functions calling each other — fails with `global/static variable '…' is used before initialization`. Nor may one package's initialization rely on another's having registered something: the order packages are initialized in is not defined.
 
 ## Testing conventions
 
