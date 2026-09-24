@@ -416,16 +416,6 @@ enum DerivedOneOrMany<T> {
     | Several(Array<T>)
 }
 
-/**
- * The shape of `ParameterInformation.label`: `string | [uinteger, uinteger]`.
- */
-@DeriveExt[Serializable]
-enum DerivedLabel {
-    | Text(String)
-    | Offsets(UInt32, UInt32)
-    | Signed(Int64, Int64)
-}
-
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind"]
 enum DerivedShape {

@@ -32,17 +32,22 @@ func resolveStruct(cfg: Config, resolver: TypeResolver, structure: Structure): ?
 }
 
 func resolveLiteral(resolver: TypeResolver, literal: LiteralIr): StructIr {
-    resolveFields(resolveDoc(literal.literal), literal.ident, literal.literal.properties, resolver)
+    let properties = literal.literal.properties.map {
+        it: Property => DeclaredProperty(declaredBy: literal.ident, property: it)
+    }
+
+    resolveFields(resolveDoc(literal.literal), literal.ident, properties, resolver)
 }
 
 /**
  * A string literal property is the tag of the struct rather than a field of it: LSP marks
  * `CreateFile` with `kind: 'create'`, and a value that can only ever be one string is no field to set.
  */
-private func resolveFields(doc: DocIr, ident: String, properties: Array<Property>, resolver: TypeResolver): StructIr {
+private func resolveFields(doc: DocIr, ident: String, properties: Array<DeclaredProperty>, resolver: TypeResolver): StructIr {
     let fields = ArrayList<FieldIr>()
     var tag: ?SerializableTag = None
-    for (property in properties) {
+    for (declared in properties) {
+        let property = declared.property
         if (let StringLiteral(value) <- property.propertyType) {
             if (tag.isSome()) {
                 throw IllegalStateException("`${ident}` has more than one string literal property")
@@ -54,7 +59,7 @@ private func resolveFields(doc: DocIr, ident: String, properties: Array<Property
             continue
         }
 
-        let fieldType = resolver.resolve(property.propertyType, context: ident + property.name.toAsciiPascalCase())
+        let fieldType = resolver.resolve(property.propertyType, context: declared.declaredBy + property.name.toAsciiPascalCase())
         fields.add(
             FieldIr(
                 resolveDoc(property),

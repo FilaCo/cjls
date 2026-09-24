@@ -235,16 +235,19 @@ private func untaggedEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVa
             case arity =>
                 let bindings = variant.payloadBindings()
                 var readArgs = Tokens()
+                // one `add` per payload rather than an `ArrayList` literal: the expansion must not
+                // depend on the caller importing `std.collection`
                 var writeItems = Tokens()
                 for ((i, payloadType) in variant.payloadTypes |> enumerate) {
                     if (i > 0) {
                         readArgs += Tokens(Token(TokenKind.COMMA))
-                        writeItems += Tokens(Token(TokenKind.COMMA))
                     }
                     let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
                     let binding = bindings[i]
                     readArgs += quote($payloadType.deserialize(items[$index]))
-                    writeItems += quote($binding.serialize())
+                    writeItems += quote(
+                        items.add($binding.serialize())
+                    )
                 }
                 let size = Token(TokenKind.INTEGER_LITERAL, "${arity}")
                 let pattern = joinedTokens(bindings)
@@ -257,7 +260,10 @@ private func untaggedEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVa
                     } catch (_: Exception) {}
                 )
                 writeCases += quote(
-                    case $ident($pattern) => DataModelSeq(ArrayList<DataModel>([$writeItems]))
+                    case $ident($pattern) =>
+                        let items = DataModelSeq()
+                        $writeItems
+                        items
                 )
         }
     }

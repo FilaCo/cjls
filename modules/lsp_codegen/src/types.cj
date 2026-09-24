@@ -64,6 +64,15 @@ struct LiteralIr {
 }
 
 /**
+ * A property as it reaches a struct through `extends` or `mixins`, together with where it is
+ * declared: a literal among its types is named after that place, not after every struct inheriting
+ * it, or each of them would declare a type of its own for the same value.
+ */
+struct DeclaredProperty {
+    DeclaredProperty(let declaredBy!: String, let property!: Property) {}
+}
+
+/**
  * Turns metaModel types into Cangjie ones, and collects the declarations that has to invent along
  * the way: a named enum for every distinct union, a struct for every literal.
  */
@@ -84,6 +93,12 @@ class TypeResolver {
     private let unionIdents = HashMap<String, String>()
     private let unionList = ArrayList<UnionIr>()
     private let literalList = ArrayList<LiteralIr>()
+
+    /**
+     * What each literal in `literalList` is made of, to tell the same literal met again from another
+     * one after the same name.
+     */
+    private let literalShapes = HashMap<String, String>()
 
     TypeResolver(mm: MetaModel, private let cfg: Config) {
         for (structure in mm.structures) {
@@ -156,8 +171,8 @@ class TypeResolver {
      * The fields `structure` has on the wire: `extends` first, then `mixins`, then its own - a
      * property redeclared further down replaces the inherited one in place.
      */
-    func flattenedProperties(structure: Structure): Array<Property> {
-        let flattened = ArrayList<Property>()
+    func flattenedProperties(structure: Structure): Array<DeclaredProperty> {
+        let flattened = ArrayList<DeclaredProperty>()
         let bases = (structure.extends ?? []).concat(structure.mixins ?? [])
         for (base in bases) {
             let baseName = match (base) {
@@ -171,8 +186,9 @@ class TypeResolver {
                 addOrReplace(flattened, property)
             }
         }
+        let declaredBy = cfg.typeMap.bind(structure.name).typeNameOf(structure.name) ?? structure.name
         for (property in structure.properties) {
-            addOrReplace(flattened, property)
+            addOrReplace(flattened, DeclaredProperty(declaredBy: declaredBy, property: property))
         }
 
         flattened.toArray()
@@ -243,7 +259,16 @@ class TypeResolver {
 
     private func declareUnion(members: Array<Type>, context: String): String {
         // a literal is declared where it appears, so a union holding one belongs to that place too
-        let key = if (members |> any {it: Type => isLiteral(it)}) {
+        let literalCount = members |> filter {it: Type => isLiteral(it)} |> count
+        if (literalCount > 1) {
+            // each would be named `context`, the second one lost to the first
+            throw IllegalStateException("`${context}`: a union of more than one literal has no names for them")
+        }
+        if (literalCount == 1 && unionAliases.contains(unionKeyOf(members))) {
+            // the literal would take the alias's own name, which the union needs
+            throw IllegalStateException("`${context}`: an alias of a union holding a literal has no name for it")
+        }
+        let key = if (literalCount == 1) {
             "${unionKeyOf(members)}@${context}"
         } else {
             unionKeyOf(members)
@@ -308,7 +333,7 @@ class TypeResolver {
             case _ => return 0
         }
         if (let Some(structure) <- structures.get(name)) {
-            return flattenedProperties(structure) |> filter {it: Property => !(it.optional ?? false)} |> count
+            return flattenedProperties(structure) |> filter {it: DeclaredProperty => !(it.property.optional ?? false)} |> count
         }
         if (let Some(alias) <- aliases.get(name)) {
             return requiredKeyCount(alias.typeAliasType)
@@ -343,20 +368,22 @@ class TypeResolver {
     }
 
     private func declareLiteral(literal: StructureLiteral, context: String): String {
-        for (declared in literalList) {
-            if (declared.ident == context) {
-                return context
-            }
+        let shape = literalShapeOf(literal)
+        match (literalShapes.get(context)) {
+            case Some(declared) where declared == shape => return context
+            case Some(_) => throw IllegalStateException("`${context}` names two different literals")
+            case None => ()
         }
+        literalShapes.add(context, shape)
         literalList.add(LiteralIr(ident: context, literal: literal))
 
         context
     }
 }
 
-private func addOrReplace(properties: ArrayList<Property>, property: Property): Unit {
+private func addOrReplace(properties: ArrayList<DeclaredProperty>, property: DeclaredProperty): Unit {
     for (i in 0..properties.size) {
-        if (properties[i].name == property.name) {
+        if (properties[i].property.name == property.property.name) {
             properties[i] = property
             return
         }
@@ -409,6 +436,14 @@ private func canonicalOf(t: Type): String {
         case IntegerLiteral(value) => "${value}"
         case BooleanLiteral(value) => "${value}"
     }
+}
+
+private func literalShapeOf(literal: StructureLiteral): String {
+    let properties = literal.properties.map {
+        it: Property => "${it.name}${if (it.optional ?? false) { "?" } else { "" }}: ${canonicalOf(it.propertyType)}"
+    }
+
+    "{${String.join(properties, delimiter: "; ")}}"
 }
 
 private func kindOf(t: Type): String {

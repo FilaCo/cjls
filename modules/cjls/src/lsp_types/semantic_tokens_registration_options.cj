@@ -33,7 +33,7 @@ public struct SemanticTokensRegistrationOptions {
          * Server supports providing semantic tokens for a specific range
          * of a document.
          */
-        public let range!: ?BooleanOrSemanticTokensRegistrationOptionsRange = None,
+        public let range!: ?BooleanOrSemanticTokensOptionsRange = None,
 
         /**
          * Server supports providing semantic tokens for a full document.

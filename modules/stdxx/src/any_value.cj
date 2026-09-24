@@ -3,7 +3,7 @@ package stdxx
 import stdx.serialization.serialization.*
 
 /**
- * Any value at all, carried as the `DataModel` it was read as - LSP's `LSPAny`.
+ * Any value at all, carried as the `DataModel`.
  *
  * `DataModel` cannot be `Serializable` itself: Cangjie forbids extending an imported type with an
  * imported interface, so it takes a type of our own to put one in a serializable field.

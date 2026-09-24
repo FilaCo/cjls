@@ -171,6 +171,28 @@ class ResolveUnionTest {
         @Expect("ProgressToken", t.toString())
         @Expect(sut.unions.isEmpty())
     }
+
+    @TestCase
+    func aUnionOfTwoLiteralsIsRefusedRatherThanMergedIntoOne() {
+        // arrange
+        let first = Type.Literal(StructureLiteral(properties: [property("text", base(BaseTypes.String))]))
+        let second = Type.Literal(StructureLiteral(properties: [property("uri", base(BaseTypes.String))]))
+        let sut = resolverOf(metaModelOf())
+
+        // act & assert
+        @AssertThrows[IllegalStateException](sut.resolve(Type.Or([first, second]), context: "ChangeEvent"))
+    }
+
+    @TestCase
+    func anAliasOfAUnionHoldingALiteralIsRefusedRatherThanClashingWithIt() {
+        // arrange
+        let union = Type.Or([base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))])
+        let alias = TypeAlias(name: "RangeOption", typeAliasType: union)
+        let sut = resolverOf(metaModelOf(typeAliases: [alias]))
+
+        // act & assert
+        @AssertThrows[IllegalStateException](sut.resolve(union, context: "RangeOption"))
+    }
 }
 
 @Test
@@ -188,7 +210,7 @@ class ResolveStructTest {
         let properties = resolverOf(mm).flattenedProperties(deleteFile)
 
         // assert
-        @Expect("kind,annotationId,uri", String.join(properties.map {it: Property => it.name}, delimiter: ","))
+        @Expect("kind,annotationId,uri", String.join(properties.map {it: DeclaredProperty => it.property.name}, delimiter: ","))
     }
 
     @TestCase
@@ -224,6 +246,27 @@ class ResolveStructTest {
         // assert
         @Expect("BooleanOrSemanticTokensOptionsRange", ir.fields[0].fieldType.toString())
         @Expect("SemanticTokensOptionsRange", resolver.literals[0].ident)
+    }
+
+    @TestCase
+    func anInheritedLiteralKeepsTheNameOfWhereItIsDeclared() {
+        // arrange
+        let rangeType = Type.Or([base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))])
+        let options = structureOf("SemanticTokensOptions", [property("range", rangeType, optional: true)])
+        let registrationOptions = structureOf("SemanticTokensRegistrationOptions", [],
+            extends: [ref("SemanticTokensOptions")])
+        let mm = metaModelOf(structures: [options, registrationOptions])
+        let cfg = Config(srcDir: Path("src"), outputPackage: "demo.lsp_types")
+        let resolver = TypeResolver(mm, cfg)
+
+        // act
+        let declared = resolveStruct(cfg, resolver, options).getOrThrow()
+        let inherited = resolveStruct(cfg, resolver, registrationOptions).getOrThrow()
+
+        // assert
+        @Expect(declared.fields[0].fieldType.toString(), inherited.fields[0].fieldType.toString())
+        @Expect(1, resolver.literals.size)
+        @Expect(1, resolver.unions.size)
     }
 }
 
