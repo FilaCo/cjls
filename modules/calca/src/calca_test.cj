@@ -172,6 +172,12 @@ func second(db: TestDb, mode: Mode): Int64 {
 }
 
 @CalcaTracked
+func createsAnInput(db: TestDb, file: SourceFile): Int64 {
+    SourceFile(db, "b.cj", file.text(db))
+    0
+}
+
+@CalcaTracked
 func setsAnInput(db: TestDb, file: SourceFile): Int64 {
     match (db as TestDatabase) {
         case Some(writable) => file.setText(writable).to("")
@@ -458,7 +464,6 @@ class CalcaTest {
         // assert
         @AssertThrows[Cancelled](length(snapshot, file))
         @AssertThrows[Cancelled](file.text(snapshot))
-        @AssertThrows[Cancelled](SourceFile(snapshot, "b.cj", ""))
         @Expect(length(db.snapshot(), file), 3)
     }
 
@@ -476,6 +481,25 @@ class CalcaTest {
         // assert
         @Expect(old, "hello")
         @Expect(file.text(db), "bye")
+    }
+
+    @TestCase
+    func aSnapshotCannotCreateAnInput(): Unit {
+        // arrange
+        let db = TestDatabase()
+
+        // act, assert
+        @AssertThrows[IllegalStateException](SourceFile(db.snapshot(), "a.cj", "hello"))
+    }
+
+    @TestCase
+    func aQueryCannotCreateAnInput(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+
+        // act, assert
+        @AssertThrows[IllegalStateException](createsAnInput(db, file))
     }
 
     @TestCase

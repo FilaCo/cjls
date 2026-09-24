@@ -110,13 +110,23 @@ public class Storage {
      * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
      */
     func write<T>(change: (Int64) -> T): T {
+        checkWritable("change")
+        runtime.write(change)
+    }
+
+    /**
+     * Refuses to `action` an input from a snapshot, or inside an operation: only the root handle
+     * makes inputs, and what a query computes depends on nothing but what it reads.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
+     */
+    func checkWritable(action: String): Unit {
         if (pinned.isSome()) {
-            throw IllegalStateException("a snapshot cannot change an input")
+            throw IllegalStateException("a snapshot cannot ${action} an input")
         }
         if (depth > 0) {
-            throw IllegalStateException("an input cannot change while a query runs")
+            throw IllegalStateException("an input cannot ${action} while a query runs")
         }
-        runtime.write(change)
     }
 
     /**

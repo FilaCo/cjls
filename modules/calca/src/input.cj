@@ -15,10 +15,14 @@ public class InputIngredient {
     }
 
     /**
-     * Adds a row, which `fill` gives a value in every column, in order.
+     * Adds a row, which `fill` gives a value in every column, in order. No revision begins: nothing
+     * computed so far can have read the row.
+     *
+     * @throws IllegalStateException - if the handle is a snapshot, or is inside a query
      */
     public func create(db: Database, durability: Durability, fill: (InputRow) -> Unit): Id {
         let storage = db.storage
+        storage.checkWritable("create")
         storage.read {
             let table = table(storage.runtime)
             synchronized(table.lock) {
