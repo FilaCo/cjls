@@ -89,10 +89,7 @@ private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
     let entry = dm.asStructOrThrow()
 
     let declared = entry.getOrNone("declared").map {it => declaredOf(lspName, it)}
-    let fields = ArrayList<Field>()
-    for (field in entry.getFields() where field.getName() != "declared") {
-        fields.add(field)
-    }
+    let fields = entry.getFields().filter {it => it.getName() != "declared"}
     if (fields.isEmpty()) {
         throw DataModelException("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
     }
@@ -117,8 +114,7 @@ private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
 }
 
 private func declaredOf(lspName: String, dm: DataModel): Array<String> {
-    let items = dm.asSeqOrThrow().getItems()
-    Array<String>(items.size) {i => items[i].asStringOrThrow()}
+    dm.asSeqOrThrow().getItems().map {it => it.asStringOrThrow()}.toArray()
 }
 
 /**

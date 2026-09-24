@@ -1,7 +1,6 @@
 package lsp_codegen
 
 import std.ast.*
-import std.collection.ArrayList
 import stdxx.IntegerOrString
 
 struct EnumIr {
@@ -54,7 +53,7 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Extern(target, declared) => (enumeration.name, Adopted(target), declared)
         case Aliased(_) | Skipped => return None
     }
-    for (name in declared where !hasValue(enumeration, name)) {
+    for (name in declared where !enumeration.values.any {it => it.name == name}) {
         throw IllegalStateException("`types.${enumeration.name}.declared` names `${name}`, which it does not have")
     }
 
@@ -73,13 +72,12 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Adopted(_) => ([], false)
     }
 
-    let variants = ArrayList<EnumVariantIr>()
-    for (entry in enumeration.values where !declared.contains(entry.name)) {
-        variants.add(resolveEnumVariant(entry, asConstructor: asConstructors))
-    }
+    let variants = enumeration.values
+        .filter {it => !declared.contains(it.name)}
+        .map {it => resolveEnumVariant(it, asConstructor: asConstructors)}
     var catchAll: ?EnumCatchAllIr = None
     if (asConstructors) {
-        for (variant in variants where variant.ident == CATCH_ALL_IDENT) {
+        if (variants.any {it => it.ident == CATCH_ALL_IDENT}) {
             throw IllegalStateException("`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant")
         }
         catchAll = EnumCatchAllIr(
@@ -95,17 +93,10 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         shape: shape,
         isOpen: isOpen,
         ident: ident,
-        variants: variants.toArray(),
+        variants: variants,
         derives: derives,
         catchAll: catchAll
     )
-}
-
-private func hasValue(enumeration: Enumeration, name: String): Bool {
-    for (entry in enumeration.values where entry.name == name) {
-        return true
-    }
-    false
 }
 
 private func resolveEnumVariant(entry: EnumerationEntry, asConstructor!: Bool): EnumVariantIr {
