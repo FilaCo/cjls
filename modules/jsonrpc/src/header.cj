@@ -4,83 +4,50 @@ import std.collection.ArrayList
 import std.io.{InputStream, BufferedInputStream}
 import std.convert.Parsable
 
-public struct Header <: Parsable<Header> {
-    static const CONTENT_TYPE_DEFAULT: String = "application/vscode-jsonrpc; charset=utf-8"
-
-    public Header(public let contentLength: Int32, public let contentType!: String = CONTENT_TYPE_DEFAULT) {}
+struct Header {
+    Header(let contentLength: Int32) {}
 
     /**
-     * @note: caller should trim a header terminator ("\r\n\r\n") from `str`.
+     * Fields other than `Content-Length` are skipped: nothing here depends on them.
      *
-     * @throws TransportException - if header is invalid
+     * @param str - the header without its terminating "\r\n\r\n"
+     * @throws TransportException - if the header is invalid
      */
-    public static func parse(str: String): Header {
-        let fieldsSplitted = str.split("\r\n", removeEmpty: true)
+    static func parse(str: String): Header {
         var contentLength = None<Int32>
-        var contentType = CONTENT_TYPE_DEFAULT
-        for (rawField in fieldsSplitted) {
-            let fieldParts = rawField.split(": ", 2)
-            if (fieldParts.size != 2) {
-                continue // skip field with no ": " separator
-            }
-            match (fieldParts[0]) {
-                case "Content-Length" => contentLength = try {
-                    Int32.parse(fieldParts[1])
+        for (rawField in str.split("\r\n", removeEmpty: true)) {
+            let parts = rawField.split(": ", 2)
+            if (parts.size == 2 && parts[0] == "Content-Length") {
+                contentLength = try {
+                    Int32.parse(parts[1])
                 } catch (e: IllegalArgumentException) {
                     throw TransportException("\"Content-Length\" value is invalid\nCause: ${e.message}")
                 }
-                // even though we only support utf-8 charsets we don't validate it here, because the header field syntax is correct
-                case "Content-Type" => contentType = fieldParts[1]
-                // unknown field branch
-                case _ => continue
             }
         }
 
         match (contentLength) {
             case None => throw TransportException("Required field \"Content-Length\" is missing")
             case Some(v) where v < 0 => throw TransportException("\"Content-Length\" must be non-negative")
-            case Some(v) => Header(v, contentType: contentType)
+            case Some(v) => Header(v)
         }
     }
 
-    public static func tryParse(str: String): ?Header {
-        try {
-            parse(str)
-        } catch (_: TransportException) {
-            None
-        }
-    }
-
-    public static func parse<T>(input: BufferedInputStream<T>): ?Header where T <: InputStream {
-        const HEADER_TERMINATOR: VArray<Byte, $4> = [b'\r', b'\n', b'\r', b'\n']
-        let fieldsBuf = ArrayList<Byte>()
-        var terminated = false
-        while (let Some(curByte) <- input.readByte()) {
-            fieldsBuf.add(curByte)
-            if (fieldsBuf.size < HEADER_TERMINATOR.size) {
-                continue
-            }
-
-            terminated = true
-            // VArray and Array are not Equatable, so we compare them manually
-            let offset = fieldsBuf.size - HEADER_TERMINATOR.size
-            for (idx in 0..HEADER_TERMINATOR.size) {
-                if (fieldsBuf[idx + offset] != HEADER_TERMINATOR[idx]) {
-                    terminated = false
-                    break
-                }
-            }
-
-            if (terminated) {
-                break
+    /**
+     * Reads up to and including the terminator, and not a byte of the content after it.
+     *
+     * @return `None` if the stream ends first
+     * @throws TransportException - if the header is invalid
+     */
+    static func read<T>(input: BufferedInputStream<T>): ?Header where T <: InputStream {
+        let bytes = ArrayList<Byte>()
+        while (let Some(byte) <- input.readByte()) {
+            bytes.add(byte)
+            let n = bytes.size
+            if (n >= 4 && bytes[n - 4] == b'\r' && bytes[n - 3] == b'\n' && bytes[n - 2] == b'\r' && byte == b'\n') {
+                return Header.parse(String.fromUtf8(bytes[..n - 4].toArray()))
             }
         }
-
-        if (!terminated) {
-            return None
-        }
-
-        let fieldsStr = String.fromUtf8(fieldsBuf[..fieldsBuf.size - HEADER_TERMINATOR.size].toArray())
-        Header.parse(fieldsStr)
+        None
     }
 }

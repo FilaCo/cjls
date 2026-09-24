@@ -3,7 +3,7 @@ package jsonrpc
 import stdx.serialization.serialization.*
 
 /**
- * The framing itself is lost - the stream is desynced and there is no next message to find.
+ * The framing itself is lost: there is no next message to find.
  */
 public class TransportException <: Exception {
     public TransportException(msg: String) {
@@ -15,6 +15,10 @@ public class TransportException <: Exception {
     }
 }
 
+/**
+ * The message was bad but the stream is still in sync, so the peer can be answered with
+ * `responseError` and reading can go on.
+ */
 public class RpcException <: Exception {
     public RpcException(public let responseError: ResponseError) {
         super(responseError.message)
