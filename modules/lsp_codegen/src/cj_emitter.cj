@@ -1,7 +1,6 @@
 package lsp_codegen
 
 import std.ast.*
-import std.collection.HashSet
 import std.io.{OutputStream, StringWriter}
 
 class CjEmitter {
@@ -16,9 +15,6 @@ class CjEmitter {
         output.flush()
     }
 
-    /**
-     * Emits newline without indentation
-     */
     func nl(): Unit {
         output.write("\n")
     }
@@ -87,8 +83,10 @@ struct DocComment {
     DocComment(let lines!: Array<String> = []) {}
 }
 
-// Block comments nest in Cangjie: a slash-star in the text - a glob such as `**` + `/` + `*.ts` - opens a
-// comment that the doc comment's own closing only ends, and the rest of the file is swallowed.
+/**
+ * Block comments nest in Cangjie: a glob such as `**` + `/` + `*.ts` in the text opens a comment the
+ * doc comment's own closing only ends, and the rest of the file is swallowed.
+ */
 func escapedCommentText(text: String): String {
     text.replace("/*", "/\\*").replace("*/", "*\\/")
 }

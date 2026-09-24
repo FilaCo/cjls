@@ -72,6 +72,26 @@ func resolveDoc(alias: TypeAlias): DocIr {
     )
 }
 
+func resolveDoc(request: Request): DocIr {
+    docOf(
+        documentation: request.documentation,
+        since: request.since,
+        sinceTags: request.sinceTags,
+        proposed: request.proposed,
+        deprecated: request.deprecated
+    )
+}
+
+func resolveDoc(notification: Notification): DocIr {
+    docOf(
+        documentation: notification.documentation,
+        since: notification.since,
+        sinceTags: notification.sinceTags,
+        proposed: notification.proposed,
+        deprecated: notification.deprecated
+    )
+}
+
 private func docOf(documentation!: ?String, since!: ?String, sinceTags!: ?Array<String>, proposed!: ?Bool,
     deprecated!: ?String) {
     DocIr(documentation: documentation, since: since, sinceTags: sinceTags, proposed: proposed ?? false,

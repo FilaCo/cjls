@@ -5,464 +5,169 @@ import stdxx.*
 import stdxx.deriving.*
 
 /**
- * The actual meta model.
- * @note specification taken from: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/metaModel/metaModel.ts
+ * Mirrors https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/metaModel/metaModel.ts
  */
 @DeriveExt[Serializable]
 struct MetaModel {
     MetaModel(
-        /**
-         * Additional meta data.
-         */
         let metaData!: MetaData,
-
-        /**
-         * The requests.
-         */
         let requests!: Array<Request>,
-
-        /**
-         * The notifications.
-         */
         let notifications!: Array<Notification>,
-
-        /**
-         * The structures.
-         */
         let structures!: Array<Structure>,
-
-        /**
-         * The enumerations.
-         */
         let enumerations!: Array<Enumeration>,
-
-        /**
-         * The type aliases.
-         */
         let typeAliases!: Array<TypeAlias>
     ) {}
 }
 
 @DeriveExt[Serializable]
 struct MetaData {
-    MetaData(
-        /**
-         * The protocol version.
-         */
-        let version!: String) {}
+    MetaData(let version!: String) {}
 }
 
-/**
- * Represents a LSP request
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct Request {
     Request(
-        /**
-         * The request's method name.
-         */
         let method!: String,
-
-        /**
-         * The type name of the request if any.
-         */
         let typeName!: ?String = None,
-
-        /**
-         * The parameter type(s) if any.
-         */
         let params!: ?OneOrMany<Type> = None,
-
-        /**
-         * The result type.
-         */
         let result!: Type,
-
-        /**
-         * Optional partial result type if the request
-         * supports partial result reporting.
-         */
         let partialResult!: ?Type = None,
-
-        /**
-         * An optional error data type.
-         */
         let errorData!: ?Type = None,
 
         /**
-         * Optional a dynamic registration method if it
-         * different from the request's method.
+         * Only when it differs from `method`.
          */
         let registrationMethod!: ?String = None,
-
-        /**
-         * Optional registration options if the request
-         * supports dynamic registration.
-         */
         let registrationOptions!: ?Type = None,
-
-        /**
-         * The direction in which this request is sent
-         * in the protocol.
-         */
         let messageDirection!: MessageDirection,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None,
-
-        /**
-         * The client capability property path if any.
-         */
         let clientCapability!: ?String = None,
-
-        /**
-         * The server capability property path if any.
-         */
         let serverCapability!: ?String = None
     ) {}
 }
 
-/**
- * Represents a LSP notification
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct Notification {
     Notification(
-        /**
-         * The notifications's method name.
-         */
         let method!: String,
-
-        /**
-         * The type name of the notifications if any.
-         */
         let typeName!: ?String = None,
-
-        /**
-         * The parameter type(s) if any.
-         */
         let params!: ?OneOrMany<Type> = None,
 
         /**
-         * Optional a dynamic registration method if it
-         * different from the notifications's method.
+         * Only when it differs from `method`.
          */
         let registrationMethod!: ?String = None,
-
-        /**
-         * Optional registration options if the notification
-         * supports dynamic registration.
-         */
         let registrationOptions!: ?Type = None,
-
-        /**
-         * The direction in which this notification is sent
-         * in the protocol.
-         */
         let messageDirection!: MessageDirection,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None,
-
-        /**
-         * The client capability property path if any.
-         */
         let clientCapability!: ?String = None,
-
-        /**
-         * The server capability property path if any.
-         */
         let serverCapability!: ?String = None
     ) {}
 }
 
-/**
- * Defines the structure of an object literal.
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct Structure {
     Structure(
-        /**
-         * The name of the structure.
-         */
         let name!: String,
-
-        /**
-         * Structures extended from. This structures form
-         * a polymorphic type hierarchy.
-         */
         let extends!: ?Array<Type> = None,
-
-        /**
-         * Structures to mix in. The properties of these
-         * structures are `copied` into this structure.
-         * Mixins don't form a polymorphic type hierarchy in
-         * LSP.
-         */
         let mixins!: ?Array<Type> = None,
-
-        /**
-         * The properties.
-         */
         let properties!: Array<Property>,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }
 
-/**
- * Defines an enumeration.
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct Enumeration {
     Enumeration(
-        /**
-         * The name of the enumeration.
-         */
         let name!: String,
-
-        /**
-         * The type of the elements.
-         */
         @DeriveExtSerializable[rename: "type"] let enumerationType!: EnumerationType,
-
-        /**
-         * The enum values.
-         */
         let values!: Array<EnumerationEntry>,
 
         /**
-         * Whether the enumeration supports custom values (e.g. values which are not
-         * part of the set defined in `values`). If omitted no custom values are
-         * supported.
+         * Whether values outside `values` are allowed; absent means they are not.
          */
         let supportsCustomValues!: ?Bool = None,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }
 
-/**
- * Defines a type alias.
- * (e.g. `type Definition = Location | LocationLink`)
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct TypeAlias {
     TypeAlias(
-        /**
-         * The name of the type alias.
-         */
         let name!: String,
-
-        /**
-         * The aliased type.
-         */
         @DeriveExtSerializable[rename: "type"] let typeAliasType!: Type,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }
 
 @DeriveExt[Serializable]
 enum BaseTypes {
-    // URI
     | @DeriveExtSerializable[value: "URI"]
     Uri
     | DocumentUri
-    // integer
     | @DeriveExtSerializable[value: "integer"]
     Integer
-    // uinteger
     | @DeriveExtSerializable[value: "uinteger"]
     UInteger
-    // decimal
     | @DeriveExtSerializable[value: "decimal"]
     Decimal
     | RegExp
-    // string
     | @DeriveExtSerializable[value: "string"]
     String
-    // boolean
     | @DeriveExtSerializable[value: "boolean"]
     Boolean
-    // null
     | @DeriveExtSerializable[value: "null"]
     Null
 }
 
-/**
- * Indicates in which direction a message is sent in the protocol.
- */
 @DeriveExt[Serializable]
 enum MessageDirection {
-    // clientToServer
     | @DeriveExtSerializable[value: "clientToServer"]
     ClientToServer
-    // serverToClient
     | @DeriveExtSerializable[value: "serverToClient"]
     ServerToClient
-    // both
     | @DeriveExtSerializable[value: "both"]
     Both
 }
 
 @DeriveExt[Serializable]
 enum MapKeyName {
-    // URI
     | @DeriveExtSerializable[value: "URI"]
     Uri
     | DocumentUri
-    // string
     | @DeriveExtSerializable[value: "string"]
     String
-    // integer
     | @DeriveExtSerializable[value: "integer"]
     Integer
 }
 
 /**
- * Represents a type that can be used as a key in a
- * map type. If a reference type is used then the
- * type must either resolve to a `string` or `integer`
- * type. (e.g. `type ChangeAnnotationIdentifier === string`).
+ * A reference here resolves to a `string` or an `integer`: `ChangeAnnotationIdentifier`.
  */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind"]
@@ -476,176 +181,70 @@ enum MapKeyType {
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind"]
 enum Type {
-    /**
-     * Represents a base type like `string` or `DocumentUri`.
-     */
     | @DeriveExtSerializable[value: "base", payload: ["name"]]
-    Base( /* name */ BaseTypes)
+    Base(BaseTypes)
 
     /**
-     * Represents a reference to another type (e.g. `TextDocument`).
-     * This is either a `Structure`, a `Enumeration` or a `TypeAlias`
-     * in the same meta model.
+     * To a `Structure`, an `Enumeration` or a `TypeAlias` of the same meta model.
      */
     | @DeriveExtSerializable[value: "reference", payload: ["name"]]
-    Reference( /* name */ String)
+    Reference(String)
 
-    /**
-     * Represents an array type (e.g. `TextDocument[]`).
-     */
     | @DeriveExtSerializable[value: "array", payload: ["element"]]
-    Array( /* element */ Type)
+    Array(Type)
 
-    /**
-     * Represents a JSON object map
-     * (e.g. `interface Map<K extends string | integer, V> { [key: K] => V; }`).
-     */
     | @DeriveExtSerializable[value: "map", payload: ["key", "value"]]
-    Map( /* key */ MapKeyType, /* value */ Type)
+    Map(MapKeyType, Type)
 
-    /**
-     * Represents an `and` type
-     * (e.g. TextDocumentParams & WorkDoneProgressParams`).
-     */
     | @DeriveExtSerializable[value: "and", payload: ["items"]]
-    And( /* items */ Array<Type>)
+    And(Array<Type>)
 
-    /**
-     * Represents an `or` type
-     * (e.g. `Location | LocationLink`).
-     */
     | @DeriveExtSerializable[value: "or", payload: ["items"]]
-    Or( /* items */ Array<Type>)
+    Or(Array<Type>)
 
-    /**
-     * Represents a `tuple` type
-     * (e.g. `[integer, integer]`).
-     */
     | @DeriveExtSerializable[value: "tuple", payload: ["items"]]
-    Tuple( /* items */ Array<Type>)
+    Tuple(Array<Type>)
 
     /**
-     * Represents a literal structure
-     * (e.g. `property: { start: uinteger; end: uinteger; }`).
+     * An anonymous structure: `property: { start: uinteger; end: uinteger; }`.
      */
     | @DeriveExtSerializable[value: "literal", payload: ["value"]]
-    Literal( /* value */ StructureLiteral)
+    Literal(StructureLiteral)
 
-    /**
-     * Represents a string literal type
-     * (e.g. `kind: 'rename'`).
-     */
     | @DeriveExtSerializable[value: "stringLiteral", payload: ["value"]]
-    StringLiteral( /* value */ String)
+    StringLiteral(String)
 
-    /**
-     * Represents an integer literal type
-     * (e.g. `kind: 1`).
-     */
     | @DeriveExtSerializable[value: "integerLiteral", payload: ["value"]]
-    IntegerLiteral( /* value */ Int64)
+    IntegerLiteral(Int64)
 
-    /**
-     * Represents a boolean literal type
-     * (e.g. `kind: true`).
-     */
     | @DeriveExtSerializable[value: "booleanLiteral", payload: ["value"]]
-    BooleanLiteral( /* value */ Bool)
+    BooleanLiteral(Bool)
 }
 
-/**
- * Defines an unnamed structure of an object literal.
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct StructureLiteral {
     StructureLiteral(
-        /**
-         * The properties.
-         */
         let properties!: Array<Property>,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }
 
-/**
- * Represents an object property.
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct Property {
     Property(
-        /**
-         * The property name;
-         */
         let name!: String,
-
-        /**
-         * The type of the property
-         */
         @DeriveExtSerializable[rename: "type"] let propertyType!: Type,
-
-        /**
-         * Whether the property is optional. If
-         * None, the property is mandatory.
-         */
         let optional!: ?Bool = None,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }
@@ -656,50 +255,16 @@ enum OneOrMany<T> {
     | Many(Array<T>)
 }
 
-/**
- * Defines an enumeration entry.
- */
 @DeriveExt[Serializable]
 @DeriveExtSerializable[skipNone]
 struct EnumerationEntry {
     EnumerationEntry(
-        /**
-         * The name of the enum item.
-         */
         let name!: String,
-
-        /**
-         * The value.
-         */
         let value!: IntegerOrString,
-
-        /**
-         * An optional documentation.
-         */
         let documentation!: ?String = None,
-
-        /**
-         * Since when (release number) this property is
-         * available. Is None if not known.
-         */
         let since!: ?String = None,
-
-        /**
-         * All since tags in case there was more than one tag.
-         * Is None if not known.
-         */
         let sinceTags!: ?Array<String> = None,
-
-        /**
-         * Whether this is a proposed property. If omitted,
-         * the structure is final.
-         */
         let proposed!: ?Bool = None,
-
-        /**
-         * Whether the property is deprecated or not. If deprecated
-         * the property contains the deprecation message.
-         */
         let deprecated!: ?String = None
     ) {}
 }

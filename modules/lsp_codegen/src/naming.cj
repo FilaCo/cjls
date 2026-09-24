@@ -109,7 +109,7 @@ private func splitWords(name: String): Array<String> {
         if (!bytes[i].isAsciiUpperCase()) {
             continue
         }
-        // previous is not uppercase or (not last and next is lower case)
+        // a capital followed by a lowercase letter ends an acronym: `URIParser` is `URI`, `Parser`
         let startsWord = !bytes[i - 1].isAsciiUpperCase() || (i + 1 < bytes.size && bytes[i + 1].isAsciiLowerCase())
         if (startsWord) {
             words.add(name[start..i])

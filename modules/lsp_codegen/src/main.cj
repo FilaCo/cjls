@@ -55,21 +55,20 @@ func parseArgs(args: Array<String>): CliArgs {
 
 extend ParsedArguments {
     /**
-     * @throws ArgumentParseException - if option is missing or its value is an empty string
+     * @throws ArgumentParseException - if the option is missing or blank
      */
-    func getRequiredOption(key: String, trim!: Bool = true): String {
-        getRequiredValue(options.get(key), "`${key}` option", trim: trim)
+    func getRequiredOption(key: String): String {
+        getRequiredValue(options.get(key), "`${key}` option")
     }
+
     /**
-     * @throws ArgumentParseException - if v is `None` or its value is an empty string
+     * A blank value is refused rather than turned into `Path("")`, which throws on every join.
+     *
+     * @throws ArgumentParseException - if `v` is `None` or blank
      */
-    func getRequiredValue(v: ?String, what: String, trim!: Bool = true): String {
-        v.map {
-            it => if (trim) {
-                it.trimAscii()
-            } else {
-                it
-            }
-        }.filter {it => !it.isEmpty()}.getOrThrow {=> ArgumentParseException("missing required ${what}")}
+    func getRequiredValue(v: ?String, what: String): String {
+        v.map {it => it.trimAscii()}.filter {it => !it.isEmpty()}.getOrThrow {
+            => ArgumentParseException("missing required ${what}")
+        }
     }
 }

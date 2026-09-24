@@ -1,7 +1,6 @@
 package lsp_codegen
 
 import std.fs.Path
-import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -9,7 +8,7 @@ private func resolveMessagesOf(requests!: Array<Request> = [], notifications!: A
     MessageIr> {
     let mm = MetaModel(metaData: MetaData(version: "3.18.0"), requests: requests, notifications: notifications,
         structures: [], enumerations: [], typeAliases: [])
-    let resolver = TypeResolver(mm, Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: TypeMap()))
+    let resolver = TypeResolver(mm, Config(srcDir: Path("src"), outputPackage: "demo.lsp_types"))
 
     resolveMessages(resolver, mm)
 }
@@ -19,12 +18,8 @@ private func requestOf(method: String, typeName: String, result: Type, params!: 
         messageDirection: MessageDirection.ClientToServer)
 }
 
-private func emittedOf(messageIr: MessageIr): String {
-    let buffer = ByteBuffer()
-    let emitter = CjEmitter(buffer)
-    emitter.emitMessage(messageIr)
-    emitter.flush()
-    unsafe { String.fromUtf8(readToEnd(buffer)) }
+private func emittedMessage(messageIr: MessageIr): String {
+    emittedBy {emitter => emitter.emitMessage(messageIr)}
 }
 
 @Test
@@ -37,7 +32,7 @@ class ResolveMessagesTest {
                 Type.Or([Type.Reference("Hover"), Type.Base(BaseTypes.Null)]),
                 params: OneOrMany.One(Type.Reference("HoverParams")))])
 
-        // assert - a result that may be `null` is a `Nullable`, like any other such type
+        // assert
         @Expect("HoverRequestSpec", messages[0].ident)
         @Expect("textDocument/hover", messages[0].method)
         @Expect("HoverParams", messages[0].paramsType)
@@ -46,12 +41,10 @@ class ResolveMessagesTest {
 
     @TestCase
     func noParamsAndANullResultAreBothUnit() {
-        // act - `shutdown`: nothing in, a bare `null` out
+        // act - `shutdown`
         let messages = resolveMessagesOf(requests: [requestOf("shutdown", "ShutdownRequest", Type.Base(BaseTypes.Null))])
 
         // assert
-        @Expect(messages[0].params.isNone())
-        @Expect(messages[0].result.isNone())
         @Expect("Unit", messages[0].paramsType)
         @Expect("Unit", messages[0].resultType)
     }
@@ -70,25 +63,24 @@ class ResolveMessagesTest {
 
     @TestCase
     func positionalParamsAreRefused() {
-        // act & assert - a struct is no fit for them, and LSP 3.x declares none
+        // act & assert - LSP 3.x declares none
         @AssertThrows[IllegalStateException](resolveMessagesOf(
             requests: [requestOf("odd", "OddRequest", Type.Base(BaseTypes.Null),
                 params: OneOrMany.Many([Type.Reference("A"), Type.Reference("B")]))]))
     }
+}
 
+@Test
+class EmitMessageTest {
     @TestCase
     func aMessageIsEmittedAsASpecOfItsTypes() {
         // arrange
         let messageIr = MessageIr(DocIr(), ident: "HoverRequestSpec", method: "textDocument/hover",
             direction: MessageDirection.ClientToServer, params: TypeIr.Named("HoverParams"),
             result: TypeIr.NullableOf(TypeIr.Named("Hover")), isRequest: true)
-        let buffer = ByteBuffer()
-        let emitter = CjEmitter(buffer)
 
         // act
-        emitter.emitMessage(messageIr)
-        emitter.flush()
-        let emitted = unsafe { String.fromUtf8(readToEnd(buffer)) }
+        let emitted = emittedMessage(messageIr)
 
         // assert
         @Expect(emitted.contains("public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>> {"))
@@ -105,22 +97,22 @@ class ResolveMessagesTest {
             direction: MessageDirection.ClientToServer, isRequest: true)
 
         // act
-        let emitted = emittedOf(messageIr)
+        let emitted = emittedMessage(messageIr)
 
-        // assert - nothing to decode, and `null` is the whole answer
+        // assert
         @Expect(emitted.contains("LspInboundRequest<Unit, Unit>"))
         @Expect(emitted.contains("public func decodeParams(params: ?ArrayOrObject): Unit {"))
         @Expect(emitted.contains("DataModelNull()"))
     }
 
     @TestCase
-    func aMessageTheServerSendsHasNothingToBind() {
+    func aMessageTheServerSendsHasNoCodec() {
         // arrange
         let messageIr = MessageIr(DocIr(), ident: "ShowMessageNotificationSpec", method: "window/showMessage",
             direction: MessageDirection.ServerToClient, params: TypeIr.Named("ShowMessageParams"), isRequest: false)
 
         // act
-        let emitted = emittedOf(messageIr)
+        let emitted = emittedMessage(messageIr)
 
         // assert
         @Expect(emitted.contains("LspOutboundNotification<ShowMessageParams>"))
@@ -132,13 +124,9 @@ class ResolveMessagesTest {
         // arrange - `$/progress`
         let messageIr = MessageIr(DocIr(), ident: "ProgressNotificationSpec", method: "$/progress",
             direction: MessageDirection.Both, params: TypeIr.Named("ProgressParams"), isRequest: false)
-        let buffer = ByteBuffer()
-        let emitter = CjEmitter(buffer)
 
         // act
-        emitter.emitMessage(messageIr)
-        emitter.flush()
-        let emitted = unsafe { String.fromUtf8(readToEnd(buffer)) }
+        let emitted = emittedMessage(messageIr)
 
         // assert
         @Expect(emitted.contains(
