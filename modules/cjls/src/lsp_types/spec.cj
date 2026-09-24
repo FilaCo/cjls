@@ -19,12 +19,68 @@ public enum MessageDirection {
     | Both
 }
 
-public interface LspRequestSpec<P, R> {
+/**
+ * A message of the protocol. A value of it names the message where its handler is registered -
+ * `.route(InitializeRequestSpec(), handleInitialize)` - and brings its method and types along.
+ */
+public interface LspMessageSpec {
     static prop METHOD: String
     static prop DIRECTION: MessageDirection
+
+    prop method: String
 }
 
-public interface LspNotificationSpec<P> {
-    static prop METHOD: String
-    static prop DIRECTION: MessageDirection
+/**
+ * A request the client sends, which the server answers. `P` is `Unit` for a request that takes no
+ * params, `R` for one answered with a bare `null` - `shutdown`.
+ */
+public interface LspInboundRequest<P, R> <: LspMessageSpec {
+    /**
+     * Absent params read as `null`.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(params: ?ArrayOrObject): P
+
+    func encodeResult(result: R): DataModel
+}
+
+/**
+ * A request the server sends, which the client answers.
+ */
+public interface LspOutboundRequest<P, R> <: LspMessageSpec {}
+
+/**
+ * A notification the client sends. `P` is `Unit` for one that takes no params - `exit`.
+ */
+public interface LspInboundNotification<P> <: LspMessageSpec {
+    /**
+     * Absent params read as `null`.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(params: ?ArrayOrObject): P
+}
+
+/**
+ * A notification the server sends.
+ */
+public interface LspOutboundNotification<P> <: LspMessageSpec {}
+
+/**
+ * Absent params read as `null`, so a `P` that allows for none - a struct of optional fields only -
+ * takes them without a word.
+ *
+ * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+ */
+func decodeMessageParams<P>(params: ?ArrayOrObject): P where P <: Serializable<P> {
+    let dm = match (params) {
+        case Some(given) => given.serialize()
+        case None => DataModelNull()
+    }
+    try {
+        P.deserialize(dm)
+    } catch (e: Exception) {
+        throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
+    }
 }

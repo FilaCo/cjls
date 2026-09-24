@@ -3,6 +3,7 @@ package cjls
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import stdxx.*
+import jsonrpc.*
 import cjls.lsp_types.*
 
 private func dataOf(json: String): DataModel {
@@ -125,5 +126,47 @@ class LspTypesTest {
             case Unknown(99) => true
             case _ => false
         })
+    }
+
+    @TestCase
+    func aSpecDecodesItsParamsAndEncodesItsResult() {
+        // arrange
+        let spec = InitializeRequestSpec()
+        let params = ArrayOrObject.Object(dataOf(##"{"processId": 42, "rootUri": null, "capabilities": {}}"##)
+            .asStructOrThrow())
+
+        // act
+        let decoded = spec.decodeParams(params)
+        let encoded = spec.encodeResult(InitializeResult(capabilities: ServerCapabilities(),
+            serverInfo: ServerInfo(name: "cjls")))
+
+        // assert
+        @Expect("initialize", spec.method)
+        @Expect(42, decoded.processId.getOrThrow())
+        let serverInfo = encoded.asStructOrThrow().getOrThrow("serverInfo").asStructOrThrow()
+        @Expect("cjls", serverInfo.getOrThrow("name").asStringOrThrow())
+    }
+
+    @TestCase
+    func paramsThatDoNotReadAreInvalidParams() {
+        // arrange - `capabilities` is required
+        let params = ArrayOrObject.Object(dataOf(##"{"processId": 1, "rootUri": null}"##).asStructOrThrow())
+
+        // act
+        let e = @AssertThrows[RpcException](InitializeRequestSpec().decodeParams(params))
+
+        // assert
+        @Expect(ErrorCode.INVALID_PARAMS, e.code)
+    }
+
+    @TestCase
+    func aMessageWithoutParamsOrResultTakesAbsentParamsAndAnswersNull() {
+        // act - its params and result are `Unit`, nothing to read or write
+        ExitNotificationSpec().decodeParams(Option<ArrayOrObject>.None)
+        ShutdownRequestSpec().decodeParams(Option<ArrayOrObject>.None)
+        let result = ShutdownRequestSpec().encodeResult(())
+
+        // assert
+        @Expect(result is DataModelNull)
     }
 }

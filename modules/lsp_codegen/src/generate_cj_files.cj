@@ -15,7 +15,7 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
 
     let structs = ArrayList<StructIr>(mm.structures.filterMap {it: Structure => resolveStruct(cfg, resolver, it)})
     let aliasLines = resolveAliases(cfg, resolver, mm)
-    resolveMessageTypes(resolver, mm)
+    let messages = resolveMessages(resolver, mm)
     // a literal may hold further literals and unions of its own, met only once it is resolved
     var resolvedLiterals = 0
     while (resolvedLiterals < resolver.literals.size) {
@@ -28,6 +28,9 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
     }
     for (unionIr in resolver.unions) {
         files.add(cjFileOf(cfg, mm, unionIr.ident) {emitter => emitter.emitUnion(unionIr)})
+    }
+    for (messageIr in messages) {
+        files.add(cjFileOf(cfg, mm, messageIr.ident) {emitter => emitter.emitMessage(messageIr)})
     }
     if (let Some(aliases) <- generateAliasesFile(cfg, mm, aliasLines)) {
         files.add(aliases)
@@ -81,37 +84,6 @@ private func resolveAliases(cfg: Config, resolver: TypeResolver, mm: MetaModel):
     lines.toArray()
 }
 
-/**
- * The messages themselves come later, but the unions only they use belong with the rest.
- */
-private func resolveMessageTypes(resolver: TypeResolver, mm: MetaModel): Unit {
-    func resolveAll(owner: String, types: Array<(String, ?Type)>): Unit {
-        for ((part, t) in types) {
-            match (t) {
-                // a request answered with nothing - `shutdown` - has `null` for its whole result
-                case Some(Base(Null)) | None => ()
-                case Some(some) => resolver.resolve(some, context: owner + part)
-            }
-        }
-    }
-    func paramsOf(params: ?OneOrMany<Type>): ?Type {
-        match (params) {
-            case Some(One(t)) => t
-            case _ => None
-        }
-    }
-
-    for (request in mm.requests) {
-        resolveAll(request.typeName ?? request.method, [("Params", paramsOf(request.params)), ("Result", request.result),
-            ("PartialResult", request.partialResult), ("ErrorData", request.errorData),
-            ("RegistrationOptions", request.registrationOptions)])
-    }
-    for (notification in mm.notifications) {
-        resolveAll(notification.typeName ?? notification.method, [("Params", paramsOf(notification.params)),
-            ("RegistrationOptions", notification.registrationOptions)])
-    }
-}
-
 private func generateAliasesFile(cfg: Config, mm: MetaModel, generated: Array<(DocIr, String, TypeIr)>): ?CjFile {
     let aliases = cfg.typeMap.aliases()
     if (aliases.isEmpty() && generated.isEmpty()) {
@@ -141,6 +113,74 @@ private func generateAliasesFile(cfg: Config, mm: MetaModel, generated: Array<(D
     CjFile(path, contents)
 }
 
+private let SPEC_DECLARATIONS = """
+/**
+ * A message of the protocol. A value of it names the message where its handler is registered -
+ * `.route(InitializeRequestSpec(), handleInitialize)` - and brings its method and types along.
+ */
+public interface LspMessageSpec {
+    static prop METHOD: String
+    static prop DIRECTION: MessageDirection
+
+    prop method: String
+}
+
+/**
+ * A request the client sends, which the server answers. `P` is `Unit` for a request that takes no
+ * params, `R` for one answered with a bare `null` - `shutdown`.
+ */
+public interface LspInboundRequest<P, R> <: LspMessageSpec {
+    /**
+     * Absent params read as `null`.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(params: ?ArrayOrObject): P
+
+    func encodeResult(result: R): DataModel
+}
+
+/**
+ * A request the server sends, which the client answers.
+ */
+public interface LspOutboundRequest<P, R> <: LspMessageSpec {}
+
+/**
+ * A notification the client sends. `P` is `Unit` for one that takes no params - `exit`.
+ */
+public interface LspInboundNotification<P> <: LspMessageSpec {
+    /**
+     * Absent params read as `null`.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(params: ?ArrayOrObject): P
+}
+
+/**
+ * A notification the server sends.
+ */
+public interface LspOutboundNotification<P> <: LspMessageSpec {}
+
+/**
+ * Absent params read as `null`, so a `P` that allows for none - a struct of optional fields only -
+ * takes them without a word.
+ *
+ * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+ */
+func decodeMessageParams<P>(params: ?ArrayOrObject): P where P <: Serializable<P> {
+    let dm = match (params) {
+        case Some(given) => given.serialize()
+        case None => DataModelNull()
+    }
+    try {
+        P.deserialize(dm)
+    } catch (e: Exception) {
+        throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
+    }
+}
+"""
+
 private func generateSpecFile(cfg: Config, mm: MetaModel) {
     let byteBuffer = ByteBuffer()
     let cjEmitter = CjEmitter(byteBuffer)
@@ -155,18 +195,9 @@ public enum MessageDirection {
     | Both
 }
         ))
-            cjEmitter.emitln(
-                quote(
-public interface LspRequestSpec<P, R> {
-    static prop METHOD: String
-    static prop DIRECTION: MessageDirection
-}
-
-public interface LspNotificationSpec<P> {
-    static prop METHOD: String
-    static prop DIRECTION: MessageDirection
-}
-))
+            cjEmitter.nl()
+            // verbatim: `quote` has no way to spell a doc comment, and these carry the contract
+            cjEmitter.emit(SPEC_DECLARATIONS)
     }
     cjEmitter.flush()
     let contents = unsafe { String.fromUtf8(readToEnd(byteBuffer)) }
