@@ -36,6 +36,13 @@ F funcTable is nullptr, ti: std.core:Array<pkg:T>, itf: ...Serializable<...>
 
 It is a SIGABRT from the runtime, not a catchable exception, it compiles perfectly cleanly, and the message names stdx rather than the call site — so it reads like a serialization bug when it is a linkage one. Measured across the full matrix (intermediate lib × stdx, static/dynamic): only static×static survives. **Check `grep output-type modules/*/cjpm.toml` and which stdx the build links against before suspecting the serialization code.** If some package ever genuinely has to be dynamic, the escape hatch is deserializing arrays element-wise, so only the element type crosses the generic boundary.
 
+The `cjls` executable goes one step further: it is linked with `--static` (its `package-configuration` in `modules/cjls/cjpm.toml`, so the flag reaches the executable alone — on the libraries it is only a warning), which takes std and the Cangjie runtime in too. The binary depends on nothing but the system's `libc++`/`libSystem` and runs without the SDK env — which an editor launching it never has. Without it the binary aborts in `dyld` (`@rpath/libcangjie-std-*.dylib`, no `LC_RPATH`). Measured on cjc 1.3.0-alpha, darwin:
+
+- cjpm passes **no `-O`** to cjc, and cjc's default is `-O0` — hence `-O2` in the workspace `compile-option`.
+- LTO, and so bitcode (`.bc`) static libraries, are refused on Darwin (`Darwin does not support LTO`), `--experimental` or not; it is a Linux-only option.
+- `-dead_strip` shrinks the binary but the runtime aborts on the first message (`Check failed: objectTi != nullptr`): the linker drops type metadata the runtime reaches indirectly. Don't add it.
+- Most of the binary's code is whatever runtime packages drag in, not ours: anything reachable from `cjls` that implements `std.ast`'s `ToTokens` links `std.ast` *and the compiler's C++ parser under it* — about two thirds of `__text`. Keep `std.ast` out of runtime packages.
+
 ### Commits
 
 Conventional Commits are enforced by commitlint via a husky `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); commitizen (`cz-conventional-changelog`) is configured.
@@ -112,7 +119,7 @@ It is carried by a `DataModelFields` interface rather than a bare `extend`, beca
 
 ### `cjls` — entrypoint, handlers, and the framework they run in
 
-`main.cj` initializes the global logger and returns what `runServer()` (`run_server.cj`) returns: it serves stdio through `serveLsp(transport, routes())` and exits with the code the protocol asks for — `0` only for an `exit` after a `shutdown`. Logging (`logging.cj`) sets a global `stdx.log` `SimpleLogger` on stderr, its level from the `CJLS_LOG_LEVEL` env var (default `INFO`); log through `getGlobalLogger()`, never print — stdout is the LSP wire.
+`main.cj` initializes the global logger and returns what `runServer()` (`run_server.cj`) returns: it serves stdio through `serveLsp(transport, routes())` and exits with the code the protocol asks for — `0` only for an `exit` after a `shutdown`. Stdin is `StdinStream` (`stdin.cj`), `read(2)` on fd 0 through FFI — **never `std.env.getStdIn()`**: its `read` returns only when the buffer is full or at EOF (even a one-byte buffer stalls), so the server would sit on a request an editor already sent. No unit test sees that — they run on `FakeTransport` — which is what the editor smoke tests are for. POSIX only for now; Windows needs a `ReadFile` branch. Logging (`logging.cj`) sets a global `stdx.log` `SimpleLogger` on stderr, its level from the `CJLS_LOG_LEVEL` env var (default `INFO`); log through `getGlobalLogger()`, never print — stdout is the LSP wire.
 
 **Handlers take a context and return the result, registered the way axum does it — no macros:**
 

@@ -8,7 +8,7 @@ members = [
 ]
 build-members = []
 test-members = []
-compile-option = "-Woff unused"
+compile-option = "-Woff unused -O2"
 override-compile-option = ""
 link-option = ""
 target-dir = ""

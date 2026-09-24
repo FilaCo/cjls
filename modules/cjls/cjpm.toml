@@ -10,7 +10,7 @@ output-type = "executable"
 compile-option = ""
 override-compile-option = ""
 link-option = ""
-package-configuration = {}
+package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
 jsonrpc = { path = "../jsonrpc" }
