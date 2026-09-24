@@ -8,7 +8,6 @@ import stdx.log.NoopLogger
 import stdxx.Nullable
 import rope.{Encoding, Rope}
 import cjls.vfs.VfsPath
-import cjls.db.parse
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
@@ -45,8 +44,9 @@ class DocumentSyncTest {
         let db = opened("func f() {}\n")
 
         // assert
-        let file = db.snapshot().sourceFile(VfsPath.fromUri(URI)).getOrThrow()
-        @Expect(parse(db.snapshot(), file).syntaxNode().text(), "func f() {}\n")
+        let snapshot = db.snapshot()
+        let file = snapshot.sourceFile(VfsPath.fromUri(URI)).getOrThrow()
+        @Expect(file.text(snapshot.analysis).toString(), "func f() {}\n")
     }
 
     @TestCase
@@ -128,7 +128,7 @@ class DocumentSyncTest {
         // assert
         @Expect(textOf(db), None<String>)
         @Expect(db.openDocuments.isEmpty())
-        @Expect(file.text(db).toString(), "")
+        @Expect(file.text(db.analysis).toString(), "")
     }
 
     @TestCase

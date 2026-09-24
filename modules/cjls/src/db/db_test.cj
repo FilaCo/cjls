@@ -1,6 +1,5 @@
 package cjls.db
 
-import std.collection.collectArray
 import std.sync.*
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -9,52 +8,37 @@ import calca.macros.*
 import rope.Rope
 import cjls.vfs.*
 
-let itemCountRuns = AtomicInt64(0)
+let lineCountRuns = AtomicInt64(0)
 
 /**
- * A query reading the tree, counting how often it runs.
+ * A query of the kind every layer above writes, taking the database itself; it counts its runs.
  */
 @CalcaTracked
-func itemCount(db: SourceDatabase, file: SourceFile): Int64 {
-    itemCountRuns.fetchAdd(1)
-    collectArray(parse(db, file).syntaxNode().children()).size
+func lineCount(db: RootDatabase, file: SourceFile): Int64 {
+    lineCountRuns.fetchAdd(1)
+    file.text(db).lineCount
 }
 
 @Test
-class BaseDbTest {
+class DbTest {
     @TestCase
-    func aFileIsParsedOnceUntilItChanges() {
+    func aQueryRunsAgainOnlyOnceItsFileChanges() {
         // arrange
         let db = RootDatabase()
-        let file = db.setFileText(FileId(0), Rope("func f() {}\n"))
-        let first = parse(db, file)
+        let file = db.setFileText(FileId(0), Rope("a\n"))
+        @Expect(lineCount(db, file), 2)
+        let runs = lineCountRuns.load()
 
         // act
-        let again = parse(db, file)
-        db.setFileText(FileId(0), Rope("func f() {}\nfunc g() {}\n"))
-        let changed = parse(db, file)
+        let unchanged = lineCount(db, file)
+        let ranAgain = lineCountRuns.load() - runs
+        db.setFileText(FileId(0), Rope("a\nb\n"))
+        let changed = lineCount(db, file)
 
         // assert
-        @Expect(refEq(first, again))
-        @Expect(first.errors.size, 0)
-        @Expect(changed.syntaxNode().text(), "func f() {}\nfunc g() {}\n")
-    }
-
-    @TestCase
-    func aTextThatParsesTheSameLeavesWhatReadTheTreeAlone() {
-        // arrange
-        let db = RootDatabase()
-        let file = db.setFileText(FileId(0), Rope("let x = 1\n"))
-        @Expect(itemCount(db, file), 1)
-        let runs = itemCountRuns.load()
-
-        // act
-        db.setFileText(FileId(0), Rope("let x = 1\n"))
-        let count = itemCount(db, file)
-
-        // assert
-        @Expect(count, 1)
-        @Expect(itemCountRuns.load(), runs)
+        @Expect(unchanged, 2)
+        @Expect(ranAgain, 0)
+        @Expect(changed, 3)
     }
 
     @TestCase
@@ -108,7 +92,7 @@ class BaseDbTest {
         db.setFileText(FileId(0), Rope("let y = 2\n"))
 
         // assert
-        @AssertThrows[Cancelled](parse(snapshot, file))
+        @AssertThrows[Cancelled](lineCount(snapshot, file))
         @Expect(file.text(db.snapshot()).toString(), "let y = 2\n")
     }
 

@@ -14,8 +14,6 @@ package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
 calca = { path = "../calca" }
-cjsyntax = { path = "../cjsyntax" }
-ginkgo = { path = "../ginkgo" }
 index_map = { path = "../index_map" }
 jsonrpc = { path = "../jsonrpc" }
 rope = { path = "../rope" }

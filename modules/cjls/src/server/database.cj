@@ -1,7 +1,6 @@
 package cjls.server
 
 import std.collection.HashMap
-import calca.Storage
 import rope.{Encoding, Rope}
 import cjls.vfs.*
 import cjls.db.*
@@ -9,11 +8,10 @@ import cjls.db.*
 /**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
  * disk give them, the documents the editor has open, and the analysis, kept in step with the
- * files. It is the analysis database's root handle itself, so a query takes it as it is:
- * `parse(db, file)`.
+ * files: a query takes `db.analysis`, the root handle of its database.
  */
-public class Database <: SourceDatabase & FromContext<Database> {
-    private let analysis = RootDatabase()
+public class Database <: FromContext<Database> {
+    public let analysis = RootDatabase()
     private let vfs = Vfs()
 
     /**
@@ -31,16 +29,6 @@ public class Database <: SourceDatabase & FromContext<Database> {
 
     public static func from<P>(ctx: Context<P>): Database {
         ctx.db
-    }
-
-    public prop storage: Storage {
-        get() {
-            analysis.storage
-        }
-    }
-
-    public func sourceFile(fileId: FileId): ?SourceFile {
-        analysis.sourceFile(fileId)
     }
 
     /**
@@ -70,25 +58,15 @@ public class Database <: SourceDatabase & FromContext<Database> {
 
 /**
  * The state as it was when a message arrived, for its handler to read on a thread of its own. Once
- * the files change after it, a query on it throws `Cancelled`, which the server answers with
- * `ContentModified`.
+ * the files change after it, a query on `analysis`, a snapshot of the analysis database, throws
+ * `Cancelled`, which the server answers with `ContentModified`.
  */
-public class DatabaseSnapshot <: SourceDatabase & FromReadOnlyContext<DatabaseSnapshot> {
-    DatabaseSnapshot(private let analysis: RootDatabase, private let paths: PathInterner,
+public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
+    DatabaseSnapshot(public let analysis: RootDatabase, private let paths: PathInterner,
         public let encoding: Encoding) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
         ctx.db
-    }
-
-    public prop storage: Storage {
-        get() {
-            analysis.storage
-        }
-    }
-
-    public func sourceFile(fileId: FileId): ?SourceFile {
-        analysis.sourceFile(fileId)
     }
 
     /**

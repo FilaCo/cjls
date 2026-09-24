@@ -243,7 +243,7 @@ class ServerDispatchTest {
         let server = initialized(lifecycleRouter().withState(db).route(HoverRequestSpec()) {
             ctx: ReadOnlyContext<HoverParams> =>
                 release.remove()
-                ctx.db.sourceFile(path).getOrThrow().text(ctx.db)
+                ctx.db.sourceFile(path).getOrThrow().text(ctx.db.analysis)
                 Nullable<Hover>.Null
         })
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())

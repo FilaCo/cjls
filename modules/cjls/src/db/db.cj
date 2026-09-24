@@ -6,8 +6,6 @@ import calca.*
 import calca.macros.*
 import rope.Rope
 import cjls.vfs.*
-import cjsyntax.CjParse
-import cjsyntax.parse as parseText
 
 /**
  * One file's text as the analysis sees it. The database keeps one per `FileId`, made the first time
@@ -20,29 +18,14 @@ public struct SourceFile {
 }
 
 /**
- * What a query over source files needs of the database.
+ * The analysis database: `RootDatabase()` makes one and its root handle, `snapshot` another handle
+ * for another thread. See calca's `Storage`.
+ *
+ * Every query takes this class itself, whatever layer it is in, with no interface of its own in
+ * between: calca keeps the state of every query in `storage`, so the class need know none of them,
+ * and can sit under all of them.
  */
-public interface SourceDatabase <: Database {
-    /**
-     * The file's input, `None` for a file never set.
-     */
-    func sourceFile(fileId: FileId): ?SourceFile
-}
-
-/**
- * The file's tree. Remembered until its text changes, and a text changed into one that parses the
- * same (as it was, say) leaves what read the tree alone.
- */
-@CalcaTracked
-public func parse(db: SourceDatabase, file: SourceFile): CjParse {
-    parseText(file.text(db).toString())
-}
-
-/**
- * The database the server keeps: `RootDatabase()` makes one and its root handle, `snapshot` another
- * handle for another thread. See calca's `Storage`.
- */
-public class RootDatabase <: SourceDatabase {
+public class RootDatabase <: Database {
     private RootDatabase(private let storage_: Storage, private let files: Files) {}
 
     public init() {
@@ -59,6 +42,9 @@ public class RootDatabase <: SourceDatabase {
         RootDatabase(storage_.snapshot(), files)
     }
 
+    /**
+     * The file's input, `None` for a file never set.
+     */
     public func sourceFile(fileId: FileId): ?SourceFile {
         files.get(fileId)
     }
