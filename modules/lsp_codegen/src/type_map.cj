@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.collection.{ArrayList, HashMap}
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 
 enum TypeBinding {
     /**
@@ -17,9 +17,10 @@ enum TypeBinding {
     | Aliased(String)
 
     /**
-     * Declared elsewhere. References resolve straight to the target and no alias is emitted.
+     * Declared elsewhere. References resolve straight to the target and no alias is emitted. An
+     * enumeration's values are adopted onto the target, except those it already declares itself.
      */
-    | Extern(String)
+    | Extern(String, Array<String>)
 
     /**
      * Neither declared nor referred to - the metaModel entry is dropped outright.
@@ -33,7 +34,7 @@ enum TypeBinding {
         match (this) {
             case Owned(ident) => ident
             case Aliased(_) => lspName
-            case Extern(target) => target
+            case Extern(target, _) => target
             case Skipped => None
         }
     }
@@ -87,7 +88,8 @@ struct TypeMap <: Serializable<TypeMap> {
 private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
     let entry = dm.asStructOrThrow()
 
-    let fields = entry.getFields()
+    let declared = entry.getOrNone("declared").map {it => declaredOf(lspName, it)}
+    let fields = entry.getFields().filter {it => it.getName() != "declared"}
     if (fields.isEmpty()) {
         throw DataModelException("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
     }
@@ -96,17 +98,23 @@ private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
         throw DataModelException("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
     }
 
-    // fields.size == 1
     let given = fields[0]
     let key = given.getName()
     let data = given.getData()
+    if (key != "extern" && declared.isSome()) {
+        throw DataModelException("`types.${lspName}.declared` goes only with `extern`")
+    }
     match (key) {
         case "rename" => Owned(targetOf(lspName, key, data))
         case "alias" => Aliased(targetOf(lspName, key, data))
-        case "extern" => Extern(targetOf(lspName, key, data))
+        case "extern" => Extern(targetOf(lspName, key, data), declared ?? [])
         case "skip" where data.asBoolOrThrow() => Skipped
         case _ => throw DataModelException("unknown field \"${key}\"")
     }
+}
+
+private func declaredOf(lspName: String, dm: DataModel): Array<String> {
+    dm.asSeqOrThrow().getItems().map {it => it.asStringOrThrow()}.toArray()
 }
 
 /**

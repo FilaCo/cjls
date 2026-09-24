@@ -2,11 +2,8 @@ package lsp_codegen
 
 import std.ast.*
 import std.collection.*
-import stdxx.*
+import stdxx.IntegerOrString
 
-/**
- * An interface a generated declaration derives.
- */
 enum DeriveIr {
     | Equatable
     | Hashable
@@ -32,17 +29,10 @@ struct SerializableTypeOptions <: ToTokens {
     }
 }
 
-/**
- * A struct that always carries `field: value`, the way LSP marks `CreateFile` with `kind: 'create'`.
- */
 struct SerializableTag {
     SerializableTag(let field!: String, let value!: String) {}
 }
 
-/**
- * @note only a member of a type that derives `Serializable` may carry it - the marker does not
- *       compile anywhere else.
- */
 struct SerializableMemberOptions <: ToTokens {
     SerializableMemberOptions(let value!: ?IntegerOrString = None, let other!: Bool = false) {}
 

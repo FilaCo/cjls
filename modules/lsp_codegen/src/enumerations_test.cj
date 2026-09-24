@@ -2,127 +2,68 @@ package lsp_codegen
 
 import std.collection.HashMap
 import std.fs.Path
-import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
-private func enumerationOf(name: String, values: Array<EnumerationEntry>): Enumeration {
-    Enumeration(name: name, enumerationType: EnumerationType(name: EnumerationBaseType.Integer), values: values, supportsCustomValues: true)
+private func enumerationOf(name: String, base: EnumerationBaseType, entries: Array<(String, IntegerOrString)>,
+    isOpen!: Bool = false): Enumeration {
+    Enumeration(
+        name: name,
+        enumerationType: EnumerationType(name: base),
+        values: entries.map {it: (String, IntegerOrString) => EnumerationEntry(name: it[0], value: it[1])},
+        supportsCustomValues: isOpen
+    )
 }
 
-private func configWith(typeMap: TypeMap): Config {
-    Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap)
+private func resolved(enumeration: Enumeration, typeMap!: TypeMap = TypeMap()): ?EnumIr {
+    resolveEnum(Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap), enumeration)
 }
 
-private func emitted(enumIr: EnumIr): String {
-    let output = ByteBuffer()
-    let sut = CjEmitter(output)
-    sut.emitEnum(enumIr)
-    sut.flush()
+private func isTransparent(ir: EnumIr): Bool {
+    for (derive in ir.derives) {
+        if (let Serializable(options) <- derive) {
+            return options.transparent
+        }
+    }
 
-    unsafe { String.fromUtf8(readToEnd(output)) }
+    false
 }
+
+private let EXTERN_ERROR_CODES = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))]))
 
 @Test
 class ResolveEnumTest {
     @TestCase
-    func anUnlistedEnumerationIsDeclaredUnderItsOwnName() {
+    func aClosedEnumerationIsAnEnumOfItsValuesWithACatchAll() {
         // arrange
-        let sut = enumerationOf("MessageType", [EnumerationEntry(name: "Error", value: IntegerOrString.Integer(1))])
+        let sut = enumerationOf("MarkupKind", EnumerationBaseType.String,
+            [("PlainText", IntegerOrString.String("plaintext")), ("Markdown", IntegerOrString.String("Markdown"))])
 
         // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+        let ir = resolved(sut).getOrThrow()
 
         // assert
-        @Expect("MessageType", ir.ident)
-        @Expect(match (ir.shape) {
-            case Declared => true
-            case _ => false
-        })
-    }
-
-    /**
-     * The type belongs to another package, but its constants still have to come from somewhere.
-     */
-    @TestCase
-    func anExternEnumerationAdoptsItsConstantsOntoTheTargetUnderItsMetaModelName() {
-        // arrange
-        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
-        let sut = enumerationOf("LSPErrorCodes",
-            [EnumerationEntry(name: "RequestFailed", value: IntegerOrString.Integer(-32803))])
-
-        // act
-        let ir = resolveEnum(configWith(typeMap), sut).getOrThrow()
-
-        // assert
-        @Expect("LSPErrorCodes", ir.ident)
-        @Expect(match (ir.shape) {
-            case Adopted(target) => target == "ErrorCode"
-            case _ => false
-        })
-    }
-
-    @TestCase
-    func aSkippedEnumerationYieldsNothingToEmit() {
-        // arrange
-        let typeMap = TypeMap(entries: HashMap([("ErrorCodes", TypeBinding.Skipped)]))
-        let sut = enumerationOf("ErrorCodes",
-            [EnumerationEntry(name: "ParseError", value: IntegerOrString.Integer(-32700))])
-
-        // act
-        let ir = resolveEnum(configWith(typeMap), sut)
-
-        // assert
-        @Expect(ir.isNone())
-    }
-
-    /**
-     * An aliased name is somebody else's type in full - constants included - so there is nothing
-     * left for the generator to say about it.
-     */
-    @TestCase
-    func anAliasedEnumerationYieldsNothingToEmit() {
-        // arrange
-        let typeMap = TypeMap(entries: HashMap([("LSPAny", TypeBinding.Aliased("DataModel"))]))
-        let sut = enumerationOf("LSPAny", [EnumerationEntry(name: "Whatever", value: IntegerOrString.Integer(1))])
-
-        // act
-        let ir = resolveEnum(configWith(typeMap), sut)
-
-        // assert
-        @Expect(ir.isNone())
-    }
-}
-
-@Test
-class ResolveEnumDerivesTest {
-    @TestCase
-    func aClosedEnumerationDerivesSerializableAsItsValues() {
-        // arrange
-        let sut = closedStringEnumeration("MarkupKind", [("PlainText", "plaintext"), ("Markdown", "Markdown")])
-
-        // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
-
-        // assert
+        @Expect("MarkupKind", ir.ident)
         @Expect(!isTransparent(ir))
-        @Expect("PlainText", ir.variants[0].ident)
         @Expect(Some(IntegerOrString.String("plaintext")), ir.variants[0].serializable.getOrThrow().value)
         @Expect(ir.variants[1].serializable.getOrThrow().value.isNone())
+        let catchAll = ir.catchAll.getOrThrow()
+        @Expect("Unknown", catchAll.ident)
+        @Expect(catchAll.serializable.other)
     }
 
     /**
-     * A variant's name on the wire is compared against the identifier it ends up with, not against
-     * the metaModel name it was cased from.
+     * A variant's name on the wire is compared with the identifier it ends up with, not with the
+     * metaModel name it was cased from.
      */
     @TestCase
     func aValueIsGivenWhenCasingMovesTheIdentifierAwayFromIt() {
         // arrange
-        let sut = closedStringEnumeration("Kind", [("markdown", "markdown")])
+        let sut = enumerationOf("Kind", EnumerationBaseType.String, [("markdown", IntegerOrString.String("markdown"))])
 
         // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+        let ir = resolved(sut).getOrThrow()
 
         // assert
         @Expect("Markdown", ir.variants[0].ident)
@@ -132,111 +73,113 @@ class ResolveEnumDerivesTest {
     @TestCase
     func anIntegerVariantAlwaysGivesItsValue() {
         // arrange
-        let sut = Enumeration(name: "MessageType", enumerationType: EnumerationType(name: EnumerationBaseType.Integer),
-            values: [EnumerationEntry(name: "Error", value: IntegerOrString.Integer(1))])
+        let sut = enumerationOf("MessageType", EnumerationBaseType.Integer, [("Error", IntegerOrString.Integer(1))])
 
         // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+        let ir = resolved(sut).getOrThrow()
 
         // assert
         @Expect(Some(IntegerOrString.Integer(1)), ir.variants[0].serializable.getOrThrow().value)
     }
 
     @TestCase
-    func anOpenEnumerationIsTransparentAndItsConstantsCarryNoMarker() {
+    func anOpenEnumerationIsATransparentStructOfConstants() {
         // arrange
-        let sut = enumerationOf("ErrorCodes",
-            [EnumerationEntry(name: "ParseError", value: IntegerOrString.Integer(-32700))])
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer, [("ParseError", IntegerOrString.Integer(-32700))],
+            isOpen: true)
 
         // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+        let ir = resolved(sut).getOrThrow()
 
         // assert
         @Expect(isTransparent(ir))
         @Expect("PARSE_ERROR", ir.variants[0].ident)
         @Expect(ir.variants[0].serializable.isNone())
+        @Expect(ir.catchAll.isNone())
     }
 
     @TestCase
-    func anAdoptedEnumerationDerivesNothing() {
+    func aValueTheTargetDeclaresItselfIsLeftToIt() {
         // arrange
-        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
-        let sut = enumerationOf("LSPErrorCodes",
-            [EnumerationEntry(name: "RequestFailed", value: IntegerOrString.Integer(-32803))])
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer,
+            [("ParseError", IntegerOrString.Integer(-32700)), ("ServerNotInitialized", IntegerOrString.Integer(-32002))])
+        let typeMap = TypeMap(entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseError"]))]))
 
         // act
-        let ir = resolveEnum(configWith(typeMap), sut).getOrThrow()
+        let ir = resolved(sut, typeMap: typeMap).getOrThrow()
 
         // assert
+        @PowerAssert(["SERVER_NOT_INITIALIZED"], ir.variants.map {it: EnumVariantIr => it.ident})
+    }
+
+    @TestCase
+    func declaringAValueTheEnumerationDoesNotHaveIsRefused() {
+        // arrange
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer, [("ParseError", IntegerOrString.Integer(-32700))])
+        let typeMap = TypeMap(entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseErorr"]))]))
+
+        // act & assert
+        @AssertThrows[IllegalStateException](resolved(sut, typeMap: typeMap))
+    }
+
+    /**
+     * The type belongs to another package, but its constants still have to come from somewhere.
+     */
+    @TestCase
+    func anExternEnumerationAdoptsItsConstantsOntoTheTarget() {
+        // arrange
+        let sut = enumerationOf("LSPErrorCodes", EnumerationBaseType.Integer,
+            [("RequestFailed", IntegerOrString.Integer(-32803))])
+
+        // act
+        let ir = resolved(sut, typeMap: EXTERN_ERROR_CODES).getOrThrow()
+
+        // assert
+        @Expect("LSPErrorCodes", ir.ident)
+        @Expect(match (ir.shape) {
+            case Adopted(target) => target == "ErrorCode"
+            case _ => false
+        })
         @Expect(ir.derives.isEmpty())
         @Expect("REQUEST_FAILED", ir.variants[0].ident)
         @Expect(ir.variants[0].serializable.isNone())
+        @Expect(ir.catchAll.isNone())
     }
 
-    @TestCase
-    func aClosedEnumerationReadsUnknownValuesIntoACatchAllOfItsBaseType() {
+    /**
+     * An aliased name is somebody else's type in full, constants included.
+     */
+    @TestCase[binding in [TypeBinding.Skipped, TypeBinding.Aliased("DataModel")]]
+    func aSkippedOrAliasedEnumerationYieldsNothingToEmit(binding: TypeBinding) {
         // arrange
-        let sut = Enumeration(name: "SymbolKind", enumerationType: EnumerationType(name: EnumerationBaseType.UInteger),
-            values: [EnumerationEntry(name: "File", value: IntegerOrString.Integer(1))])
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer, [("ParseError", IntegerOrString.Integer(-32700))])
 
         // act
-        let ir = resolveEnum(configWith(TypeMap()), sut).getOrThrow()
+        let ir = resolved(sut, typeMap: TypeMap(entries: HashMap([("ErrorCodes", binding)])))
 
         // assert
-        let catchAll = ir.catchAll.getOrThrow()
-        @Expect("Unknown", catchAll.ident)
-        @Expect(catchAll.serializable.other)
-    }
-
-    @TestCase
-    func onlyAClosedEnumerationGetsACatchAll() {
-        // arrange
-        let open = enumerationOf("ErrorCodes",
-            [EnumerationEntry(name: "ParseError", value: IntegerOrString.Integer(-32700))])
-        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
-        let adopted = Enumeration(name: "LSPErrorCodes", enumerationType: EnumerationType(name: EnumerationBaseType.Integer),
-            values: [EnumerationEntry(name: "RequestFailed", value: IntegerOrString.Integer(-32803))])
-
-        // act & assert
-        @Expect(resolveEnum(configWith(TypeMap()), open).getOrThrow().catchAll.isNone())
-        @Expect(resolveEnum(configWith(typeMap), adopted).getOrThrow().catchAll.isNone())
+        @Expect(ir.isNone())
     }
 
     @TestCase
     func aVariantThatTakesTheCatchAllsNameFailsGeneration() {
         // arrange
-        let sut = closedStringEnumeration("Kind", [("Unknown", "unknown")])
+        let sut = enumerationOf("Kind", EnumerationBaseType.String, [("Unknown", IntegerOrString.String("unknown"))])
 
         // act
-        let e = @AssertThrows[IllegalStateException](resolveEnum(configWith(TypeMap()), sut))
+        let e = @AssertThrows[IllegalStateException](resolved(sut))
 
         // assert
         @Expect("`Kind` defines `Unknown` itself, which is taken by the catch-all variant", e.message)
     }
-
-    private static func closedStringEnumeration(name: String, entries: Array<(String, String)>): Enumeration {
-        Enumeration(
-            name: name,
-            enumerationType: EnumerationType(name: EnumerationBaseType.String),
-            values: entries.map {
-                entry: (String, String) => EnumerationEntry(name: entry[0], value: IntegerOrString.String(entry[1]))
-            }
-        )
-    }
-
-    private static func isTransparent(ir: EnumIr): Bool {
-        for (derive in ir.derives) {
-            if (let Serializable(options) <- derive) {
-                return options.transparent
-            }
-        }
-
-        false
-    }
 }
 
+/**
+ * The blank lines inside the blocks are what the emitter lays down; `cjfmt`, which `main` runs over
+ * the output, collapses them in the file that lands on disk.
+ */
 @Test
-class EmitDeclaredEnumTest {
+class EmitEnumTest {
     @TestCase
     func aClosedEnumOpensWithItsDerivesAndMarksOnlyTheVariantsThatNeedIt() {
         // arrange
@@ -254,7 +197,6 @@ class EmitDeclaredEnumTest {
             catchAll: EnumCatchAllIr(DocIr(documentation: "Anything else."), ident: "Unknown",
                 serializable: SerializableMemberOptions(other: true))
         )
-
         let expected = """
 @DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
@@ -272,7 +214,7 @@ public enum MarkupKind{
 """
 
         // act
-        let actual = emitted(sut)
+        let actual = emittedBy {emitter => emitter.emitEnum(sut)}
 
         // assert
         @PowerAssert(expected, actual)
@@ -289,7 +231,6 @@ public enum MarkupKind{
             variants: [EnumVariantIr(DocIr(), ident: "PARSE_ERROR", value: IntegerOrString.Integer(-32700))],
             derives: [DeriveIr.Serializable(SerializableTypeOptions(transparent: true)), DeriveIr.Equatable]
         )
-
         let expected = """
 @DeriveExt[Serializable]
 @DeriveExtSerializable[transparent]
@@ -303,22 +244,14 @@ public struct ErrorCodes{
 """
 
         // act
-        let actual = emitted(sut)
+        let actual = emittedBy {emitter => emitter.emitEnum(sut)}
 
         // assert
         @PowerAssert(expected, actual)
     }
-}
 
-@Test
-class EmitAdoptedEnumTest {
     /**
-     * The `extend` is what makes the constants reachable as `ErrorCode.REQUEST_FAILED` outside this
-     * package - a bare `extend` carrying them directly would not leave it. `sealed` already implies
-     * public, so spelling it out earns a `redundant modifier` warning.
-     *
-     * @note the blank lines inside the block are what the emitter lays down; `cjfmt`, which
-     * `main` runs over the output directory, collapses them in the file that lands on disk.
+     * `sealed` already implies public; spelling it out earns a `redundant modifier` warning.
      */
     @TestCase
     func adoptedConstantsAreStaticPropsOnAnInterfaceTheTargetIsExtendedWith() {
@@ -330,7 +263,6 @@ class EmitAdoptedEnumTest {
             ident: "LSPErrorCodes",
             variants: [EnumVariantIr(DocIr(), ident: "REQUEST_FAILED", value: IntegerOrString.Integer(-32803))]
         )
-
         let expected = """
 sealed interface LSPErrorCodes{
     static prop REQUEST_FAILED: ErrorCode { get() { ErrorCode(- 32803) } }
@@ -342,7 +274,7 @@ extend ErrorCode <: LSPErrorCodes { }
 """
 
         // act
-        let actual = emitted(sut)
+        let actual = emittedBy {emitter => emitter.emitEnum(sut)}
 
         // assert
         @PowerAssert(expected, actual)

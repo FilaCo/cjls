@@ -36,10 +36,10 @@ const ITEM_OTHER = "other"
  * ```
  * @DeriveExt[Serializable]
  * @DeriveExtSerializable[skipNone]
- * public struct TextDocumentEdit {
- *     public TextDocumentEdit(
- *         @DeriveExtSerializable[rename: "textDocument"] let document!: TextDocumentIdentifier,
- *         let edits!: ?Array<TextEdit> = None
+ * public struct Edit {
+ *     public Edit(
+ *         @DeriveExtSerializable[rename: "textDocument"] let document!: String,
+ *         let edits!: ?Array<String> = None
  *     ) {}
  * }
  * ```

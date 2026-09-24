@@ -5,7 +5,6 @@ import std.collection.concurrent.*
 import std.sync.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import stdxx.*
 
 public class Connection <: Resource {
     private let locker = Mutex()
@@ -62,11 +61,8 @@ public class Connection <: Resource {
     }
 
     /**
-     * Reads until the peer hangs up or the connection is closed. Undecodable frames
-     * are answered and skipped; only a broken frame boundary ends the loop early.
-     *
-     * However it ends, no caller is left waiting on an answer that can no longer
-     * arrive.
+     * Reads until the peer hangs up or the connection is closed. Undecodable frames are answered
+     * and skipped. However it ends, no caller is left waiting on an answer that cannot arrive.
      *
      * @throws TransportException - if the framing is lost in either direction
      */
@@ -76,9 +72,8 @@ public class Connection <: Resource {
                 let body = try {
                     transport.read() ?? break
                 } catch (e: RpcException) {
-                    // the frame did not decode but the stream is still in sync, so the
-                    // peer gets an error against a null id and the loop reads on
-                    send(ResponseBody.error(Null, e.responseError).enveloped())
+                    // the frame never got far enough to have an id
+                    send(ResponseBody(Null, ResultOrError.Error(e.responseError)).enveloped())
                     continue
                 } catch (e: Exception) {
                     // a `close` racing a blocked read pulls the stream out from under
@@ -101,8 +96,8 @@ public class Connection <: Resource {
     }
 
     /**
-     * Registers the id and hands the request over on the read loop itself, so a
-     * handler sees requests and notifications in exactly the order they arrived.
+     * Hands the request over on the read loop itself, so requests and notifications reach the
+     * handler in the order they arrived.
      *
      * @throws TransportException - if the frame cannot be written
      */
@@ -110,11 +105,8 @@ public class Connection <: Resource {
         let cancellation = CancellationToken()
         if (inflight.addIfAbsent(req.id, cancellation).isSome()) {
             // the id is taken, so a response carrying it would be ambiguous
-            send(
-                ResponseBody
-                    .error(Value(req.id),
-                        ResponseError(ErrorCode.INVALID_REQUEST, "request id ${req.id} is already in flight"))
-                    .enveloped())
+            let refusal = ResponseError(ErrorCode.INVALID_REQUEST, "request id ${req.id} is already in flight")
+            send(ResponseBody(Value(req.id), ResultOrError.Error(refusal)).enveloped())
             return
         }
 
@@ -130,10 +122,8 @@ public class Connection <: Resource {
     }
 
     /**
-     * Delivers an answer from whichever thread the handler gave it on.
-     *
-     * @note never throws: the thread answering may be a handler's own `spawn`, with
-     * nobody above it to catch
+     * Never throws: the thread answering may be a handler's own `spawn`, with nobody above it
+     * to catch.
      */
     private func answer(req: RequestBody, resultOrError: ResultOrError): Unit {
         inflight.remove(req.id)
@@ -141,7 +131,6 @@ public class Connection <: Resource {
             send(ResponseBody(Value(req.id), resultOrError).enveloped())
         } catch (e: Exception) {
             if (isClosed()) {
-                // the connection went away mid-request; there is nobody left to answer
                 logger.debug("dropped the answer to \"${req.method}\" - the connection is closed")
                 return
             }
@@ -153,7 +142,7 @@ public class Connection <: Resource {
         try {
             handler.onNotification(note.method, note.params)
         } catch (e: Exception) {
-            // nobody is waiting on a notification's outcome, so there is no one to tell
+            // nobody waits on a notification's outcome, so there is no one else to tell
             logger.error("serve notification \"${note.method}\" failed", [("cause", e)])
         }
     }
@@ -162,8 +151,7 @@ public class Connection <: Resource {
         let id = match (resp.id) {
             case Value(id) => id
             case Null =>
-                // a null id means the peer could not tell which of our frames it was
-                // rejecting, so there is nothing to correlate it against
+                // the peer could not tell which of our frames it was rejecting
                 logger.error("peer rejected an unidentifiable message", [("cause", describe(resp.resultOrError))])
                 return
         }

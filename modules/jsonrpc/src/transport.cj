@@ -7,7 +7,9 @@ import stdx.serialization.serialization.*
 import stdx.encoding.json.*
 
 public interface JsonRpcReader <: Resource {
-    // @note `None` = clean EOF
+    /**
+     * @return `None` once the peer hangs up
+     */
     func read(): ?Body
 }
 
@@ -18,7 +20,6 @@ public interface JsonRpcWriter <: Resource {
 public interface JsonRpcTransport <: JsonRpcReader & JsonRpcWriter {}
 
 public class FramedJsonRpcTransport <: JsonRpcTransport {
-    // 32 Mb
     public static const BODY_BYTES_MAX: Int64 = 32 * 1024 * 1024
 
     private let input: BufferedInputStream<InputStream>
@@ -43,8 +44,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         try {
             output.flush()
         } catch (e: Exception) {
-            // the peer is already gone, so there is nothing left to salvage - but a
-            // close that throws would mask whatever is being torn down alongside it
+            // a close that throws would mask whatever is being torn down alongside it
             logger.warn("flushing the JSON-RPC transport on close failed", [("cause", e)])
         }
 
@@ -57,12 +57,9 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     }
 
     /**
-     * @note the stream stays in sync after an `RpcException`, so the caller may
-     * answer it with `toResponseError()` and keep reading. A `TransportException`
-     * means the framing itself is lost - there is no next message to find.
-     *
-     * @note a closed transport reads as EOF: shutting down is not a framing fault,
-     * and a read loop that already ends on `None` needs no second exit.
+     * A closed transport reads as EOF: shutting down is not a framing fault, and a read loop
+     * that already ends on `None` needs no second exit. A header cut off by the stream's end
+     * is EOF too, as nothing can tell it from one.
      *
      * @throws RpcException - if the frame carries no decodable message
      * @throws TransportException - if the framing is malformed or truncated
@@ -71,7 +68,8 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         if (isClosed()) {
             return None
         }
-        let header = Header.parse(input) ?? return None
+        let header = Header.read(input) ?? return None
+        // `InputStream.read` rejects an empty buffer, so it must not reach `readExactly`
         if (header.contentLength == 0) {
             throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC frame declares an empty content")
         }
@@ -85,7 +83,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         try {
             Body.deserialize(DataModel.fromJson(jv))
         } catch (e: DataModelException) {
-            throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e.message}",)
+            throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e.message}")
         }
     }
 
@@ -103,9 +101,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     }
 
     /**
-     * @note `count` must be positive
-     *
-     * @throws TransportException - if read less bytes than declared
+     * @throws TransportException - if the stream ends first, or `count` is over the limit
      */
     private func readExactly(count: Int64): Array<Byte> {
         if (count > BODY_BYTES_MAX) {
@@ -113,7 +109,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
                 "JSON-RPC body size limit exceeded: expected at most ${BODY_BYTES_MAX}, got ${count} bytes")
         }
         let res = Array<Byte>(count, repeat: 0)
-        // no need to read in cycle - buffered input stream already reads up to EOF or desired bytes
+        // a `BufferedInputStream` keeps reading until the buffer is full or the stream ends
         let readBytes = input.read(res)
 
         if (readBytes < count) {

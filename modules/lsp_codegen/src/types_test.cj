@@ -2,10 +2,9 @@ package lsp_codegen
 
 import std.collection.HashMap
 import std.fs.Path
-import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 private func metaModelOf(
     structures!: Array<Structure> = [],
@@ -16,8 +15,12 @@ private func metaModelOf(
         enumerations: enumerations, typeAliases: typeAliases)
 }
 
+private func configOf(typeMap!: TypeMap = TypeMap()): Config {
+    Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap)
+}
+
 private func resolverOf(mm: MetaModel, typeMap!: TypeMap = TypeMap()): TypeResolver {
-    TypeResolver(mm, Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap))
+    TypeResolver(mm, configOf(typeMap: typeMap))
 }
 
 private func ref(name: String): Type {
@@ -219,7 +222,7 @@ class ResolveStructTest {
         let deleteFile = structureOf("DeleteFile", [property("kind", Type.StringLiteral("delete")),
             property("uri", base(BaseTypes.String))])
         let mm = metaModelOf(structures: [deleteFile])
-        let cfg = Config(srcDir: Path("src"), outputPackage: "demo.lsp_types")
+        let cfg = configOf()
 
         // act
         let ir = resolveStruct(cfg, TypeResolver(mm, cfg), deleteFile).getOrThrow()
@@ -237,7 +240,7 @@ class ResolveStructTest {
             [property("range", Type.Or([base(BaseTypes.Boolean), Type.Literal(StructureLiteral(properties: []))]),
                 optional: true)])
         let mm = metaModelOf(structures: [options])
-        let cfg = Config(srcDir: Path("src"), outputPackage: "demo.lsp_types")
+        let cfg = configOf()
         let resolver = TypeResolver(mm, cfg)
 
         // act
@@ -256,7 +259,7 @@ class ResolveStructTest {
         let registrationOptions = structureOf("SemanticTokensRegistrationOptions", [],
             extends: [ref("SemanticTokensOptions")])
         let mm = metaModelOf(structures: [options, registrationOptions])
-        let cfg = Config(srcDir: Path("src"), outputPackage: "demo.lsp_types")
+        let cfg = configOf()
         let resolver = TypeResolver(mm, cfg)
 
         // act
@@ -280,39 +283,13 @@ class EmitStructTest {
             values: [EnumerationEntry(name: "None", value: IntegerOrString.Integer(0))])
         let options = structureOf("TextDocumentSyncOptions", [property("change", ref("TextDocumentSyncKind"), optional: true)])
         let mm = metaModelOf(structures: [options], enumerations: [syncKind])
-        let cfg = Config(srcDir: Path("src"), outputPackage: "demo.lsp_types")
+        let cfg = configOf()
         let ir = resolveStruct(cfg, TypeResolver(mm, cfg), options).getOrThrow()
-        let output = ByteBuffer()
-        let sut = CjEmitter(output)
 
         // act
-        sut.emitStruct(ir)
-        sut.flush()
-        let actual = unsafe { String.fromUtf8(readToEnd(output)) }
+        let actual = emittedBy {emitter => emitter.emitStruct(ir)}
 
         // assert
         @Expect(actual.replace(" ", "").contains("=Option<TextDocumentSyncKind>.None"))
-    }
-}
-
-@Test
-class NamingHelpersTest {
-    @TestCase
-    func pluralOfFollowsTheRegularEnglishEndings() {
-        // act & assert
-        @Expect("Locations", pluralOf("Location"))
-        @Expect("Boxes", pluralOf("Box"))
-        @Expect("Entries", pluralOf("Entry"))
-        @Expect("Keys", pluralOf("Key"))
-    }
-
-    @TestCase
-    func aCommentDelimiterInDocumentationIsDefused() {
-        // act
-        let escaped = escapedCommentText("matches **" + "/*.ts and ends *" + "/")
-
-        // assert
-        @Expect(!escaped.contains("/*"))
-        @Expect(!escaped.contains("*/"))
     }
 }

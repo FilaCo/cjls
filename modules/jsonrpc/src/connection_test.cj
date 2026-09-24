@@ -6,20 +6,20 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import stdxx.*
-
-func boolOf(dm: DataModel): Bool {
-    (dm as DataModelBool).getOrThrow().getValue()
-}
+import stdxx.{IntegerOrString, Nullable}
+import stdxx.serialization.*
 
 func emptyParams(): ArrayOrObject {
     ArrayOrObject.Object(DataModelStruct())
 }
 
+func answer(id: RequestId, result: DataModel): Body {
+    ResponseBody(Value(id), Result(result)).enveloped()
+}
+
 /**
- * What the fake hands the read loop next. `Undecodable` is the frame that arrived
- * intact but failed to parse - the case `JsonRpcTransport.read` reports with an
- * `RpcException` while leaving the stream in sync behind it.
+ * What the fake hands the read loop next: `Undecodable` is a frame that arrived intact but did
+ * not decode, which leaves the stream in sync behind it.
  */
 enum Frame {
     | Decoded(Body)
@@ -28,10 +28,9 @@ enum Frame {
 }
 
 /**
- * An in-memory `Transport` the test drives by hand: `read` blocks until a frame is
- * fed, and every written body queues up for inspection. A `ByteBuffer`-backed
- * `JsonRpcTransport` cannot stand in here - it reports EOF the moment it runs dry,
- * so it could never answer a request that has not been sent yet.
+ * `read` blocks until the test feeds a frame, and every written body queues up for inspection.
+ * A `ByteBuffer`-backed transport reports EOF the moment it runs dry, so it could never answer
+ * a request that has not been sent yet.
  */
 class FakeTransport <: JsonRpcTransport {
     private let inbound = LinkedBlockingQueue<Frame>()
@@ -62,8 +61,7 @@ class FakeTransport <: JsonRpcTransport {
     }
 
     /**
-     * Feeds an EOF as it closes, standing in for the real transport's blocked read
-     * failing the moment its stream is torn away.
+     * Feeds an EOF, as the real transport's blocked read fails the moment its stream is torn away.
      */
     public func close(): Unit {
         if (!closed.swap(true)) {
@@ -91,13 +89,9 @@ class FakeTransport <: JsonRpcTransport {
 }
 
 /**
- * A `Handler` whose behaviour each test supplies as a lambda. Handled notification
- * methods are recorded on a blocking queue so a test can wait for one to land
- * instead of sleeping.
- *
- * Requests are answered from a thread of the handler's own unless `inPlace` is
- * set - the tests that park a handler mid-request would otherwise park the read
- * loop with it. In place, a throw from `onRequestFn` escapes to the connection.
+ * Behaves as each test's lambdas say. Requests are answered from a thread of the handler's own
+ * unless `inPlace` is set, since a test that parks a handler would otherwise park the read loop
+ * with it. Notification methods are recorded so a test can wait for one to land.
  */
 class FakeHandler <: Handler {
     var onRequestFn: (String, ?ArrayOrObject, CancellationToken) -> ResultOrError = {
@@ -119,15 +113,14 @@ class FakeHandler <: Handler {
     }
 
     public func onNotification(method: String, params: ?ArrayOrObject): Unit {
-        // recorded before the call, so a throwing handler is still observable
+        // recorded first, so a throwing handler is still observable
         notified.add(method)
         onNotificationFn(method, params)
     }
 }
 
 /**
- * A `Handler` that does nothing with a request but keep it, so a test can answer
- * it by hand whenever and however often it likes.
+ * Keeps every request unanswered, so a test can answer it by hand, whenever and however often.
  */
 class KeepingHandler <: Handler {
     let received = LinkedBlockingQueue<InboundRequest>()
@@ -148,10 +141,6 @@ class AnswerThenThrowHandler <: Handler {
     public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
 }
 
-/**
- * `serve` blocks on the read queue, so every test runs it off-thread and talks to
- * the connection through the fake's queues.
- */
 func serving(handler: Handler): (Connection, FakeTransport) {
     let transport = FakeTransport()
     let connection = Connection(transport, handler, getGlobalLogger())
@@ -162,136 +151,56 @@ func serving(handler: Handler): (Connection, FakeTransport) {
 @Test
 class ConnectionServeRequestTest {
     @TestCase
-    func serveAnswersARequestWithTheHandlerResult() {
-        // arrange
-        let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
-
-        // assert - the response carries the id it was asked under
-        @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(42, resp.resultOrError.getResultOrThrow().asIntOrThrow())
-    }
-
-    @TestCase
-    func serveHandsTheMethodAndParamsToTheHandler() {
+    func aRequestIsAnsweredUnderItsIdWithWhatTheHandlerGives() {
         // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {
-            method, params, _ => Result(DataModelString("${method}:${fieldOf(params, "processId").asIntOrThrow()}"))
+            method, params, _ => Result(DataModelString("${method}:${fieldOf(params, "a").asIntOrThrow()}"))
         }
         let (_, transport) = serving(handler)
-        let params = ArrayOrObject.Object(DataModelStruct().add(field("processId", 42)))
+        let params = ArrayOrObject.Object(DataModelStruct().add(field("a", 42)))
 
         // act
-        transport.feed(RequestBody(Integer(1), "initialize", params: params).enveloped())
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
-
-        // assert
-        @Expect("initialize:42", resp.resultOrError.getResultOrThrow().asStringOrThrow())
-    }
-
-    @TestCase
-    func serveSendsBackAnErrorTheHandlerReturned() {
-        // arrange - the ordinary failure path: a router that cannot place a method
-        // says so with a value, no stack unwinding involved
-        let handler = FakeHandler()
-        handler.onRequestFn = {
-            method, _, _ => ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method: ${method}"))
-        }
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(RequestBody(Integer(1), "nope").enveloped())
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
-
-        // assert - the error goes out under the request's own id
-        @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(ErrorCode.METHOD_NOT_FOUND, resp.resultOrError.getErrorOrThrow().code)
-        @Expect("no such method: nope", resp.resultOrError.getErrorOrThrow().message)
-    }
-
-    @TestCase
-    func serveTurnsAnRpcExceptionIntoThatSameError() {
-        // arrange - throwing stays supported for a bail-out deep in a call chain,
-        // where returning an error is not reachable
-        let handler = FakeHandler()
-        handler.onRequestFn = {
-            method, _, _ => throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method: ${method}")
-        }
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(RequestBody(Integer(1), "nope").enveloped())
-        let err = transport.nextWritten().getResponseBodyOrThrow().resultOrError.getErrorOrThrow()
-
-        // assert
-        @Expect(ErrorCode.METHOD_NOT_FOUND, err.code)
-        @Expect("no such method: nope", err.message)
-    }
-
-    @TestCase
-    func serveTurnsAnUnexpectedExceptionIntoAnInternalError() {
-        // arrange - a handler bug is not a protocol error, but it still owes the
-        // peer a response rather than silence
-        let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => throw IllegalStateException("handler blew up")}
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
-        let err = transport.nextWritten().getResponseBodyOrThrow().resultOrError.getErrorOrThrow()
-
-        // assert
-        @Expect(ErrorCode.INTERNAL_ERROR, err.code)
-        @Expect("handler blew up", err.message)
-    }
-
-    @TestCase
-    func serveTurnsAThrowFromAnInPlaceHandlerIntoItsError() {
-        // arrange - no `respondWith` here: the throw escapes `onRequest` itself, and
-        // the connection answers for the handler
-        let handler = FakeHandler()
-        handler.inPlace = true
-        handler.onRequestFn = {
-            method, _, _ => throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method: ${method}")
-        }
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(RequestBody(Integer(1), "nope").enveloped())
+        transport.feed(RequestBody(Integer(1), "m", params: params).enveloped())
         let resp = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
         @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(ErrorCode.METHOD_NOT_FOUND, resp.resultOrError.getErrorOrThrow().code)
+        @Expect("m:42", resp.resultOrError.getResultOrThrow().asStringOrThrow())
     }
 
-    @TestCase
-    func serveTurnsAnUnexpectedThrowFromAnInPlaceHandlerIntoAnInternalError() {
-        // arrange
+    @TestCase[inPlace in [ false, true ]]
+    func aThrowingHandlerIsAnsweredWithTheErrorItStandsFor(inPlace: Bool) {
+        // arrange - a spawned handler throws inside `respondWith`, one in place out of
+        // `onRequest`, where the connection answers for it
         let handler = FakeHandler()
-        handler.inPlace = true
-        handler.onRequestFn = {_, _, _ => throw IllegalStateException("handler blew up")}
+        handler.inPlace = inPlace
+        handler.onRequestFn = {
+            method, _, _ => if (method == "rpc") {
+                throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method")
+            } else {
+                throw IllegalStateException("handler blew up")
+            }
+        }
         let (_, transport) = serving(handler)
 
         // act
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
-        let err = transport.nextWritten().getResponseBodyOrThrow().resultOrError.getErrorOrThrow()
+        transport.feed(RequestBody(Integer(1), "rpc").enveloped())
+        let rpc = transport.nextWritten().getResponseBodyOrThrow()
+        transport.feed(RequestBody(Integer(2), "bug").enveloped())
+        let bug = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
-        @Expect(ErrorCode.INTERNAL_ERROR, err.code)
-        @Expect("handler blew up", err.message)
+        @Expect(Integer(1), rpc.id.getOrThrow())
+        @Expect(ErrorCode.METHOD_NOT_FOUND, rpc.resultOrError.getErrorOrThrow().code)
+        @Expect(Integer(2), bug.id.getOrThrow())
+        @Expect(ErrorCode.INTERNAL_ERROR, bug.resultOrError.getErrorOrThrow().code)
+        @Expect("handler blew up", bug.resultOrError.getErrorOrThrow().message)
     }
 
     @TestCase
-    func serveRejectsARequestIdThatIsAlreadyInFlight() {
-        // arrange - the first request parks inside the handler, so the duplicate
-        // arrives while id 1 is still registered
+    func aRequestIdAlreadyInFlightIsRefused() {
+        // arrange - the first request parks inside the handler, so its id is still registered
         let started = LinkedBlockingQueue<Bool>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
@@ -305,29 +214,28 @@ class ConnectionServeRequestTest {
 
         // act
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
-        started.remove() // the handler is in, so the id is registered
+        started.remove()
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
         let rejected = transport.nextWritten().getResponseBodyOrThrow()
         release.add(true)
         let completed = transport.nextWritten().getResponseBodyOrThrow()
 
-        // assert - the duplicate is refused and the original still answers, rather
-        // than the two silently sharing one cancellation token
+        // assert - rather than the two sharing one cancellation token
         @Expect(ErrorCode.INVALID_REQUEST, rejected.resultOrError.getErrorOrThrow().code)
         @Expect(42, completed.resultOrError.getResultOrThrow().asIntOrThrow())
     }
 
     @TestCase
-    func serveReusesAnIdOnceItsRequestHasFinished() {
-        // arrange - the duplicate check must not turn ids into a one-shot resource
+    func anIdCanBeReusedOnceItsRequestIsAnswered() {
+        // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
         let (_, transport) = serving(handler)
 
         // act
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
         let first = transport.nextWritten().getResponseBodyOrThrow()
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
         let second = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
@@ -339,29 +247,15 @@ class ConnectionServeRequestTest {
 @Test
 class ConnectionServeNotificationTest {
     @TestCase
-    func serveRoutesANotificationToTheHandler() {
+    func aNotificationReachesTheHandlerAndIsNeverAnswered() {
         // arrange
         let handler = FakeHandler()
         let (_, transport) = serving(handler)
 
-        // act
-        transport.feed(NotificationBody("exit").enveloped())
-
-        // assert
-        @Expect("exit", handler.notified.remove())
-    }
-
-    @TestCase
-    func serveNeverAnswersANotification() {
-        // arrange
-        let handler = FakeHandler()
-        let (_, transport) = serving(handler)
-
-        // act - a notification, then a request; the request's response must be the
-        // first thing on the wire, which it cannot be if the notification answered
-        transport.feed(NotificationBody("initialized").enveloped())
-        @Expect("initialized", handler.notified.remove())
-        transport.feed(RequestBody(Integer(1), "shutdown").enveloped())
+        // act - the request's answer is the first frame out only if the notification wrote none
+        transport.feed(NotificationBody("note").enveloped())
+        @Expect("note", handler.notified.remove())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
         let written = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
@@ -369,24 +263,17 @@ class ConnectionServeNotificationTest {
     }
 
     @TestCase
-    func serveSurvivesAFailingNotificationHandler() {
-        // arrange - nobody is waiting on a notification's outcome, so a throwing
-        // handler must neither answer the peer nor stop the connection
+    func aFailingNotificationHandlerNeitherAnswersNorStopsTheLoop() {
+        // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
-        handler.onNotificationFn = {
-            method, _ => if (method == "boom") {
-                throw IllegalStateException("handler blew up")
-            }
-        }
+        handler.onNotificationFn = {_, _ => throw IllegalStateException("handler blew up")}
         let (_, transport) = serving(handler)
 
-        // act - wait for the failure to happen, then ask a question that must be
-        // answered; its response is the first frame on the wire, or the failure
-        // wrote something of its own
+        // act
         transport.feed(NotificationBody("boom").enveloped())
         @Expect("boom", handler.notified.remove())
-        transport.feed(RequestBody(Integer(1), "initialize").enveloped())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
         let written = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
@@ -398,9 +285,9 @@ class ConnectionServeNotificationTest {
 @Test
 class ConnectionDeliveryOrderTest {
     @TestCase
-    func serveHandsMessagesOverInTheOrderTheyArrived() {
-        // arrange - requests answered in place log into the same queue as the
-        // notifications, so the queue is the order the handler saw them in
+    func messagesReachTheHandlerInTheOrderTheyArrived() {
+        // arrange - requests answered in place log into the notifications' queue, so the queue
+        // is the order the handler saw them in
         let handler = FakeHandler()
         handler.inPlace = true
         handler.onRequestFn = {
@@ -409,15 +296,14 @@ class ConnectionDeliveryOrderTest {
                 Result(DataModelNull())
         }
         let (_, transport) = serving(handler)
-        let methods = ["didOpen", "hover", "didChange", "didChange", "completion", "didClose"]
+        let methods = ["note1", "request1", "note2", "note3", "request2", "note4"]
 
         // act
         for (i in 0..methods.size) {
-            let method = methods[i]
-            if (method == "hover" || method == "completion") {
-                transport.feed(RequestBody(Integer(Int32(i)), method).enveloped())
+            if (methods[i].startsWith("request")) {
+                transport.feed(RequestBody(Integer(Int32(i)), methods[i]).enveloped())
             } else {
-                transport.feed(NotificationBody(method).enveloped())
+                transport.feed(NotificationBody(methods[i]).enveloped())
             }
         }
 
@@ -435,7 +321,7 @@ class ConnectionDeliveryOrderTest {
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
         let request = handler.received.remove()
 
-        // act - the handler has long returned; the answer comes from the test's thread
+        // act
         @Assert(!request.isAnswered)
         request.respond(Result(DataModelInt(42)))
         let resp = transport.nextWritten().getResponseBodyOrThrow()
@@ -459,8 +345,7 @@ class ConnectionDeliveryOrderTest {
         transport.feed(RequestBody(Integer(2), "next").enveloped())
         handler.received.remove().respond(Result(DataModelInt(3)))
 
-        // assert - the frame after the first answer is the next request's, not a
-        // second answer to the first
+        // assert - the frame after the first answer is the next request's
         @Assert(first)
         @Assert(!second)
         @Expect(1, transport.nextWritten().getResponseBodyOrThrow().resultOrError.getResultOrThrow().asIntOrThrow())
@@ -469,24 +354,23 @@ class ConnectionDeliveryOrderTest {
 
     @TestCase
     func aThrowAfterAnsweringLeavesTheAnswerAlone() {
-        // arrange - the connection's fallback error must not follow an answer out
+        // arrange
         let (_, transport) = serving(AnswerThenThrowHandler())
 
         // act
-        transport.feed(RequestBody(Integer(1), "answered").enveloped())
-        transport.feed(RequestBody(Integer(2), "answered").enveloped())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
+        transport.feed(RequestBody(Integer(2), "m").enveloped())
         let first = transport.nextWritten().getResponseBodyOrThrow()
         let second = transport.nextWritten().getResponseBodyOrThrow()
 
-        // assert
+        // assert - no fallback error followed the first answer out
         @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
         @Expect(Integer(2), second.id.getOrThrow())
     }
 
     @TestCase
     func anAnswerOnAClosedConnectionIsDroppedQuietly() {
-        // arrange - a handler thread finishing after shutdown has nobody above it to
-        // catch a throw
+        // arrange - a handler thread finishing after shutdown has nobody above it to catch a throw
         let handler = KeepingHandler()
         let (connection, transport) = serving(handler)
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
@@ -496,7 +380,7 @@ class ConnectionDeliveryOrderTest {
         connection.close()
         request.respond(Result(DataModelInt(42)))
 
-        // assert - it returned, and the cancellation had already told it to stop
+        // assert
         @Assert(request.cancellation.isCancelled)
     }
 }
@@ -504,22 +388,20 @@ class ConnectionDeliveryOrderTest {
 @Test
 class ConnectionServeRecoveryTest {
     @TestCase
-    func serveAnswersAnUndecodableFrameAndKeepsReading() {
-        // arrange - `RpcException` from the transport means the payload was junk but
-        // the framing held, so there is a next message to find
+    func anUndecodableFrameIsAnsweredAndTheLoopReadsOn() {
+        // arrange
         let handler = FakeHandler()
         let (_, transport) = serving(handler)
 
         // act
-        transport.feedUndecodable(RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON"))
+        transport.feedUndecodable(RpcException(ErrorCode.PARSE_ERROR, "not valid JSON"))
         let resp = transport.nextWritten().getResponseBodyOrThrow()
-        transport.feed(NotificationBody("exit").enveloped())
+        transport.feed(NotificationBody("next").enveloped())
 
-        // assert - the error goes out under a null id, since the frame never got far
-        // enough to have one, and the loop reads on
+        // assert
         @Assert(resp.id.isNull())
         @Expect(ErrorCode.PARSE_ERROR, resp.resultOrError.getErrorOrThrow().code)
-        @Expect("exit", handler.notified.remove())
+        @Expect("next", handler.notified.remove())
     }
 
     @TestCase
@@ -528,40 +410,23 @@ class ConnectionServeRecoveryTest {
         let transport = FakeTransport()
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
 
-        // act - on the test's own thread: it returns, or the test hangs
+        // act & assert - on the test's own thread: it returns, or the test hangs
         transport.hangUp()
         connection.serve()
-
-        // assert
     }
 
-    @TestCase
-    func serveDropsAResponseNobodyIsWaitingFor() {
-        // arrange
-        let handler = FakeHandler()
-        let (_, transport) = serving(handler)
-
-        // act - an id we never sent, then a frame that proves the loop is alive
-        transport.feed(ResponseBody.result(Value(Integer(999)), DataModelInt(1)).enveloped())
-        transport.feed(NotificationBody("exit").enveloped())
-
-        // assert
-        @Expect("exit", handler.notified.remove())
-    }
-
-    @TestCase
-    func serveDropsAResponseWithANullId() {
-        // arrange - the peer rejecting a frame it could not identify: there is
-        // nothing to correlate it against, but it must not stall the loop
+    @TestCase[id in [ Nullable<RequestId>.Value(Integer(999)), Nullable<RequestId>.Null ]]
+    func aResponseNobodyWaitsForIsDropped(id: Nullable<RequestId>) {
+        // arrange - an id never sent, and a null one the peer could not tie to any frame of ours
         let handler = FakeHandler()
         let (_, transport) = serving(handler)
 
         // act
-        transport.feed(ResponseBody.error(Null, ResponseError(ErrorCode.PARSE_ERROR, "not valid JSON")).enveloped())
-        transport.feed(NotificationBody("exit").enveloped())
+        transport.feed(ResponseBody(id, ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "x"))).enveloped())
+        transport.feed(NotificationBody("next").enveloped())
 
-        // assert
-        @Expect("exit", handler.notified.remove())
+        // assert - the loop is still alive
+        @Expect("next", handler.notified.remove())
     }
 }
 
@@ -569,8 +434,7 @@ class ConnectionServeRecoveryTest {
 class ConnectionCancelTest {
     @TestCase
     func cancelReachesTheHandlerOfTheInFlightRequest() {
-        // arrange - the handler parks until the test has cancelled, then reports
-        // what its token says
+        // arrange - the handler parks until the test has cancelled, then reports its token
         let started = LinkedBlockingQueue<Bool>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
@@ -590,24 +454,23 @@ class ConnectionCancelTest {
         let resp = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
-        @Assert(boolOf(resp.resultOrError.getResultOrThrow()))
+        @Assert(resp.resultOrError.getResultOrThrow().asBoolOrThrow())
     }
 
     @TestCase
-    func cancelIgnoresAnIdThatIsNotInFlight() {
+    func cancelOfAnIdNotInFlightDoesNotPoisonIt() {
         // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {_, _, cancel => Result(DataModelBool(cancel.isCancelled))}
         let (connection, transport) = serving(handler)
 
-        // act - cancelling an unknown id is a no-op, and must not poison the id for
-        // a later request that legitimately uses it
+        // act
         connection.cancel(Integer(404))
-        transport.feed(RequestBody(Integer(404), "initialize").enveloped())
+        transport.feed(RequestBody(Integer(404), "m").enveloped())
         let resp = transport.nextWritten().getResponseBodyOrThrow()
 
         // assert
-        @Assert(!boolOf(resp.resultOrError.getResultOrThrow()))
+        @Assert(!resp.resultOrError.getResultOrThrow().asBoolOrThrow())
     }
 }
 
@@ -620,44 +483,44 @@ class ConnectionOutboundTest {
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
 
         // act
-        let first = connection.request<ArrayOrObject, ArrayOrObject>("window/showMessageRequest", emptyParams())
-        let second = connection.request<ArrayOrObject, ArrayOrObject>("window/showMessageRequest", emptyParams())
+        let first = connection.request<ArrayOrObject, ArrayOrObject>("ask", emptyParams())
+        let second = connection.request<ArrayOrObject, ArrayOrObject>("ask", emptyParams())
 
-        // assert - ids come off our own counter, so they are distinct
+        // assert
         @Expect(Integer(0), first.id)
         @Expect(Integer(1), second.id)
-        @Expect("window/showMessageRequest", transport.nextWritten().getRequestBodyOrThrow().method)
+        @Expect("ask", transport.nextWritten().getRequestBodyOrThrow().method)
     }
 
     @TestCase
-    func awaitReturnsTheResultOfTheMatchingResponse() {
+    func awaitCorrelatesByIdNotArrivalOrder() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
+        let (connection, transport) = serving(FakeHandler())
 
         // act
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        let first = connection.request<ArrayOrObject, Int64>("first", emptyParams())
+        let second = connection.request<ArrayOrObject, Int64>("second", emptyParams())
         transport.nextWritten()
-        transport.feed(ResponseBody.result(Value(pending.id), DataModelInt(7)).enveloped())
+        transport.nextWritten()
+        transport.feed(answer(second.id, DataModelInt(2)))
+        transport.feed(answer(first.id, DataModelInt(1)))
 
         // assert
-        @Expect(7, pending.await())
+        @Expect(2, second.await())
+        @Expect(1, first.await())
     }
 
     @TestCase
     func awaitThrowsWhenThePeerAnswersWithAnError() {
-        // arrange - an error response has to reach the caller as a throw; there is
-        // no result to hand back and no thread of ours to swallow it
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
+        // arrange
+        let (connection, transport) = serving(FakeHandler())
 
         // act
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
         transport.feed(
-            ResponseBody.error(Value(pending.id), ResponseError(ErrorCode.INVALID_PARAMS, "bad params")).enveloped())
+            ResponseBody(Value(pending.id), ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params")))
+                .enveloped())
 
         // assert
         let e = @AssertThrows[RpcException](pending.await())
@@ -666,37 +529,14 @@ class ConnectionOutboundTest {
     }
 
     @TestCase
-    func awaitCorrelatesByIdNotArrivalOrder() {
-        // arrange - the whole point of the pending map: a slow first request must
-        // not hold up an answer that already arrived for the second
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
-
-        // act
-        let first = connection.request<ArrayOrObject, Int64>("first", emptyParams())
-        let second = connection.request<ArrayOrObject, Int64>("second", emptyParams())
-        transport.nextWritten()
-        transport.nextWritten()
-        transport.feed(ResponseBody.result(Value(second.id), DataModelInt(2)).enveloped())
-        transport.feed(ResponseBody.result(Value(first.id), DataModelInt(1)).enveloped())
-
-        // assert
-        @Expect(2, second.await())
-        @Expect(1, first.await())
-    }
-
-    @TestCase
     func awaitWithTimeoutReturnsAResultThatArrivesInTime() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-        spawn {connection.serve()}
+        let (connection, transport) = serving(FakeHandler())
 
-        // act - the answer is already queued, so the timeout is never approached
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        // act
+        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
-        transport.feed(ResponseBody.result(Value(pending.id), DataModelInt(7)).enveloped())
+        transport.feed(answer(pending.id, DataModelInt(7)))
 
         // assert
         @Expect(7, pending.await(timeout: Duration.second).getOrThrow())
@@ -708,17 +548,16 @@ class ConnectionOutboundTest {
         let handler = FakeHandler()
         let (connection, transport) = serving(handler)
 
-        // act - give up, then let the answer turn up anyway
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        // act
+        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
         let timedOut = pending.await(timeout: Duration.millisecond * 50)
-        transport.feed(ResponseBody.result(Value(pending.id), DataModelInt(7)).enveloped())
-        transport.feed(NotificationBody("exit").enveloped())
+        transport.feed(answer(pending.id, DataModelInt(7)))
+        transport.feed(NotificationBody("next").enveloped())
 
-        // assert - giving up unregistered the id, so the late answer is dropped like
-        // any other uncorrelated response instead of holding its slot forever
+        // assert - dropped as any uncorrelated response is, and the loop is still alive
         @Assert(timedOut.isNone())
-        @Expect("exit", handler.notified.remove())
+        @Expect("next", handler.notified.remove())
     }
 
     @TestCase
@@ -729,22 +568,22 @@ class ConnectionOutboundTest {
         let params = ArrayOrObject.Object(DataModelStruct().add(field("message", "hi")))
 
         // act
-        connection.notify("window/logMessage", params)
+        connection.notify("tell", params)
         let note = transport.nextWritten().getNotificationBodyOrThrow()
 
         // assert
-        @Expect("window/logMessage", note.method)
+        @Expect("tell", note.method)
         @Expect("hi", fieldOf(note.params, "message").asStringOrThrow())
     }
 
     @TestCase
-    func notifyOmitsParamsThatSerializeToNull() {
-        // arrange - "no params" is an absent key, never an explicit null
+    func paramsThatSerializeToNullAreLeftOut() {
+        // arrange
         let transport = FakeTransport()
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
 
         // act
-        connection.notify("exit", Nullable<Int32>.Null)
+        connection.notify("tell", Nullable<Int32>.Null)
         let note = transport.nextWritten().getNotificationBodyOrThrow()
 
         // assert
@@ -752,13 +591,13 @@ class ConnectionOutboundTest {
     }
 
     @TestCase
-    func notifyRejectsParamsThatAreNeitherArrayNorObject() {
-        // arrange - JSON-RPC params are structured; a bare scalar has no encoding
+    func paramsThatAreNeitherArrayNorObjectAreRefused() {
+        // arrange
         let transport = FakeTransport()
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
 
         // act
-        let e = @AssertThrows[RpcException](connection.notify("window/logMessage", 42i32))
+        let e = @AssertThrows[RpcException](connection.notify("tell", 42i32))
 
         // assert
         @Expect(ErrorCode.INVALID_PARAMS, e.code)
@@ -769,7 +608,7 @@ class ConnectionOutboundTest {
 class ConnectionCloseTest {
     @TestCase
     func closeEndsAServeLoopBlockedOnARead() {
-        // arrange - nothing is ever fed, so the loop can only end by being closed
+        // arrange
         let transport = FakeTransport()
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
         let returned = LinkedBlockingQueue<Bool>()
@@ -789,26 +628,24 @@ class ConnectionCloseTest {
 
     @TestCase
     func closeWakesACallerWaitingForAnAnswer() {
-        // arrange - the peer will never answer, and a caller blocked in `await` has
-        // no timeout of its own to save it
+        // arrange
         let (connection, transport) = serving(FakeHandler())
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
 
         // act
         connection.close()
 
-        // assert - the wait ends as a throw, not as a wait that never ends
+        // assert
         let e = @AssertThrows[RpcException](pending.await())
         @Expect(ErrorCode.INTERNAL_ERROR, e.code)
     }
 
     @TestCase
     func aPeerHangUpWakesACallerWaitingForAnAnswer() {
-        // arrange - same dangling wait, reached from the other side: EOF ends the
-        // read loop, so nothing will ever fill the slot
+        // arrange
         let (connection, transport) = serving(FakeHandler())
-        let pending = connection.request<ArrayOrObject, Int64>("workspace/configuration", emptyParams())
+        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
 
         // act
@@ -821,7 +658,7 @@ class ConnectionCloseTest {
 
     @TestCase
     func closeTellsInFlightHandlersToGiveUp() {
-        // arrange - the handler parks mid-request, the way a slow one would
+        // arrange
         let started = LinkedBlockingQueue<CancellationToken>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
@@ -835,8 +672,7 @@ class ConnectionCloseTest {
         transport.feed(RequestBody(Integer(7), "slow").enveloped())
         let token = started.remove()
 
-        // act - no response of the handler's can reach the peer any more, so it is
-        // told to stop rather than left running against a dead connection
+        // act
         connection.close()
         release.add(true)
 
@@ -845,22 +681,8 @@ class ConnectionCloseTest {
     }
 
     @TestCase
-    func closeRejectsFurtherWrites() {
-        // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
-
-        // act
-        connection.close()
-
-        // assert
-        @AssertThrows[TransportException](connection.notify("window/logMessage", emptyParams()))
-    }
-
-    @TestCase
-    func closeIsIdempotent() {
-        // arrange - shutdown paths overlap: `serve` unwinding and an explicit close
-        // can both land, and a second close must not throw
+    func aClosedConnectionIsClosedForGoodAndWritesNothing() {
+        // arrange - `serve` unwinding and an explicit close can both land
         let transport = FakeTransport()
         let connection = Connection(transport, FakeHandler(), getGlobalLogger())
 
@@ -870,5 +692,6 @@ class ConnectionCloseTest {
 
         // assert
         @Assert(connection.isClosed())
+        @AssertThrows[TransportException](connection.notify("tell", emptyParams()))
     }
 }

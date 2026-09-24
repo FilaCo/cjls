@@ -1,38 +1,138 @@
 package cjls.server
 
+import stdx.log.Logger
 import stdx.serialization.serialization.*
 import jsonrpc.*
 
 /**
- * Where the query database goes. Until it exists this holds nothing, but the split is already the
- * one it will have: a handler registered with `route` changes the database, a `readonly` one reads
- * a snapshot of it.
+ * What a handler that runs on the read loop gets: its params, and the `Database` itself, since
+ * nothing else runs meanwhile.
  */
-public class Database {
+public class Context<P> {
+    Context(
+        public let params: P,
+        public let db: Database,
+        public let client: Client,
+        public let cancellation: CancellationToken,
+        public let logger: Logger
+    ) {}
+}
+
+/**
+ * What a handler that runs on a thread of its own gets: as `Context`, with a snapshot in place of
+ * the database, so such a handler cannot change the inputs.
+ */
+public class ReadOnlyContext<P> {
+    ReadOnlyContext(
+        public let params: P,
+        public let db: DatabaseSnapshot,
+        public let client: Client,
+        public let cancellation: CancellationToken,
+        public let logger: Logger
+    ) {}
+}
+
+/**
+ * A type a `@LspHandler` function can take before its params, the way axum's `FromRequestParts` is.
+ */
+public interface FromContext<T> {
+    static func from<P>(ctx: Context<P>): T
+}
+
+/**
+ * A type a `@LspHandler[readonly]` function can take before its params.
+ */
+public interface FromReadOnlyContext<T> {
+    static func from<P>(ctx: ReadOnlyContext<P>): T
+}
+
+/**
+ * A context but for its params, which the route decodes, knowing their type.
+ */
+class Parts {
+    Parts(let db: Database, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
+
+    func context<P>(params: P): Context<P> {
+        Context(params, db, client, cancellation, logger)
+    }
+}
+
+class ReadOnlyParts {
+    ReadOnlyParts(let db: DatabaseSnapshot, let client: Client, let cancellation: CancellationToken,
+        let logger: Logger) {}
+
+    func context<P>(params: P): ReadOnlyContext<P> {
+        ReadOnlyContext(params, db, client, cancellation, logger)
+    }
+}
+
+/**
+ * Where the query database goes. It holds nothing yet, but is already split the way it will be: a
+ * handler given a `Context` changes the database, one given a `ReadOnlyContext` reads a snapshot.
+ */
+public class Database <: FromContext<Database> {
     public init() {}
 
-    /**
-     * Taken on the read loop when a message arrives, so it reflects every change before that
-     * message and none after it.
-     */
+    public static func from<P>(ctx: Context<P>): Database {
+        ctx.db
+    }
+
     public func snapshot(): DatabaseSnapshot {
         DatabaseSnapshot()
     }
 }
 
-public class DatabaseSnapshot {}
+public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
+    public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
+        ctx.db
+    }
+}
 
 /**
- * The client, as the server talks to it: notifications and requests of our own. Bound to its
- * connection once that exists - the connection needs the router, and the router hands this out.
+ * Never cancelled for a notification.
  */
-public class Client {
+extend CancellationToken <: FromContext<CancellationToken> & FromReadOnlyContext<CancellationToken> {
+    public static func from<P>(ctx: Context<P>): CancellationToken {
+        ctx.cancellation
+    }
+
+    public static func from<P>(ctx: ReadOnlyContext<P>): CancellationToken {
+        ctx.cancellation
+    }
+}
+
+/**
+ * Carries the method, and the id of a request, on every line it writes.
+ */
+extend Logger <: FromContext<Logger> & FromReadOnlyContext<Logger> {
+    public static func from<P>(ctx: Context<P>): Logger {
+        ctx.logger
+    }
+
+    public static func from<P>(ctx: ReadOnlyContext<P>): Logger {
+        ctx.logger
+    }
+}
+
+/**
+ * The client, as the server talks to it. Bound to its connection once that exists: the connection
+ * needs the server, and the server hands this out.
+ */
+public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     private var connection: ?Connection = None
+
+    public static func from<P>(ctx: Context<P>): Client {
+        ctx.client
+    }
+
+    public static func from<P>(ctx: ReadOnlyContext<P>): Client {
+        ctx.client
+    }
 
     /**
      * @throws IllegalStateException - if the client is already connected
      */
-    public func connect(connection: Connection): Unit {
+    func connect(connection: Connection): Unit {
         if (this.connection.isSome()) {
             throw IllegalStateException("the client is already connected")
         }
@@ -49,8 +149,8 @@ public class Client {
     }
 
     /**
-     * @note never await the answer from a handler registered with `route`: it can only arrive
-     * through the read loop that handler is holding
+     * @note never await the answer from a handler given a `Context`: it can only arrive through the
+     * read loop that handler is holding
      *
      * @throws IllegalStateException - if the client is not connected yet
      * @throws RpcException - if params are not serialized to array|object|null
@@ -62,72 +162,17 @@ public class Client {
     }
 
     /**
-     * Tells the handler of an inbound request to give up - what `$/cancelRequest` asks for.
+     * Tells the handler of an inbound request to give up.
      */
     public func cancel(id: RequestId): Unit {
         connection?.cancel(id)
     }
 
-    /**
-     * Ends the connection, and with it the read loop. A client never connected has none to end.
-     */
     public func close(): Unit {
         connection?.close()
     }
 
     private func connected(): Connection {
         connection.getOrThrow {=> IllegalStateException("the client is not connected yet")}
-    }
-}
-
-/**
- * What a handler registered with `route` gets: the message's params, and the server around it -
- * the `Database` to itself, since such a handler runs on the read loop, alone.
- */
-public class Context<P> {
-    Context(
-        public let params: P,
-        public let db: Database,
-        public let client: Client,
-        /**
-         * Whether the client still wants the answer; never cancelled for a notification.
-         */
-        public let cancellation: CancellationToken
-    ) {}
-}
-
-/**
- * What a `readonly` handler gets: as `Context`, with a snapshot in place of the database, so such a
- * handler cannot change the inputs.
- */
-public class ReadOnlyContext<P> {
-    ReadOnlyContext(
-        public let params: P,
-        public let db: DatabaseSnapshot,
-        public let client: Client,
-        /**
-         * Whether the client still wants the answer; never cancelled for a notification.
-         */
-        public let cancellation: CancellationToken
-    ) {}
-}
-
-/**
- * The part of a `Context` the router has before the params are decoded - the routes decode them,
- * knowing their type.
- */
-class Scope {
-    Scope(let db: Database, let client: Client, let cancellation: CancellationToken) {}
-
-    func context<P>(params: P): Context<P> {
-        Context(params, db, client, cancellation)
-    }
-}
-
-class ReadOnlyScope {
-    ReadOnlyScope(let db: DatabaseSnapshot, let client: Client, let cancellation: CancellationToken) {}
-
-    func context<P>(params: P): ReadOnlyContext<P> {
-        ReadOnlyContext(params, db, client, cancellation)
     }
 }

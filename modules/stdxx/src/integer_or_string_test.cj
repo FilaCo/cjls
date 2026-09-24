@@ -6,86 +6,53 @@ import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
 
 @Test
+@Configure[randomSeed: 42]
 class IntegerOrStringTest {
-    @TestCase[value in [ 0, 42, - 1, - 999, 2147483647 ]]
-    func integerRoundTrip(value: Int32) {
-        // arrange
-        let original = Integer(value)
-
+    @TestCase[value in random()]
+    func anIntegerRoundTrips(value: Int32) {
         // act
-        let restored = IntegerOrString.deserialize(original.serialize())
+        let restored = IntegerOrString.deserialize(Integer(value).serialize())
 
         // assert
-        @Assert(restored, Integer(value))
+        @Expect(Integer(value), restored)
     }
 
-    @TestCase[value in [ "", "hello", "42", "with space", "café", "日本語" ]]
-    func stringRoundTrip(value: String) {
-        // arrange
-        let original = IntegerOrString.String(value)
-
+    @TestCase[value in random()]
+    func aStringRoundTrips(value: String) {
         // act
-        let restored = IntegerOrString.deserialize(original.serialize())
+        let restored = IntegerOrString.deserialize(IntegerOrString.String(value).serialize())
 
         // assert
-        @Assert(restored, IntegerOrString.String(value))
+        @Expect(IntegerOrString.String(value), restored)
     }
 
-    @TestCase
-    func deserializeRejectsBool() {
-        // arrange
-        let dm = DataModelBool(true)
-
+    @TestCase[dm in [DataModelBool(true), DataModelNull(), DataModelInt(Int64(Int32.Max) + 1)]]
+    func anythingElseIsRefused(dm: DataModel) {
         // act & assert
         @AssertThrows[DataModelException](IntegerOrString.deserialize(dm))
     }
 
     @TestCase
-    func toStringRendersRawScalar() {
-        // arrange
-        let asInt = IntegerOrString.Integer(42)
-        let asStr = IntegerOrString.String("hello")
-
+    func toStringRendersTheBareValue() {
         // act & assert
-        @Assert("42", asInt.toString())
-        @Assert("hello", asStr.toString())
+        @Expect("42", Integer(42).toString())
+        @Expect("hello", IntegerOrString.String("hello").toString())
     }
 
     @TestCase
-    func getIntegerOnStringThrows() {
-        // arrange
-        let sut = IntegerOrString.String("hello")
-
+    func askingForTheOtherVariantThrows() {
         // act
-        let e = @AssertThrows[UnexpectedVariantException](sut.getIntegerOrThrow())
+        let onString = @AssertThrows[UnexpectedVariantException](IntegerOrString.String("1").getIntegerOrThrow())
+        let onInteger = @AssertThrows[UnexpectedVariantException](Integer(1).getStringOrThrow())
 
         // assert
-        @Expect("expected `Integer` variant, got `String`", e.message)
+        @Expect("expected `Integer` variant, got `String`", onString.message)
+        @Expect("expected `String` variant, got `Integer`", onInteger.message)
     }
 
     @TestCase
-    func getStringOnIntegerThrows() {
-        // arrange
-        let sut = IntegerOrString.Integer(42)
-
-        // act
-        let e = @AssertThrows[UnexpectedVariantException](sut.getStringOrThrow())
-
-        // assert
-        @Expect("expected `String` variant, got `Integer`", e.message)
-    }
-}
-
-@Test
-class IntegerOrStringHashTest {
-    // JSON-RPC request ids are hash map keys - a peer's id is built here, the
-    // matching one is rebuilt from the wire, and the two have to land in the same
-    // bucket or a response never finds what it is answering.
-
-    @TestCase
-    func integerAndStringKeysDoNotCollapse() {
-        // arrange - `42` and `"42"` are different request ids, and `toString` maps
-        // them onto the same text, so hashing must not go through it
+    func anIntegerAndItsTextAreDifferentKeys() {
+        // arrange - `toString` maps `42` and `"42"` onto the same text, so hashing must not go through it
         let map = HashMap<IntegerOrString, String>()
 
         // act

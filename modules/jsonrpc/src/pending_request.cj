@@ -5,8 +5,7 @@ import stdx.serialization.serialization.*
 
 public struct PendingRequest<R> where R <: Serializable<R> {
     /**
-     * @param abandon - unregisters the id with the connection, so that a response
-     * arriving after the caller gave up is dropped instead of parked forever
+     * @param abandon - stops the connection correlating `id`
      */
     public PendingRequest(
         public let id: RequestId,
@@ -15,9 +14,8 @@ public struct PendingRequest<R> where R <: Serializable<R> {
     ) {}
 
     /**
-     * Blocks the calling thread until the peer answers. Deliberately not wrapped in
-     * a `spawn`: the caller's own thread waits, so a rejected request surfaces as a
-     * plain throw instead of the runtime dumping the stack of a doomed worker.
+     * Blocks the caller's own thread rather than a `spawn`ed one, so an error answer is a plain
+     * throw rather than a worker's stack dumped to stderr.
      *
      * @throws RpcException - if the peer answered with an error
      * @throws DataModelException - if the result does not decode to an `R`
@@ -27,9 +25,8 @@ public struct PendingRequest<R> where R <: Serializable<R> {
     }
 
     /**
-     * As `await`, but gives up after `timeout` and answers `None`. Giving up is
-     * final - the id stops being correlated, so a peer that answers late is ignored
-     * rather than left holding a slot for the lifetime of the connection.
+     * As `await`, but gives up after `timeout` and answers `None`. Giving up is final: a late
+     * answer is dropped rather than parked for the lifetime of the connection.
      *
      * @throws RpcException - if the peer answered with an error
      * @throws DataModelException - if the result does not decode to an `R`
@@ -40,9 +37,7 @@ public struct PendingRequest<R> where R <: Serializable<R> {
         }
         abandon()
 
-        // the answer may have landed in the gap between the timeout expiring and the
-        // id being dropped; nothing can reach the slot after `abandon`, so a single
-        // non-blocking look settles it
+        // the answer may have landed between the timeout and `abandon`; nothing can after it
         slot.tryRemove().map {resultOrError => decode(resultOrError)}
     }
 

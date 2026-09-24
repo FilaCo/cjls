@@ -4,11 +4,9 @@ import std.ast.*
 import std.collection.*
 import std.sort.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.Nullable
+import stdxx.serialization.*
 
-/**
- * A Cangjie type a metaModel type resolves to.
- */
 enum TypeIr <: ToString {
     /**
      * Anything spelled by its name alone - a base type, or a type we or somebody else declares.

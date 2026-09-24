@@ -10,3 +10,7 @@ target
 *.flag
 *.dylib
 *.cjo
+
+# Claude Code: only the shared settings are checked in
+.claude/*
+!.claude/settings.json

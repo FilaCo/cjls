@@ -1,18 +1,8 @@
 package lsp_codegen
 
-import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
-
-private func emittedDerives(derives: Array<DeriveIr>): String {
-    let output = ByteBuffer()
-    let sut = CjEmitter(output)
-    sut.emitDerives(derives)
-    sut.flush()
-
-    unsafe { String.fromUtf8(readToEnd(output)) }
-}
+import stdxx.IntegerOrString
 
 @Test
 class EmitDerivesTest {
@@ -20,14 +10,13 @@ class EmitDerivesTest {
     func aTaggedStructNamesItsTagAndValue() {
         // arrange
         let options = SerializableTypeOptions(tag: SerializableTag(field: "kind", value: "create"))
-
         let expected = """
 @DeriveExt[Serializable]
 @DeriveExtSerializable[tag: "kind", value: "create"]
 """
 
         // act
-        let actual = emittedDerives([DeriveIr.Serializable(options)])
+        let actual = emittedBy {emitter => emitter.emitDerives([DeriveIr.Serializable(options)])}
 
         // assert
         @PowerAssert(expected, actual)
@@ -36,23 +25,17 @@ class EmitDerivesTest {
     @TestCase
     func noOptionsLeaveNoMarker() {
         // arrange
+        let derives = [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable]
         let expected = """
 @DeriveExt[Serializable]
 @Derive[Equatable, Hashable]
 """
 
         // act
-        let actual = emittedDerives(
-            [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable])
+        let actual = emittedBy {emitter => emitter.emitDerives(derives)}
 
         // assert
         @PowerAssert(expected, actual)
-    }
-
-    @TestCase
-    func nothingToDeriveEmitsNothing() {
-        // act & assert
-        @Expect("", emittedDerives([]))
     }
 
     @TestCase

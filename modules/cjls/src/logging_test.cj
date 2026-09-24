@@ -3,33 +3,26 @@ package cjls
 import stdx.log.LogLevel
 
 @Test
-class LogLevelExtendTest {
-    @TestCase[pairs in [ 
-("OFF", LogLevel.OFF), 
-("FATAL", LogLevel.FATAL), 
-("ERROR", LogLevel.ERROR), 
-("WARN", LogLevel.WARN), 
-("INFO", LogLevel.INFO), 
-("DEBUG", LogLevel.DEBUG), 
-("TRACE", LogLevel.TRACE), 
-("ALL", LogLevel.ALL) 
- ] 
-]
-    func smoke(pairs: (String, LogLevel)) {
+class LogLevelTest {
+    @TestCase[sample in [
+        ("OFF", Some(LogLevel.OFF)),
+        ("fatal", Some(LogLevel.FATAL)),
+        ("Error", Some(LogLevel.ERROR)),
+        ("WARN", Some(LogLevel.WARN)),
+        ("INFO", Some(LogLevel.INFO)),
+        ("debug", Some(LogLevel.DEBUG)),
+        ("TRACE", Some(LogLevel.TRACE)),
+        ("ALL", Some(LogLevel.ALL)),
+        ("verbose", None)
+    ]]
+    func aLevelIsReadByItsNameInAnyCase(sample: (String, ?LogLevel)) {
         // arrange
-        let (input, expected) = pairs
-        // act
-        let actual = LogLevel.parse(input)
-        // assert
-        @Expect(expected, actual)
-    }
+        let (name, expected) = sample
 
-    @TestCase
-    func unknownLogLevel() {
-        // arrange
-        let input = "wtf"
         // act
+        let level = parseLogLevel(name)
+
         // assert
-        @AssertThrows[UnknownLogLevelException](LogLevel.parse(input))
+        @Expect(expected, level)
     }
 }

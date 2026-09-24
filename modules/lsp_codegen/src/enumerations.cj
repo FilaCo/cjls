@@ -1,8 +1,7 @@
 package lsp_codegen
 
 import std.ast.*
-import std.collection.any
-import stdxx.*
+import stdxx.IntegerOrString
 
 struct EnumIr {
     EnumIr(let base: EnumBase, let doc: DocIr, let shape!: EnumShape = Declared, let isOpen!: Bool = false,
@@ -21,19 +20,13 @@ struct EnumCatchAllIr {
 
 const CATCH_ALL_IDENT = "Unknown"
 
-/**
- * Where the constants of an enumeration land.
- */
 enum EnumShape {
-    /**
-     * We declare the type, and the constants live inside it.
-     */
     | Declared
 
     /**
-     * The type is declared elsewhere and only the variants are ours. Holds the name of that type.
-     *
-     * @note they travel as `static prop`s on an interface the type is extended with.
+     * The type is declared elsewhere - this is its name - and only the constants are ours. They
+     * travel as `static prop`s on an interface the type is extended with: a bare `extend` would not
+     * export them past this package.
      */
     | Adopted(String)
 }
@@ -55,10 +48,13 @@ enum EnumBase {
 }
 
 func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
-    let (ident, shape) = match (cfg.typeMap.bind(enumeration.name)) {
-        case Owned(ident) => (ident, Declared)
-        case Extern(target) => (enumeration.name, Adopted(target))
+    let (ident, shape, declared) = match (cfg.typeMap.bind(enumeration.name)) {
+        case Owned(ident) => (ident, Declared, Array<String>())
+        case Extern(target, declared) => (enumeration.name, Adopted(target), declared)
         case Aliased(_) | Skipped => return None
+    }
+    for (name in declared where !enumeration.values.any {it => it.name == name}) {
+        throw IllegalStateException("`types.${enumeration.name}.declared` names `${name}`, which it does not have")
     }
 
     let base = match (enumeration.enumerationType.name) {
@@ -76,12 +72,12 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Adopted(_) => ([], false)
     }
 
-    let variants = enumeration.values.map {
-        it: EnumerationEntry => resolveEnumVariant(it, asConstructor: asConstructors)
-    }
+    let variants = enumeration.values
+        .filter {it => !declared.contains(it.name)}
+        .map {it => resolveEnumVariant(it, asConstructor: asConstructors)}
     var catchAll: ?EnumCatchAllIr = None
     if (asConstructors) {
-        if (variants |> any {it: EnumVariantIr => it.ident == CATCH_ALL_IDENT}) {
+        if (variants.any {it => it.ident == CATCH_ALL_IDENT}) {
             throw IllegalStateException("`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant")
         }
         catchAll = EnumCatchAllIr(
@@ -142,7 +138,6 @@ extend CjEmitter {
         let targetType = cangjieLex(target)
 
         emit(quote(sealed interface $interfaceIdent))
-        // body
         blockln {
             => for (variant in adopted.variants) {
                 emitAdoptedVariant(variant, targetType)
@@ -166,10 +161,8 @@ extend CjEmitter {
         let enumBaseType = openEnum.base.toTokens()
 
         emit(quote(public struct $enumIdent))
-        // body
         blockln {
             =>
-                // primary ctor
                 emitln(quote(public const $enumIdent(public let value: $enumBaseType) {}))
 
                 for (variant in openEnum.variants) {
@@ -191,7 +184,6 @@ extend CjEmitter {
         let enumIdent = escapedIdent(closedEnum.ident)
 
         emit(quote(public enum $enumIdent))
-        // body
         blockln {
             =>
                 for (variant in closedEnum.variants) {

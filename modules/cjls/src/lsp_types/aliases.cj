@@ -6,7 +6,8 @@ package cjls.lsp_types
 import std.collection.*
 import std.deriving.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.{IntegerOrString, Nullable}
+import stdxx.serialization.*
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,8 +18,6 @@ public type DocumentUri = String
 public type LSPAny = AnyValue
 
 public type ProgressToken = IntegerOrString
-
-public type ErrorCodes = ErrorCode
 
 /**
  * Information about where a symbol is defined.

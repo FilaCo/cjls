@@ -1,53 +1,36 @@
 package cjls // cjlint-ignore !G.NAM.02
 
 import std.env.{getStdErr, getVariable}
-import stdx.log.{getGlobalLogger, setGlobalLogger, LogLevel, Logger}
+import stdx.log.{LogLevel, Logger}
 import stdx.logger.SimpleLogger
 
-func initGlobalLogger(): Unit {
+const LOG_LEVEL_VARIABLE = "CJLS_LOG_LEVEL"
+
+/**
+ * At the level `CJLS_LOG_LEVEL` names, `INFO` if it names none.
+ */
+func stderrLogger(): Logger {
     let logger = SimpleLogger(getStdErr())
-    setGlobalLogger(logger)
-
-    const CJLS_LOG_LEVEL_ENV = "CJLS_LOG_LEVEL"
-    logger.level = match (getVariable(CJLS_LOG_LEVEL_ENV)) {
-        case None =>
-            logger.info("log level was not provided, setting INFO as default")
-            LogLevel.INFO
-        case Some(name) => try {
-            LogLevel.parse(name)
-        } catch (e: UnknownLogLevelException) {
-            logger.warn(e.message)
-            logger.info("setting log level to INFO as default")
-            LogLevel.INFO
+    logger.level = LogLevel.INFO
+    if (let Some(name) <- getVariable(LOG_LEVEL_VARIABLE)) {
+        match (parseLogLevel(name)) {
+            case Some(level) => logger.level = level
+            case None => logger.warn("unknown log level, using INFO", [(LOG_LEVEL_VARIABLE, name)])
         }
     }
+    logger
 }
 
-extend LogLevel /* <: Parsable<LogLevel> */ {
-    /**
-     * @throws UnknownLogLevelException - If provided value doesn't match to any known LogLevel
-     */
-    static func parse(value: String): LogLevel {
-        match (value.toAsciiUpper()) {
-            case "OFF" => LogLevel.OFF
-            case "FATAL" => LogLevel.FATAL
-            case "ERROR" => LogLevel.ERROR
-            case "WARN" => LogLevel.WARN
-            case "INFO" => LogLevel.INFO
-            case "DEBUG" => LogLevel.DEBUG
-            case "TRACE" => LogLevel.TRACE
-            case "ALL" => LogLevel.ALL
-            case _ => throw UnknownLogLevelException(value)
-        }
-    }
-}
-
-class UnknownLogLevelException <: Exception {
-    UnknownLogLevelException(value: String) {
-        super("Unknown log level: ${value}")
-    }
-
-    protected override func getClassName(): String {
-        "UnknownLogLevelException"
+func parseLogLevel(name: String): ?LogLevel {
+    match (name.toAsciiUpper()) {
+        case "OFF" => LogLevel.OFF
+        case "FATAL" => LogLevel.FATAL
+        case "ERROR" => LogLevel.ERROR
+        case "WARN" => LogLevel.WARN
+        case "INFO" => LogLevel.INFO
+        case "DEBUG" => LogLevel.DEBUG
+        case "TRACE" => LogLevel.TRACE
+        case "ALL" => LogLevel.ALL
+        case _ => None
     }
 }

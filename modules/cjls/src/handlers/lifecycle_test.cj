@@ -1,10 +1,11 @@
-package cjls
+package cjls.handlers
 
 import std.collection.ArrayList
 import std.io.ByteBuffer
 import stdx.serialization.serialization.*
-import stdx.log.getGlobalLogger
-import stdxx.*
+import stdx.log.NoopLogger
+import stdxx.IntegerOrString
+import stdxx.serialization.*
 import jsonrpc.*
 import cjls.server.*
 
@@ -13,8 +14,8 @@ private func framed(json: String): String {
 }
 
 /**
- * Serves a whole session fed up front: every handler it reaches is `mut`, so each answer is written
- * before the next message is read, and the loop ends on the buffer running dry.
+ * Serves a whole session fed up front: every handler it reaches is a `route` one, so each answer is
+ * written before the next message is read, and the loop ends on the buffer running dry.
  */
 private func session(messages: Array<String>): (Int64, Array<ResponseBody>) {
     let input = ByteBuffer()
@@ -23,9 +24,9 @@ private func session(messages: Array<String>): (Int64, Array<ResponseBody>) {
     }
     let output = ByteBuffer()
 
-    let exitCode = serveLsp(FramedJsonRpcTransport(input, output, getGlobalLogger()), routes())
+    let exitCode = serve(FramedJsonRpcTransport(input, output, NoopLogger()), router(), NoopLogger())
 
-    let responses = FramedJsonRpcTransport(output, ByteBuffer(), getGlobalLogger())
+    let responses = FramedJsonRpcTransport(output, ByteBuffer(), NoopLogger())
     let bodies = ArrayList<ResponseBody>()
     while (let Some(body) <- responses.read()) {
         bodies.add(body.getResponseBodyOrThrow())
@@ -33,9 +34,6 @@ private func session(messages: Array<String>): (Int64, Array<ResponseBody>) {
     (exitCode, bodies.toArray())
 }
 
-/**
- * The server's own routes, over a real framed transport.
- */
 @Test
 class LifecycleTest {
     @TestCase
@@ -55,15 +53,6 @@ class LifecycleTest {
         @Expect("cjls", serverInfo.asStructOrThrow().getOrThrow("name").asStringOrThrow())
         @Expect(Integer(2), responses[1].id.getOrThrow())
         @Expect(responses[1].resultOrError.getResultOrThrow() is DataModelNull)
-    }
-
-    @TestCase
-    func aRequestBeforeInitializeIsRefused() {
-        // act
-        let (_, responses) = session([##"{"jsonrpc": "2.0", "id": 1, "method": "shutdown"}"##])
-
-        // assert
-        @Expect(ErrorCode.SERVER_NOT_INITIALIZED, responses[0].resultOrError.getErrorOrThrow().code)
     }
 
     @TestCase

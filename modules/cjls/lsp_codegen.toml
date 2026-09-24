@@ -4,7 +4,8 @@ imports = [
     "std.collection.*",
     "std.deriving.*",
     "stdx.serialization.serialization.*",
-    "stdxx.*",
+    "stdxx.{IntegerOrString, Nullable}",
+    "stdxx.serialization.*",
     "stdxx.deriving.*",
     "jsonrpc.*",
 ]
@@ -21,8 +22,10 @@ alias = "AnyValue"
 [types.ProgressToken]
 alias = "IntegerOrString"
 
+# the JSON-RPC codes are jsonrpc's own, the rest are adopted onto `ErrorCode`
 [types.ErrorCodes]
-alias = "ErrorCode"
+extern = "ErrorCode"
+declared = ["ParseError", "InvalidRequest", "MethodNotFound", "InvalidParams", "InternalError"]
 
 [types.LSPErrorCodes]
 extern = "ErrorCode"

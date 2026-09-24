@@ -2,7 +2,7 @@ package cjls
 
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 import jsonrpc.*
 import cjls.lsp_types.*
 
