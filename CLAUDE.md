@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, and the work has proceeded bottom-up: the `jsonrpc` transport/peer layer is built and covered by tests, while the LSP layer above it is largely still to be written — `modules/cjls/src/run_server.cj` is a stub with the old server loop commented out, the protocol types are generated from `metaModel.json` except for the messages themselves (enumerations, structures, unions and aliases are; the per-request/notification specs are not yet), and the handler-registration macros are partly stubs.
+`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, built bottom-up: the `jsonrpc` peer, the generated protocol types (messages included), and a handler framework with the lifecycle (`initialize`/`shutdown`/`exit`) are in place and tested; the server advertises no capabilities yet, and the query-driven incremental frontend that will answer real requests is still to be written.
 
 There are no separate design documents: they went stale faster than the code moved and were removed on purpose. The code, its tests and this file are the source of truth — don't recreate a DESIGN.md, and don't argue with the current code on the strength of an old design.
 
@@ -46,7 +46,7 @@ Five members declared in the root `cjpm.toml`, each its own package:
 
 - **`modules/stdxx`** (`static`) — foundation library: the sum types the protocol needs (`IntegerOrString`, `ArrayOrObject`, `Nullable`), `AnyValue` (a serializable `DataModel`, which `LSPAny` aliases — an imported type can't be extended with an imported interface, so `DataModel` itself never can be), the `DataModel` helpers that go with them (`data_model.cj`), their exceptions (`exception.cj`), plus a `deriving` **macro package** for `@DeriveExt[...]` codegen. No project dependencies.
 - **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
-- **`modules/cjls`** (`executable`) — the server: entrypoint, logging, and the `cjls.macros` macro package for handler registration. Depends on `jsonrpc`.
+- **`modules/cjls`** (`executable`) — the server: entrypoint, logging, the handlers, and the `cjls.server` framework they run in. Depends on `jsonrpc`.
 - **`modules/cjtoml`** (`static`) — a vendored TOML parser/encoder (Huawei, Apache-2.0 with Runtime Library Exception), carried in-tree because `stdx` ships no TOML module. Its public entry point is `unmarshal<T>(path: String): T where T <: Serializable<T>` — it takes a **file path**, not TOML text. Third-party code: keep it byte-identical to upstream, and never run `cjfmt` over it.
 - **`modules/lsp_codegen`** (`executable`) — the generator that turns `modules/lsp_codegen/metaModel.json` into typed LSP declarations in `modules/cjls/src/lsp_types` (generated, checked in, never hand-edited — regenerate instead; delete the old files first, the generator does not prune). It takes the meta model path on the command line and everything else from a TOML config passed with `-c`/`--config` (`modules/cjls/lsp_codegen.toml`): `cjpm run --name lsp_codegen -- modules/lsp_codegen/metaModel.json -c modules/cjls/lsp_codegen.toml`. The config declares only `output-subpackage`; the output directory and the root package name are inherited from the `cjpm.toml` next to it (`src-dir`, defaulting to `src`, and `[package] name`), because cjpm requires every subpackage to be named `<package name>.<path under src-dir>`. A relative `src-dir` resolves against the config file's own directory, not the cwd.
 
@@ -110,21 +110,31 @@ The write side of `?T` follows serde rather than LSP: `None` is written as `null
 
 It is carried by a `DataModelFields` interface rather than a bare `extend`, because Cangjie exports a direct `extend` only to the package that declares it — an extension meant to cross a package boundary needs an interface to travel with, and `import stdxx.*` then brings it along. Any further `DataModel` helper that the layers above need should be added the same way.
 
-### `cjls` — entrypoint, logging, handler macros
+### `cjls` — entrypoint, handlers, and the framework they run in
 
-`main.cj` initializes the global logger then calls `runServer()`, catching `ProtocolStateException` (protocol invariant violations) separately from other exceptions. Logging (`logging.cj`) wraps `stdx.log` with a global `SimpleLogger` to stderr, a `[cjls]` prefix, and a level from the `CJLS_LOG_LEVEL` env var (default `INFO`). Use `logInfo`/`logError`/`logDebug`/etc. rather than printing — stdout is the LSP wire.
+`main.cj` initializes the global logger and returns what `runServer()` (`run_server.cj`) returns: it serves stdio through `serveLsp(transport, routes())` and exits with the code the protocol asks for — `0` only for an `exit` after a `shutdown`. Logging (`logging.cj`) sets a global `stdx.log` `SimpleLogger` on stderr, its level from the `CJLS_LOG_LEVEL` env var (default `INFO`); log through `getGlobalLogger()`, never print — stdout is the LSP wire.
 
-The intended registration pattern, via the `cjls.macros` macro package:
+**Handlers take a context and return the result, registered the way axum does it — no macros:**
 
-1. Annotate a type with `@LspRequest["method", params: P, result: R]` (or `@LspNotification[method: "...", params: P]`), containing a `@LspHandle`-annotated static `handle` func.
-2. The macro generates an `extend` exposing `METHOD` and a uniform `handle(params, ctx)`. `@LspNotification`'s `buildHandleCall` maps the user's handler params **by name**: a param named `params` receives the message params, any other name is pulled from `ctx.<name>`.
-3. `@LspHandlers[requests: [...], notifications: [...]]` generates the router — which is exactly the `Handler` interface `jsonrpc` expects. jsonrpc never interprets a method string; routing is entirely this layer's job.
+```cangjie
+func handleInitialize(ctx: Context<InitializeParams>): InitializeResult { ... }
 
-**Current state:** `@LspNotification` is the most complete; `@LspRequest` and `@LspHandlers` bodies still just return their input (`extendLspRequest` exists but is unused). The interfaces those macros generate against (`LspRequest`, `LspNotification`, `GlobalContext`) do **not currently exist** — they went away with the old `lsp` module and are to be reintroduced above `jsonrpc`. Expect to build this out rather than assume it works.
+Routes()
+    .state(Database())
+    .route(InitializeRequestSpec(), handleInitialize)
+    .readonly(HoverRequestSpec()) { ctx => hoverAt(ctx.db, ctx.params) }   // ctx.params: HoverParams, inferred
+```
+
+- **The spec value carries the types.** `route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context<P>) -> R)` infers `P` and `R` from the spec, so a lambda's `ctx` needs no annotation, and a handler of the wrong params or result fails to compile with a readable unsolvable-constraint error (`InitializeParams <: P, P <: CancelParams`). `route<S>` with only the spec as a type argument is not an option: Cangjie takes all of a function's type arguments or none. Returning the result, rather than writing it into the context, makes a missing or mistyped answer a compile error too.
+- **The context is the whole interface** (`server/context.cj`): `params`, `db`, `client`, `cancellation` (jsonrpc's `CancellationToken`; never cancelled for a notification). There is no injection — a handler reads what it needs off `ctx`, as rust-analyzer's handlers read their snapshot.
+- **`route` vs `readonly`** (`server/routes.cj`) is how a handler runs, and the context type says which: `route` hands a `Context<P>` with the `Database`, on the read loop, in arrival order — how inputs change; `readonly` hands a `ReadOnlyContext<P>` with a `DatabaseSnapshot` taken on the read loop when the message arrived, on its own `spawn`. A handler written for one does not compile under the other. Routes has just these four methods — request or notification, times the two modes. `Database` is a placeholder for the query database, already split the way it will be; `.state(...)` supplies it.
+- **Registration is explicit**, one line per handler, as in rust-analyzer; `Routes` refuses a second handler for a method, and `readonly` for `initialize`, `shutdown` or `exit`, since whatever follows them must see the state they leave. Per-route options, when they come (latency-sensitive, retry on modification), belong in named parameters with defaults.
+
+**The router** (`server/router.cj`, internal) is the `Handler` `jsonrpc` calls. It keeps the lifecycle by method alone — the same for every server: before a successful `initialize` requests get `SERVER_NOT_INITIALIZED` and notifications are dropped; a second `initialize` or anything after `shutdown` is `INVALID_REQUEST`; `exit` runs its handler if any, then closes the connection in any state. The lifecycle messages are otherwise ordinary handlers (`lifecycle.cj`).
 
 ### Macro-package mechanics
 
-Macros live in dedicated `macro package` files (`cjls.macros`, `stdxx.deriving`) and use `std.ast.*`. Shared helpers are in `macros/utils.cj` (`lexAttrs` for parsing attribute arguments, `Decl.getGenericFragments()` for propagating generics into generated `extend`s). Generated code is emitted as `quote(...)` templates with `$`-interpolation — the output must be valid Cangjie against the target interfaces. A macro package compiles even when the code it *emits* would not, so a green build is no evidence the codegen is correct.
+The one macro package is `stdxx.deriving`, using `std.ast.*`. Generated code is emitted as `quote(...)` templates with `$`-interpolation — the output must be valid Cangjie against the target interfaces, and names them unqualified, so the using package imports what it refers to. A macro package compiles even when the code it *emits* would not, so a green build of the macro package is no evidence the codegen is correct — a build of a package *using* it is. Don't have a macro emit new top-level declarations that need initializing: the order packages are initialized in is not defined.
 
 ## Testing conventions
 
