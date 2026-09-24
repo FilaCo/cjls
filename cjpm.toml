@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "modules/calca",
     "modules/cjls",
     "modules/cjtoml",
     "modules/index_map",
