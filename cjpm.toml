@@ -2,6 +2,7 @@
 members = [
     "modules/cjls",
     "modules/cjtoml",
+    "modules/ginkgo",
     "modules/index_map",
     "modules/jsonrpc",
     "modules/lsp_codegen",
