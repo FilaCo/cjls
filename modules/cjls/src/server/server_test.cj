@@ -10,6 +10,8 @@ import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
+import rope.Rope
+import vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 
@@ -229,6 +231,30 @@ class ServerDispatchTest {
 
         // assert
         @Expect(asked.answer().getResultOrThrow() is DataModelNull)
+    }
+
+    @TestCase
+    func aQueryTheFilesChangedUnderIsAnsweredContentModified() {
+        // arrange - the handler parks with its snapshot until the files have changed
+        let release = LinkedBlockingQueue<Bool>()
+        let path = VfsPath.file("/a.cj")
+        let db = Database()
+        db.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(db).route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                release.remove()
+                ctx.db.sourceFile(path).getOrThrow().text(ctx.db)
+                Nullable<Hover>.Null
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+        server.onRequest(asked.request)
+
+        // act
+        db.setFileContents(path, Rope("b"))
+        release.add(true)
+
+        // assert
+        @Expect(ErrorCode.CONTENT_MODIFIED, asked.answer().getErrorOrThrow().code)
     }
 
     @TestCase

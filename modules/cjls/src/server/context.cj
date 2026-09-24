@@ -67,28 +67,6 @@ class ReadOnlyParts {
 }
 
 /**
- * Where the query database goes. It holds nothing yet, but is already split the way it will be: a
- * handler given a `Context` changes the database, one given a `ReadOnlyContext` reads a snapshot.
- */
-public class Database <: FromContext<Database> {
-    public init() {}
-
-    public static func from<P>(ctx: Context<P>): Database {
-        ctx.db
-    }
-
-    public func snapshot(): DatabaseSnapshot {
-        DatabaseSnapshot()
-    }
-}
-
-public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
-    public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
-        ctx.db
-    }
-}
-
-/**
  * Never cancelled for a notification.
  */
 extend CancellationToken <: FromContext<CancellationToken> & FromReadOnlyContext<CancellationToken> {

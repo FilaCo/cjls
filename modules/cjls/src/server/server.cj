@@ -3,6 +3,7 @@ package cjls.server
 import std.time.MonoTime
 import stdx.log.*
 import stdx.serialization.serialization.DataModel
+import calca.Cancelled
 import jsonrpc.*
 import cjls.lsp_types.*
 
@@ -133,7 +134,8 @@ class Server <: Handler {
 }
 
 /**
- * Answers `request` with what `handler` gives. Never throws, so it is a safe body for a `spawn`:
+ * Answers `request` with what `handler` gives; a query the files changed under is answered
+ * `ContentModified`, for the client to ask again if it still cares. Never throws, so it is a safe body for a `spawn`:
  * a thread that throws dumps its stack even when nobody reads its future.
  *
  * @return whether the handler succeeded
@@ -142,6 +144,9 @@ private func answer(request: InboundRequest, logger: Logger, handler: () -> Data
     let start = MonoTime.now()
     let answer = try {
         ResultOrError.Result(handler())
+    } catch (_: Cancelled) {
+        logger.debug("cancelled", [("reason", "the content was modified")])
+        ResultOrError.Error(ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified"))
     } catch (e: Exception) {
         logFailure(logger, e)
         ResultOrError.Error(responseErrorOf(e))
@@ -159,6 +164,8 @@ private func run(logger: Logger, handler: () -> Unit): Unit {
     try {
         handler()
         logger.debug("handled", [("took", MonoTime.now() - start)])
+    } catch (_: Cancelled) {
+        logger.debug("cancelled", [("reason", "the content was modified")])
     } catch (e: Exception) {
         logFailure(logger, e)
     }

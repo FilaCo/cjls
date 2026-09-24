@@ -13,5 +13,9 @@ link-option = ""
 package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
+base_db = { path = "../base_db" }
+calca = { path = "../calca" }
 jsonrpc = { path = "../jsonrpc" }
+rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }
+vfs = { path = "../vfs" }
