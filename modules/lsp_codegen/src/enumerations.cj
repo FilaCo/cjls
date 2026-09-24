@@ -1,7 +1,7 @@
 package lsp_codegen
 
 import std.ast.*
-import std.collection.any
+import std.collection.ArrayList
 import stdxx.IntegerOrString
 
 struct EnumIr {
@@ -49,10 +49,13 @@ enum EnumBase {
 }
 
 func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
-    let (ident, shape) = match (cfg.typeMap.bind(enumeration.name)) {
-        case Owned(ident) => (ident, Declared)
-        case Extern(target) => (enumeration.name, Adopted(target))
+    let (ident, shape, declared) = match (cfg.typeMap.bind(enumeration.name)) {
+        case Owned(ident) => (ident, Declared, Array<String>())
+        case Extern(target, declared) => (enumeration.name, Adopted(target), declared)
         case Aliased(_) | Skipped => return None
+    }
+    for (name in declared where !hasValue(enumeration, name)) {
+        throw IllegalStateException("`types.${enumeration.name}.declared` names `${name}`, which it does not have")
     }
 
     let base = match (enumeration.enumerationType.name) {
@@ -70,12 +73,13 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         case Adopted(_) => ([], false)
     }
 
-    let variants = enumeration.values.map {
-        it: EnumerationEntry => resolveEnumVariant(it, asConstructor: asConstructors)
+    let variants = ArrayList<EnumVariantIr>()
+    for (entry in enumeration.values where !declared.contains(entry.name)) {
+        variants.add(resolveEnumVariant(entry, asConstructor: asConstructors))
     }
     var catchAll: ?EnumCatchAllIr = None
     if (asConstructors) {
-        if (variants |> any {it: EnumVariantIr => it.ident == CATCH_ALL_IDENT}) {
+        for (variant in variants where variant.ident == CATCH_ALL_IDENT) {
             throw IllegalStateException("`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant")
         }
         catchAll = EnumCatchAllIr(
@@ -91,10 +95,17 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         shape: shape,
         isOpen: isOpen,
         ident: ident,
-        variants: variants,
+        variants: variants.toArray(),
         derives: derives,
         catchAll: catchAll
     )
+}
+
+private func hasValue(enumeration: Enumeration, name: String): Bool {
+    for (entry in enumeration.values where entry.name == name) {
+        return true
+    }
+    false
 }
 
 private func resolveEnumVariant(entry: EnumerationEntry, asConstructor!: Bool): EnumVariantIr {

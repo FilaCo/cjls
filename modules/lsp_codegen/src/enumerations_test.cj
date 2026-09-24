@@ -30,7 +30,7 @@ private func isTransparent(ir: EnumIr): Bool {
     false
 }
 
-private let EXTERN_ERROR_CODES = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode"))]))
+private let EXTERN_ERROR_CODES = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))]))
 
 @Test
 class ResolveEnumTest {
@@ -96,6 +96,30 @@ class ResolveEnumTest {
         @Expect("PARSE_ERROR", ir.variants[0].ident)
         @Expect(ir.variants[0].serializable.isNone())
         @Expect(ir.catchAll.isNone())
+    }
+
+    @TestCase
+    func aValueTheTargetDeclaresItselfIsLeftToIt() {
+        // arrange
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer,
+            [("ParseError", IntegerOrString.Integer(-32700)), ("ServerNotInitialized", IntegerOrString.Integer(-32002))])
+        let typeMap = TypeMap(entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseError"]))]))
+
+        // act
+        let ir = resolved(sut, typeMap: typeMap).getOrThrow()
+
+        // assert
+        @PowerAssert(["SERVER_NOT_INITIALIZED"], ir.variants.map {it: EnumVariantIr => it.ident})
+    }
+
+    @TestCase
+    func declaringAValueTheEnumerationDoesNotHaveIsRefused() {
+        // arrange
+        let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer, [("ParseError", IntegerOrString.Integer(-32700))])
+        let typeMap = TypeMap(entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseErorr"]))]))
+
+        // act & assert
+        @AssertThrows[IllegalStateException](resolved(sut, typeMap: typeMap))
     }
 
     /**

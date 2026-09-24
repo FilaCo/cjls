@@ -27,16 +27,11 @@ public struct ResponseError <: Serializable<ResponseError> {
 public struct ErrorCode <: Equatable<ErrorCode> & ToString & Serializable<ErrorCode> {
     public const ErrorCode(public let value: Int32) {}
 
-    // Defined by JSON-RPC
     public static const PARSE_ERROR: ErrorCode = ErrorCode(-32700)
     public static const INVALID_REQUEST: ErrorCode = ErrorCode(-32600)
     public static const METHOD_NOT_FOUND: ErrorCode = ErrorCode(-32601)
     public static const INVALID_PARAMS: ErrorCode = ErrorCode(-32602)
     public static const INTERNAL_ERROR: ErrorCode = ErrorCode(-32603)
-
-    // implementation-defined server errors, from the range JSON-RPC reserves for them (-32099..-32000)
-    public static const SERVER_NOT_INITIALIZED: ErrorCode = ErrorCode(-32002)
-    public static const UNKNOWN_ERROR_CODE: ErrorCode = ErrorCode(-32001)
 
     public operator func ==(other: ErrorCode): Bool {
         value == other.value

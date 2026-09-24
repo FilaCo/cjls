@@ -19,8 +19,6 @@ public type LSPAny = AnyValue
 
 public type ProgressToken = IntegerOrString
 
-public type ErrorCodes = ErrorCode
-
 /**
  * Information about where a symbol is defined.
  *

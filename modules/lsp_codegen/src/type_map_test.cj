@@ -77,6 +77,21 @@ class TypeMapTest {
     }
 
     @TestCase
+    func anExternNameListsTheValuesItsTargetDeclares() {
+        // arrange
+        let sut = typeMapOf("[types.ErrorCodes]\nextern = \"ErrorCode\"\ndeclared = [\"ParseError\", \"InternalError\"]\n")
+
+        // act
+        let binding = sut.bind("ErrorCodes")
+
+        // assert
+        @Expect(match (binding) {
+            case Extern(target, declared) => target == "ErrorCode" && declared == ["ParseError", "InternalError"]
+            case _ => false
+        })
+    }
+
+    @TestCase
     func aSkippedNameHasNoCangjieCounterpart() {
         // arrange
         let sut = typeMapOf("[types.ErrorCodes]\nskip = true\n")
@@ -112,7 +127,8 @@ class TypeMapTest {
         ("[types.LSPAny]\n[types.ErrorCodes]\nskip = true\n",
             "`types.LSPAny` sets none of `rename`, `alias`, `extern`, `skip`"),
         ("[types.LSPAny]\naliaz = \"DataModel\"\n", "unknown field \"aliaz\""),
-        ("[types.LSPAny]\nalias = \"   \"\n", "`types.LSPAny.alias` must not be empty")
+        ("[types.LSPAny]\nalias = \"   \"\n", "`types.LSPAny.alias` must not be empty"),
+        ("[types.LSPAny]\nalias = \"DataModel\"\ndeclared = [\"X\"]\n", "`types.LSPAny.declared` goes only with `extern`")
     ]]
     func anEntryThatIsNotExactlyOneBindingIsRefused(row: (String, String)) {
         // arrange
