@@ -68,6 +68,8 @@ All three libraries are `static` deliberately — see the linking constraint abo
 
 Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` sits outside that chain, on `cjtoml` (which depends on nothing) and `stdxx`.
 
+Editor integrations live outside the workspace, under **`editors/<editor>/`**, the way rust-analyzer keeps `editors/code`. First-class targets are Neovim, VS Code and Zed. `editors/nvim/lsp/cjls.lua` is a `vim.lsp.Config` in `nvim-lspconfig`'s own format, so it can go upstream verbatim; with `editors/nvim` on the `runtimepath`, `vim.lsp.enable('cjls')` picks it up. Its root is simply the nearest `cjpm.toml` — a workspace member, not the workspace, for now (cjpm has no metadata command to ask).
+
 ## Architecture
 
 ### `jsonrpc` — a symmetric peer, not a server
@@ -146,5 +148,7 @@ The one macro package is `stdxx.deriving`, using `std.ast.*`. Generated code is 
 ## Testing conventions
 
 Tests live beside the code as `*_test.cj` in the same package, using `std.unittest` (`@Test` class / `@TestCase` func, `@Expect`/`@Assert`/`@AssertThrows`, `@Configure[randomSeed:]` + `@TestCase[x in random()]` for property tests). Cases follow an `// arrange` / `// act` / `// assert` layout, and are named as sentences describing the behaviour (`closeWakesACallerWaitingForAnAnswer`).
+
+The editor integrations have headless smoke tests that drive the real binary over real stdio: `cjpm build && nvim --clean --headless -u editors/nvim/test/smoke.lua` (from the repo root; `CJLS_BIN` overrides the binary). They are not part of `cjpm test`.
 
 Concurrency is tested deterministically, never with sleeps: `connection_test.cj` drives a `FakeTransport` whose queues let a test block until the connection actually writes, and hands the handler a lambda that parks on a `LinkedBlockingQueue` until the test releases it. Follow that pattern instead of timing assumptions.
