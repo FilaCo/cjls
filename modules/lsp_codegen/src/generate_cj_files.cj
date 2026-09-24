@@ -3,7 +3,7 @@ package lsp_codegen
 import std.ast.*
 import std.collection.{ArrayList, HashSet}
 import std.fs.Path
-import std.io.{ByteBuffer, StringWriter, readToEnd}
+import std.io.{ByteBuffer, readToEnd}
 
 struct CjFile {
     CjFile(let path: Path, let contents: String) {}
@@ -11,7 +11,10 @@ struct CjFile {
 
 func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
     let resolver = TypeResolver(mm, cfg)
-    let files = ArrayList<CjFile>(generateEnumerationFiles(cfg, mm))
+    let files = ArrayList<CjFile>()
+    for (enumIr in mm.enumerations.filterMap {it: Enumeration => resolveEnum(cfg, it)}) {
+        files.add(cjFileOf(cfg, mm, enumIr.ident) {emitter => emitter.emitEnum(enumIr)})
+    }
 
     let structs = ArrayList<StructIr>(mm.structures.filterMap {it: Structure => resolveStruct(cfg, resolver, it)})
     let aliasLines = resolveAliases(cfg, resolver, mm)
@@ -32,10 +35,11 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
     for (messageIr in messages) {
         files.add(cjFileOf(cfg, mm, messageIr.ident) {emitter => emitter.emitMessage(messageIr)})
     }
-    if (let Some(aliases) <- generateAliasesFile(cfg, mm, aliasLines)) {
-        files.add(aliases)
+    let configuredAliases = cfg.typeMap.aliases()
+    if (!configuredAliases.isEmpty() || !aliasLines.isEmpty()) {
+        files.add(cjFileOf(cfg, mm, "aliases") {emitter => emitter.emitAliases(configuredAliases, aliasLines)})
     }
-    files.add(generateSpecFile(cfg, mm))
+    files.add(cjFileOf(cfg, mm, "spec") {emitter => emitter.emitSpecDeclarations()})
     checkUniquePaths(files)
 
     files.toArray()
@@ -82,35 +86,6 @@ private func resolveAliases(cfg: Config, resolver: TypeResolver, mm: MetaModel):
     }
 
     lines.toArray()
-}
-
-private func generateAliasesFile(cfg: Config, mm: MetaModel, generated: Array<(DocIr, String, TypeIr)>): ?CjFile {
-    let aliases = cfg.typeMap.aliases()
-    if (aliases.isEmpty() && generated.isEmpty()) {
-        return None
-    }
-
-    let byteBuffer = ByteBuffer()
-    let cjEmitter = CjEmitter(byteBuffer)
-    cjEmitter.preambled(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports) {
-        =>
-            for ((lspName, target) in aliases) {
-                let aliasIdent = escapedIdent(lspName)
-                let targetType = Token(IDENTIFIER, target)
-                cjEmitter.emitln(quote(public type $aliasIdent = $targetType))
-            }
-            for ((doc, ident, target) in generated) {
-                let aliasIdent = escapedIdent(ident)
-                cjEmitter.nl()
-                cjEmitter.emitDoc(doc)
-                // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type alias
-                cjEmitter.emitln("public type ${aliasIdent.value} = ${target}")
-            }
-    }
-    cjEmitter.flush()
-    let contents = unsafe { String.fromUtf8(readToEnd(byteBuffer)) }
-    let path = cfg.outputDir.join("aliases.cj")
-    CjFile(path, contents)
 }
 
 private let SPEC_DECLARATIONS = """
@@ -181,46 +156,37 @@ func decodeMessageParams<P>(params: ?ArrayOrObject): P where P <: Serializable<P
 }
 """
 
-private func generateSpecFile(cfg: Config, mm: MetaModel) {
-    let byteBuffer = ByteBuffer()
-    let cjEmitter = CjEmitter(byteBuffer)
-    cjEmitter.preambled(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports) {
-        =>
-            cjEmitter.emit(DocComment(lines: ["Indicates in which direction a message is sent in the protocol."]))
-            cjEmitter.emitln(
-                quote(
+extend CjEmitter {
+    func emitAliases(configured: Array<(String, String)>, generated: Array<(DocIr, String, TypeIr)>): Unit {
+        for ((lspName, target) in configured) {
+            let aliasIdent = escapedIdent(lspName)
+            let targetType = Token(IDENTIFIER, target)
+            emitln(quote(public type $aliasIdent = $targetType))
+        }
+        for ((doc, ident, target) in generated) {
+            let aliasIdent = escapedIdent(ident)
+            nl()
+            emitDoc(doc)
+            // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type alias
+            emitln("public type ${aliasIdent.value} = ${target}")
+        }
+    }
+
+    func emitSpecDeclarations(): Unit {
+        emit(DocComment(lines: ["Indicates in which direction a message is sent in the protocol."]))
+        emitln(
+            quote(
 public enum MessageDirection {
     | ClientToServer
     | ServerToClient
     | Both
 }
         ))
-            cjEmitter.nl()
-            // verbatim: `quote` has no way to spell a doc comment, and these carry the contract
-            cjEmitter.emit(SPEC_DECLARATIONS)
+        nl()
+        // verbatim: `quote` has no way to spell a doc comment, and these carry the contract
+        emit(SPEC_DECLARATIONS)
     }
-    cjEmitter.flush()
-    let contents = unsafe { String.fromUtf8(readToEnd(byteBuffer)) }
-    let path = cfg.outputDir.join("spec.cj")
-    CjFile(path, contents)
-}
 
-private func generateEnumerationFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
-    mm.enumerations.filterMap {enumeration: Enumeration => resolveEnum(cfg, enumeration)}.map {
-        enumIr: EnumIr =>
-            let byteBuffer = ByteBuffer()
-            let cjEmitter = CjEmitter(byteBuffer)
-            cjEmitter.preambled(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports) {
-                => cjEmitter.emitEnum(enumIr)
-            }
-            cjEmitter.flush()
-            let contents = unsafe { String.fromUtf8(readToEnd(byteBuffer)) }
-            let path = cfg.outputDir.join("${enumIr.ident.toAsciiLowerSnakeCase()}.cj")
-            CjFile(path, contents)
-    }
-}
-
-extend CjEmitter {
     func preambled(version: String, outputPackage: Token, imports: Collection<String>, body: () -> Unit): Unit {
         emitln(DocComment(lines: ["Generated by lsp_codegen from metaModel.json ${version}."]))
         emitln(quote(package $outputPackage))

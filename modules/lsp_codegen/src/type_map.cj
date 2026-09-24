@@ -96,7 +96,6 @@ private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
         throw DataModelException("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
     }
 
-    // fields.size == 1
     let given = fields[0]
     let key = given.getName()
     let data = given.getData()

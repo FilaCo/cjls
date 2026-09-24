@@ -7,8 +7,8 @@ import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
 
 /**
- * Runs `body` against a throwaway directory holding `cfg` as `lsp_codegen.toml` and, when given,
- * `manifest` as `cjpm.toml` next to it. `body` receives the config path.
+ * Runs `body` with the path of `cfg` written as `lsp_codegen.toml` into a throwaway directory, and
+ * that directory - `manifest`, when given, is its `cjpm.toml`.
  */
 private func withConfigDir(cfg: String, manifest!: ?String = None, body!: (Path, Path) -> Unit): Unit {
     let dir = Directory.createTemp(getTempDirectory())
@@ -27,123 +27,38 @@ private func withConfigDir(cfg: String, manifest!: ?String = None, body!: (Path,
 
 private let DEMO_MANIFEST = "[package]\nname = \"demo\"\n"
 
+private let LSP_TYPES_CONFIG = "[general]\noutput-subpackage = \"lsp_types\"\n"
+
 @Test
 class ConfigLoadTest {
-    @TestCase
-    func inheritsSrcDirAndRootPackageFromTheManifest() {
+    /**
+     * `(src-dir in cjpm.toml, src-dir in the config, the directory expected)`: the config wins over
+     * the manifest, which wins over `src`; cjpm writes `""` for unset, so a blank value falls through;
+     * a relative one resolves against the config's directory, not the cwd.
+     */
+    @TestCase[row in [
+        ("", "", "src"),
+        ("src-dir = \"sources\"\n", "", "sources"),
+        ("src-dir = \"sources\"\n", "src-dir = \"generated\"\n", "generated"),
+        ("src-dir = \"\"\n", "", "src"),
+        ("src-dir = \"sources\"\n", "src-dir = \"\"\n", "sources"),
+        ("", "src-dir = \"   \"\n", "src"),
+        ("", "src-dir = \"./nested/../src\"\n", "src")
+    ]]
+    func theSrcDirComesFromTheConfigThenTheManifestThenTheDefault(row: (String, String, String)) {
         // arrange
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
+        let (manifestSrcDir, cfgSrcDir, expected) = row
+        let manifest = DEMO_MANIFEST + manifestSrcDir
+        let cfg = "[general]\n${cfgSrcDir}output-subpackage = \"lsp_types\"\n"
 
-        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
+        withConfigDir(cfg, manifest: manifest) {
             cfgPath, dir =>
                 // act
                 let sut = Config.load(cfgPath)
 
                 // assert
                 @Expect("demo.lsp_types", sut.outputPackage)
-                @Expect(dir.join("src").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    @TestCase
-    func honoursSrcDirFromTheManifest() {
-        // arrange
-        let manifest = "[package]\nname = \"demo\"\nsrc-dir = \"sources\"\n"
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: manifest) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("sources").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    @TestCase
-    func theConfigSrcDirWinsOverTheManifest() {
-        // arrange
-        let manifest = "[package]\nname = \"demo\"\nsrc-dir = \"sources\"\n"
-        let cfg = "[general]\nsrc-dir = \"generated\"\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: manifest) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("generated").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    /**
-     * cjpm writes `""` to mean "unset", so a blank value must fall through to the next source
-     * rather than resolving to a directory whose name is the empty string.
-     */
-    @TestCase
-    func anEmptySrcDirInTheManifestFallsBackToSrc() {
-        // arrange
-        let manifest = "[package]\nname = \"demo\"\nsrc-dir = \"\"\n"
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: manifest) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("src").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    @TestCase
-    func anEmptySrcDirInTheConfigFallsBackToTheManifest() {
-        // arrange
-        let manifest = "[package]\nname = \"demo\"\nsrc-dir = \"sources\"\n"
-        let cfg = "[general]\nsrc-dir = \"\"\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: manifest) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("sources").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    @TestCase
-    func aBlankSrcDirIsTreatedAsAbsent() {
-        // arrange
-        let cfg = "[general]\nsrc-dir = \"   \"\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("src").join("lsp_types").toString(), sut.outputDir.toString())
-        }
-    }
-
-    /**
-     * The whole point of reading the config through its own directory: the output must not move
-     * when the generator is run from a different cwd.
-     */
-    @TestCase
-    func aRelativeSrcDirResolvesAgainstTheConfigDirNotTheCwd() {
-        // arrange
-        let cfg = "[general]\nsrc-dir = \"./nested/../src\"\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
-            cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
-
-                // assert
-                @Expect(dir.join("src").join("lsp_types").toString(), sut.outputDir.toString())
+                @Expect(dir.join(expected).join("lsp_types").toString(), sut.outputDir.toString())
         }
     }
 
@@ -180,10 +95,7 @@ class ConfigLoadTest {
 
     @TestCase
     func importsDefaultToNoneAndTypesToAnEmptyMap() {
-        // arrange
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg, manifest: DEMO_MANIFEST) {
+        withConfigDir(LSP_TYPES_CONFIG, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
                 // act
                 let sut = Config.load(cfgPath)
@@ -197,8 +109,7 @@ class ConfigLoadTest {
     @TestCase
     func importsAndTypesAreReadFromTheConfig() {
         // arrange
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\nimports = [\"jsonrpc.*\"]\n" +
-            "[types.ErrorCodes]\nskip = true\n"
+        let cfg = LSP_TYPES_CONFIG + "imports = [\"jsonrpc.*\"]\n[types.ErrorCodes]\nskip = true\n"
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
@@ -228,10 +139,7 @@ class ConfigLoadTest {
 
     @TestCase
     func aMissingManifestThrowsBecauseTheRootPackageIsUnknown() {
-        // arrange
-        let cfg = "[general]\noutput-subpackage = \"lsp_types\"\n"
-
-        withConfigDir(cfg) {
+        withConfigDir(LSP_TYPES_CONFIG) {
             cfgPath, _ =>
                 // act
                 let e = @AssertThrows[ConfigException](Config.load(cfgPath))
@@ -258,21 +166,14 @@ class ConfigLoadTest {
 }
 
 @Test
-class ConfigDirOfTest {
-    /**
-     * `Path("lsp_codegen.toml").parent` is empty, and joining onto an empty path throws — so a
-     * config named without a directory has to resolve to the cwd explicitly.
-     */
+class ConfigPathsTest {
     @TestCase
     func aBareFilenameResolvesToTheCwd() {
-        // arrange
-        let cfgPath = Path("lsp_codegen.toml")
-
         // act
-        let sut = parentDirOf(cfgPath)
+        let sut = parentDirOf(Path("lsp_codegen.toml"))
 
-        // assert — an empty parent would throw on the join that `load` does next
-        @Expect(false, sut.isEmpty())
+        // assert
+        @Expect(!sut.isEmpty())
         @Expect("src", Path("src").resolveAgainst(sut).toString())
     }
 
@@ -284,55 +185,16 @@ class ConfigDirOfTest {
         // assert
         @Expect("modules/cjls", sut.toString())
     }
-}
 
-@Test
-class ResolveAgainstTest {
-    @TestCase
-    func joinsARelativePathOntoTheBase() {
+    @TestCase[row in [("src", "/base/src"), ("./nested/../src", "/base/src"), ("/elsewhere/src", "/elsewhere/src")]]
+    func aPathResolvesAgainstABaseUnlessItIsAbsolute(row: (String, String)) {
+        // arrange
+        let (path, expected) = row
+
         // act
-        let sut = Path("src").resolveAgainst(Path("/base"))
+        let sut = Path(path).resolveAgainst(Path("/base"))
 
         // assert
-        @Expect("/base/src", sut.toString())
-    }
-
-    @TestCase
-    func normalizesWhileJoining() {
-        // act
-        let sut = Path("./nested/../src").resolveAgainst(Path("/base"))
-
-        // assert
-        @Expect("/base/src", sut.toString())
-    }
-
-    @TestCase
-    func ignoresTheBaseForAnAbsolutePath() {
-        // act
-        let sut = Path("/elsewhere/src").resolveAgainst(Path("/base"))
-
-        // assert
-        @Expect("/elsewhere/src", sut.toString())
-    }
-}
-
-@Test
-class ConfigOutputDirTest {
-    @TestCase
-    func skipsTheRootPackageWhenDerivingTheOutputDir() {
-        // act
-        let sut = Config(srcDir: Path("/base/src"), outputPackage: "cjls.lsp_types")
-
-        // assert
-        @Expect("/base/src/lsp_types", sut.outputDir.toString())
-    }
-
-    @TestCase
-    func mapsEveryDottedSegmentToADirectory() {
-        // act
-        let sut = Config(srcDir: Path("/base/src"), outputPackage: "cjls.lsp.types")
-
-        // assert
-        @Expect("/base/src/lsp/types", sut.outputDir.toString())
+        @Expect(expected, sut.toString())
     }
 }

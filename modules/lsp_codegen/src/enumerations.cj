@@ -21,19 +21,13 @@ struct EnumCatchAllIr {
 
 const CATCH_ALL_IDENT = "Unknown"
 
-/**
- * Where the constants of an enumeration land.
- */
 enum EnumShape {
-    /**
-     * We declare the type, and the constants live inside it.
-     */
     | Declared
 
     /**
-     * The type is declared elsewhere and only the variants are ours. Holds the name of that type.
-     *
-     * @note they travel as `static prop`s on an interface the type is extended with.
+     * The type is declared elsewhere - this is its name - and only the constants are ours. They
+     * travel as `static prop`s on an interface the type is extended with: a bare `extend` would not
+     * export them past this package.
      */
     | Adopted(String)
 }
@@ -142,7 +136,6 @@ extend CjEmitter {
         let targetType = cangjieLex(target)
 
         emit(quote(sealed interface $interfaceIdent))
-        // body
         blockln {
             => for (variant in adopted.variants) {
                 emitAdoptedVariant(variant, targetType)
@@ -166,10 +159,8 @@ extend CjEmitter {
         let enumBaseType = openEnum.base.toTokens()
 
         emit(quote(public struct $enumIdent))
-        // body
         blockln {
             =>
-                // primary ctor
                 emitln(quote(public const $enumIdent(public let value: $enumBaseType) {}))
 
                 for (variant in openEnum.variants) {
@@ -191,7 +182,6 @@ extend CjEmitter {
         let enumIdent = escapedIdent(closedEnum.ident)
 
         emit(quote(public enum $enumIdent))
-        // body
         blockln {
             =>
                 for (variant in closedEnum.variants) {

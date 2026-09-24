@@ -3,21 +3,15 @@ package lsp_codegen
 import std.collection.ArrayList
 
 /**
- * LSP's `void` - the params of a message that takes none, the result of a request answered with a
- * bare `null` - as a handler spells it.
+ * LSP's `void`: the params of `exit`, the result of `shutdown`.
  */
 const UNIT_TYPE = "Unit"
 
 /**
- * What a message's struct is called after its `typeName`: it is the spec of the message, not the
- * message itself - `InitializeRequestSpec`.
+ * The struct is the spec of the message, not the message itself.
  */
 const SPEC_SUFFIX = "Spec"
 
-/**
- * A request or notification of the metaModel, declared as a struct that names the method and its
- * types.
- */
 struct MessageIr {
     MessageIr(
         let doc: DocIr,
@@ -35,9 +29,6 @@ struct MessageIr {
         let isRequest!: Bool
     ) {}
 
-    /**
-     * The params as a handler takes them: `Unit` for none.
-     */
     prop paramsType: String {
         get() {
             params?.toString() ?? UNIT_TYPE
@@ -52,8 +43,7 @@ struct MessageIr {
 }
 
 /**
- * Resolves every message, and with it the unions and literals only messages use - they belong
- * with the rest of the declarations, so this runs before those are collected.
+ * Runs before the declarations are collected: it meets unions and literals only messages use.
  */
 func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
     let messages = ArrayList<MessageIr>()
@@ -93,8 +83,7 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
 }
 
 /**
- * Every message of the metaModel has a `typeName`; one without it has nothing to be called by that
- * could not clash with a type, so it is refused rather than named after its method.
+ * A name made up from the method could clash with a type, so a message without `typeName` is refused.
  */
 private func messageIdentOf(typeName: ?String, method: String): String {
     typeName.getOrThrow {=> IllegalStateException("message `${method}` has no type name")}
@@ -111,7 +100,6 @@ private func paramsOf(resolver: TypeResolver, owner: String, params: ?OneOrMany<
 
 private func resultOf(resolver: TypeResolver, owner: String, result: Type): ?TypeIr {
     match (result) {
-        // a request answered with nothing - `shutdown` - has `null` for its whole result
         case Base(Null) => None
         case _ => resolver.resolve(result, context: owner + "Result")
     }
@@ -126,22 +114,7 @@ private func resolveUnused(resolver: TypeResolver, owner: String, types: Array<(
     }
 }
 
-func resolveDoc(request: Request): DocIr {
-    DocIr(documentation: request.documentation, since: request.since, sinceTags: request.sinceTags,
-        proposed: request.proposed ?? false, deprecated: request.deprecated)
-}
-
-func resolveDoc(notification: Notification): DocIr {
-    DocIr(documentation: notification.documentation, since: notification.since, sinceTags: notification.sinceTags,
-        proposed: notification.proposed ?? false, deprecated: notification.deprecated)
-}
-
 extend CjEmitter {
-    /**
-     * A struct with no fields: a value of it names the message where a handler is registered, and
-     * carries what the message is - its method, its types, and how its params and result go over
-     * the wire.
-     */
     func emitMessage(messageIr: MessageIr): Unit {
         let ident = escapedIdent(messageIr.ident).value
         let types = if (messageIr.isRequest) {
@@ -210,7 +183,6 @@ extend CjEmitter {
         indented {
             => match (messageIr.result) {
                 case Some(_) => emitln("result.serialize()")
-                // `null` is the whole answer
                 case None => emitln("DataModelNull()")
             }
         }

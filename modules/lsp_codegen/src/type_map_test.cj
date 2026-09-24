@@ -31,7 +31,7 @@ private struct TypesOnly <: Serializable<TypesOnly> {
     }
 
     public func serialize(): DataModel {
-        throw UnsupportedException("TypesOnly serialization is not supported.")
+        throw UnsupportedException()
     }
 }
 
@@ -39,16 +39,12 @@ private struct TypesOnly <: Serializable<TypesOnly> {
 class TypeMapTest {
     @TestCase
     func anUnlistedNameIsOursToDeclareUnderItsOwnName() {
-        // arrange
-        let sut = TypeMap()
-
         // act
-        let binding = sut.bind("SymbolKind")
+        let binding = TypeMap().bind("SymbolKind")
 
         // assert
-        @Expect("SymbolKind", binding.typeNameOf("SymbolKind") ?? "")
         @Expect(match (binding) {
-            case Owned(_) => true
+            case Owned(ident) => ident == "SymbolKind"
             case _ => false
         })
     }
@@ -105,55 +101,27 @@ class TypeMapTest {
         @Expect(sut.aliases().isEmpty())
     }
 
-    @TestCase
-    func settingTwoBindingsForOneNameThrows() {
-        // arrange
-        let cfg = "[types.LSPAny]\nalias = \"DataModel\"\nskip = true\n"
-
-        // act
-        let e = @AssertThrows[DataModelException](typeMapOf(cfg))
-
-        // assert
-        @Expect("`types.LSPAny` sets more than one of `rename`, `alias`, `extern`, `skip`", e.message)
-    }
-
     /**
-     * A name listed with no binding under it reads as an intent the generator cannot act on, so it
-     * is louder to reject it than to silently declare the type ourselves.
+     * A config line the generator cannot act on is an error here rather than a surprise in the
+     * generated files: an empty entry would silently declare the type, a blank target emit
+     * `public type LSPAny = `.
      */
-    @TestCase
-    func anEmptyEntryThrowsRatherThanBeingIgnored() {
+    @TestCase[row in [
+        ("[types.LSPAny]\nalias = \"DataModel\"\nskip = true\n",
+            "`types.LSPAny` sets more than one of `rename`, `alias`, `extern`, `skip`"),
+        ("[types.LSPAny]\n[types.ErrorCodes]\nskip = true\n",
+            "`types.LSPAny` sets none of `rename`, `alias`, `extern`, `skip`"),
+        ("[types.LSPAny]\naliaz = \"DataModel\"\n", "unknown field \"aliaz\""),
+        ("[types.LSPAny]\nalias = \"   \"\n", "`types.LSPAny.alias` must not be empty")
+    ]]
+    func anEntryThatIsNotExactlyOneBindingIsRefused(row: (String, String)) {
         // arrange
-        let cfg = "[types.LSPAny]\n[types.ErrorCodes]\nskip = true\n"
+        let (toml, message) = row
 
         // act
-        let e = @AssertThrows[DataModelException](typeMapOf(cfg))
+        let e = @AssertThrows[DataModelException](typeMapOf(toml))
 
         // assert
-        @Expect("`types.LSPAny` sets none of `rename`, `alias`, `extern`, `skip`", e.message)
-    }
-
-    @TestCase
-    func aMisspelledKeyThrowsRatherThanBeingIgnored() {
-        // arrange
-        let cfg = "[types.LSPAny]\naliaz = \"DataModel\"\n"
-
-        // act
-        let e = @AssertThrows[DataModelException](typeMapOf(cfg))
-
-        // assert
-        @Expect("unknown field \"aliaz\"", e.message)
-    }
-
-    @TestCase
-    func aBlankTargetThrows() {
-        // arrange
-        let cfg = "[types.LSPAny]\nalias = \"   \"\n"
-
-        // act
-        let e = @AssertThrows[DataModelException](typeMapOf(cfg))
-
-        // assert
-        @Expect("`types.LSPAny.alias` must not be empty", e.message)
+        @Expect(message, e.message)
     }
 }

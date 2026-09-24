@@ -15,7 +15,7 @@ struct Config {
         let typeMap!: TypeMap = TypeMap()
     ) {
         var outputDirVal = srcDir
-        // skip root package name
+        // cjpm names a subpackage `<root>.<path under src-dir>`: the root is no directory
         for (s in outputPackage.split(".")[1..]) {
             outputDirVal = outputDirVal.join(s)
         }
@@ -46,6 +46,9 @@ struct Config {
     }
 }
 
+/**
+ * cjpm writes `""` for an unset `src-dir`, so a blank one falls through to the next source.
+ */
 private func optionalPathField(dms: DataModelStruct, key: String): ?Path {
     let raw: ?String = match (dms.get(key)) {
         case s: DataModelString => s.getValue()
@@ -91,10 +94,8 @@ private struct ConfigFile <: Serializable<ConfigFile> {
         let dms = dm.asStructOrThrow()
         let general = dms.get("general").asStructOrThrow()
 
-        let srcDir = optionalPathField(general, "src-dir")
-
         ConfigFile(
-            srcDir: srcDir,
+            srcDir: optionalPathField(general, "src-dir"),
             outputSubpackage: general.get("output-subpackage").asStringOrThrow(),
             imports: stringListField(general, "imports"),
             typeMap: TypeMap.deserialize(dms.get("types"))
@@ -106,9 +107,6 @@ private struct ConfigFile <: Serializable<ConfigFile> {
     }
 }
 
-/**
- * A list of strings that may legitimately be absent, read as `[]` when it is.
- */
 private func stringListField(dms: DataModelStruct, key: String): Array<String> {
     let items = match (dms.get(key)) {
         case seq: DataModelSeq => seq.getItems()
@@ -131,16 +129,11 @@ private struct CjpmManifest <: Serializable<CjpmManifest> {
         let dms = dm.asStructOrThrow()
         let pkg = dms.get("package").asStructOrThrow()
 
-        let srcDir = optionalPathField(pkg, "src-dir")
-
-        CjpmManifest(
-            name: pkg.get("name").asStringOrThrow(),
-            srcDir: srcDir
-        )
+        CjpmManifest(name: pkg.get("name").asStringOrThrow(), srcDir: optionalPathField(pkg, "src-dir"))
     }
 
     public func serialize(): DataModel {
-        throw UnsupportedException("CjpmManifest serialization is not supported.")
+        throw UnsupportedException()
     }
 
     static func load(cfgDir: Path): ?CjpmManifest {
