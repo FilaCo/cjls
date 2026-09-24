@@ -13,8 +13,7 @@ import std.collection.*
  * Not thread-safe, as `HashMap` is not.
  */
 public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
-    let entries: ArrayList<(K, V)>
-    private let indices: HashMap<K, Int64>
+    private IndexMap(let entries: ArrayList<(K, V)>, private let indices: HashMap<K, Int64>) {}
 
     public init() {
         this(0)
@@ -24,8 +23,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
      * @throws IllegalArgumentException - if `capacity` is negative
      */
     public init(capacity: Int64) {
-        entries = ArrayList(capacity)
-        indices = HashMap(capacity)
+        this(ArrayList(capacity), HashMap(capacity))
     }
 
     /**
@@ -202,7 +200,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
     }
 
     public func clone(): IndexMap<K, V> {
-        IndexMap(entries)
+        IndexMap(entries.clone(), indices.clone())
     }
 
     /**
