@@ -383,7 +383,7 @@ class Lexer {
         if (wellFormed) {
             emit(kind, start)
         } else {
-            emitError(kind, start, "unterminated or empty backquoted identifier")
+            emitError(kind, start, "a backquoted identifier must be closed and hold a name")
         }
     }
 

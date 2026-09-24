@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, built bottom-up: the `jsonrpc` peer, the generated protocol types (messages included), and a handler framework with the lifecycle (`initialize`/`shutdown`/`exit`) are in place and tested; the server advertises no capabilities yet, and the query-driven incremental frontend that will answer real requests is still to be written.
+`cjls` is a Language Server Protocol implementation for the **Cangjie** language, written in Cangjie itself. It is an early-stage MVP, built bottom-up: the `jsonrpc` peer, the generated protocol types (messages included), and a handler framework with the lifecycle (`initialize`/`shutdown`/`exit`) are in place and tested; the server advertises no capabilities yet. Of the query-driven incremental frontend that will answer real requests, the first layer exists: a lossless, error-tolerant parser (`cjsyntax`, on the `ginkgo` trees), not wired into the server yet.
 
 There are no separate design documents: they went stale faster than the code moved and were removed on purpose. The code, its tests and this file are the source of truth — don't recreate a DESIGN.md, and don't argue with the current code on the strength of an old design.
 
@@ -56,13 +56,15 @@ git config core.hooksPath .githooks
 
 ## Workspace layout
 
-Six members declared in the root `cjpm.toml`, each its own package:
+Eight members declared in the root `cjpm.toml`, each its own package:
 
 - **`modules/stdxx`** (`static`) — foundation library, three packages, no project dependencies. Import what you use by name; nothing imports `stdxx.*` whole.
   - `stdxx` — the sum types (`IntegerOrString`, `Nullable`) and their exceptions.
   - `stdxx.serialization` — the `DataModel` helpers (`data_model.cj`) and `AnyValue`, a serializable `DataModel` (`LSPAny` aliases it; an imported type can't be extended with an imported interface, so `DataModel` itself never can be).
   - `stdxx.deriving` — the **macro package** for `@DeriveExt[...]` codegen.
 - **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
+- **`modules/ginkgo`** (`static`) — rowan for Cangjie, language-agnostic, no project dependencies. `ginkgo`: lossless green/red syntax trees (`GreenNode`/`GreenToken`, `NodeCache`, `GreenNodeBuilder`, `SyntaxNode`/`SyntaxToken`/`SyntaxElement`, `TextRange`). `ginkgo.parsing`: the grammar-agnostic half of rust-analyzer's parser — `Lexed`, `Input`, the event-based `Parser` with `Marker`s, and `buildTree`.
+- **`modules/cjsyntax`** (`static`) — the Cangjie lexer and parser, on `ginkgo`: `tokenize(text)`, `parse(text)`, and `SyntaxKind`. Not used by `cjls` yet.
 - **`modules/cjls`** (`executable`) — the server: entrypoint and logging (`cjls`), the handlers (`cjls.handlers`), the framework they run in (`cjls.server`) with its `@LspHandler` macro (`cjls.macros`), and the generated `cjls.lsp_types`. Depends on `jsonrpc`.
 - **`modules/index_map`** (`static`) — `IndexMap`, a hash map that keeps insertion order and so gives each entry an index, after Rust's `indexmap`; it implements `std.collection.Map`. No project dependencies.
 - **`modules/cjtoml`** (`static`) — a vendored TOML parser/encoder (Huawei, Apache-2.0 with Runtime Library Exception), carried in-tree because `stdx` ships no TOML module. Its public entry point is `unmarshal<T>(path: String): T where T <: Serializable<T>` — it takes a **file path**, not TOML text. Third-party code: keep it byte-identical to upstream, and never run `cjfmt` over it.
@@ -76,9 +78,9 @@ Six members declared in the root `cjpm.toml`, each its own package:
   - **`extern`** (`[types.X] extern = "Target"` in the config) keeps an enumeration's type elsewhere and adopts its values onto that type: a `sealed interface X` of `static prop`s, and `extend Target <: X {}` — a bare `extend` would not export them past `lsp_types`. Values the target declares itself go in `declared = [...]`, since a `static const` and an adopted `static prop` of one name do not compile. That is how the LSP error codes land on jsonrpc's `ErrorCode` without jsonrpc knowing them.
   - **Doc comments** have `/*` and `*/` escaped: block comments nest in Cangjie, so a glob in the documentation would swallow the rest of the file.
 
-All four libraries are `static` deliberately — see the linking constraint above.
+All the libraries are `static` deliberately — see the linking constraint above.
 
-Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` sits outside that chain, on `cjtoml` (which depends on nothing) and `stdxx`.
+Dependencies flow one way: `cjls → jsonrpc → stdxx`, and `cjsyntax → ginkgo`. `lsp_codegen` sits outside both chains, on `cjtoml` (which depends on nothing) and `stdxx`.
 
 Editor integrations live outside the workspace, under **`editors/<editor>/`**, the way rust-analyzer keeps `editors/code`. First-class targets are Neovim, VS Code and Zed. `editors/nvim/lsp/cjls.lua` is a `vim.lsp.Config` in `nvim-lspconfig`'s own format, so it can go upstream verbatim; with `editors/nvim` on the `runtimepath`, `vim.lsp.enable('cjls')` picks it up. Its root is simply the nearest `cjpm.toml` — a workspace member, not the workspace, for now (cjpm has no metadata command to ask).
 
@@ -153,6 +155,17 @@ Router()
 - **Registration is explicit**, one line per handler in `handlers/router.cj`, as in rust-analyzer; `Router` refuses a second handler for a method, and a `ReadOnlyContext` one for `initialize`, `shutdown` or `exit`, since whatever follows them must see the state they leave.
 
 **The server** (`server/server.cj`, internal) is the `Handler` `jsonrpc` calls. It keeps the lifecycle by method alone — the same for every server: before a successful `initialize` requests get `SERVER_NOT_INITIALIZED` and notifications are dropped; a second `initialize` or anything after `shutdown` is `INVALID_REQUEST`; `exit` runs its handler if any, then closes the connection in any state. It also owns the logging every handler would otherwise repeat: each answer is timed at `DEBUG`, a thrown `RpcException` is a `WARN` with its message, anything else an `ERROR` with its stack, and lifecycle changes are `INFO`.
+
+### `ginkgo` and `cjsyntax` — lossless trees and the Cangjie parser
+
+The design is rust-analyzer's, piece for piece: rowan's trees in `ginkgo`, its `parser` crate's machinery in `ginkgo.parsing`, and the grammar in `cjsyntax`.
+
+- **Trees.** Green nodes are immutable, know only their kind, children and text length, and are interned by `NodeCache` (tokens always, nodes of up to three children), so equal subtrees are one object. Red nodes (`SyntaxNode`) are made on demand as a tree is walked, carrying parent, index and offset; two values for one node are equal. Editing is `replaceWith`, which builds a new root and shares the rest. Everything is generic over the kind `K <: Kind<K>`, in practice the language's enum — there is no raw `u16` kind, as Cangjie monomorphizes generics.
+- **Parsing is in three steps.** The lexer makes `Lexed` (every token, trivia included, covering the text exactly); `toInput` keeps the rest for the parser, each marked with whether a newline comes before it and whether it is joint with the next; the grammar records events (`Marker.complete`, `CompletedMarker.precede` to wrap what came before, as for `a + b`) and `buildTree` weaves the trivia back in. Trivia before a node goes to its parent, except what `TriviaRules.attachedTrivia` gives the node — in Cangjie, comments right before a declaration with no blank line between, its documentation. Whatever the grammar leaves unconsumed ends up in an `ErrorNode` at the end, so **the tree always covers the text**, whatever the grammar does. `Parser.snapshot`/`rewind` let the grammar try a parse and take it back; a grammar stuck in a loop throws rather than hangs.
+- **The grammar follows the compiler's parser** (`cangjie_compiler/src/Parse`), and its behaviour is the specification: when the two disagree, the compiler is right. The rules easy to get wrong: newlines end statements, but a binary operator other than `-` and `?` carries the expression on after one, and so does a `.`; `(`, `[`, `{` (a trailing lambda), `?`, `++`, `--` only continue an expression on the same line. `>` and `?` are always lexed alone, and the parser glues `>>`, `>=`, `>>=`, `??` from joint pieces. `a<b>(c)` is guessed by parsing type arguments and rewinding if they fail, plus the compiler's rule that among comma-separated expressions, arguments that could be expressions need a follower an expression can take (`f(a < b, c > d)` is two comparisons). Contextual keywords (`public`, `open`, …) are names wherever a name fits, remapped to `Ident`; builtin annotations (`@Deprecated`) are told from macro calls (`@M`) by name, through the contextual kind `BuiltinAnnotationName`. A string is lexed in pieces around its interpolations, so what is inside is parsed as code.
+- **Errors go into the parse, never out of it** — structural checks the compiler's parser makes (a class in a class body, a function without a body outside a class, the order of `package` and `import`) included; semantic ones (modifier conflicts, annotation targets) are not, and belong to a later validation pass over the tree.
+- **`SyntaxKind` is written out by hand**, one list per method (`toString`, `fixedText`, `keyword`, `isKeyword`): a new kind goes in each that concerns it. Its constructors share the package namespace (see the enum scoping note under `lsp_codegen`), so a kind must not be named like a type the package uses: `Resource` would shadow `std.core.Resource`, hence `ResourceDecl`; keywords end in `Kw` so `Int64Kw` does not shadow `Int64`.
+- **Tests** are snapshots in `parser_test.cj`: text against its tree as an S-expression (`sexp`, trivia left out) with the errors. The parser was checked against the compiler's test suite (`cangjie_test`, ~98k `.cj` files, with the compiler's own parser through `std.ast.parseProgram` as the oracle): every tree covered its text, and no file it reported an error in did the compiler's parser accept. Keep it that way — a false error in an editor is worse than a missed one. The harness is not in the repo; rebuild it (a walk over the files calling `parse`, and one calling `parseProgram`) when touching the grammar.
 
 ### Macro-package mechanics
 

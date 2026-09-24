@@ -110,6 +110,31 @@ class LexerTest {
     }
 
     @TestCase
+    func aWrongEscapeIsReportedOnItsToken() {
+        // act & assert
+        @Expect(lexDump(#""\W" "\u{12" r'\q'"#),
+            #"StringStart(") StringContent(\W) StringEnd(") StringStart(") StringContent(\u{12) StringEnd(") "# +
+            #"RuneLit(r'\q') !\W: unrecognized escape "# +
+            #"!\u{12: expected '}' or a hexadecimal digit in a unicode escape !r'\q': unrecognized escape"#)
+    }
+
+    @TestCase
+    func namesThatAreNotNamesAreReported() {
+        // act & assert
+        @Expect(lexDump("`0` `_` `ok`"),
+            "Ident(`0`) Ident(`_`) Ident(`ok`) !`0`: a backquoted identifier must be closed and hold a name " +
+            "!`_`: a backquoted identifier must be closed and hold a name")
+        @Expect(lexDump(#"$if"#), #"DollarIdent($if) !$if: expected an identifier after '$', found a keyword"#)
+    }
+
+    @TestCase
+    func aHexadecimalFloatNeedsAnExponent() {
+        // act & assert
+        @Expect(lexDump("0x1.8p1 0x1.8"),
+            "FloatLit(0x1.8p1) FloatLit(0x1.8) !0x1.8: a hexadecimal float needs an exponent part")
+    }
+
+    @TestCase
     func blockCommentsNest() {
         // act & assert
         @Expect(lexDump("/* a /* b */ c */x // end"), "BlockComment(/* a /* b */ c */) Ident(x) LineComment(// end)")
