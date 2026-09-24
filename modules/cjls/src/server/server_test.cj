@@ -11,7 +11,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
 import rope.Rope
-import vfs.VfsPath
+import cjls.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 

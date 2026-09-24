@@ -3,7 +3,7 @@ package cjls.handlers
 import std.fs.{File, FSException}
 import stdx.log.Logger
 import rope.{Encoding, LineColumn, Rope}
-import vfs.VfsPath
+import cjls.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler

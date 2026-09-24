@@ -1,11 +1,11 @@
-package base_db
+package cjls.db
 
 import std.collection.*
 import std.sync.*
 import calca.*
 import calca.macros.*
 import rope.Rope
-import vfs.*
+import cjls.vfs.*
 import cjsyntax.CjParse
 import cjsyntax.parse as parseText
 

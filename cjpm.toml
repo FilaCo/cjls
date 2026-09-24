@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "modules/base_db",
     "modules/calca",
     "modules/cjls",
     "modules/cjsyntax",
@@ -11,7 +10,6 @@ members = [
     "modules/lsp_codegen",
     "modules/rope",
     "modules/stdxx",
-    "modules/vfs",
 ]
 build-members = []
 test-members = []

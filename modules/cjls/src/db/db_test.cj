@@ -1,4 +1,4 @@
-package base_db
+package cjls.db
 
 import std.collection.collectArray
 import std.sync.*
@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
 import calca.*
 import calca.macros.*
 import rope.Rope
-import vfs.*
+import cjls.vfs.*
 
 let itemCountRuns = AtomicInt64(0)
 

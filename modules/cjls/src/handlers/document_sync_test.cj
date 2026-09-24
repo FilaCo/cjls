@@ -7,8 +7,8 @@ import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import stdxx.Nullable
 import rope.{Encoding, Rope}
-import vfs.VfsPath
-import base_db.parse
+import cjls.vfs.VfsPath
+import cjls.db.parse
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*

@@ -3,8 +3,8 @@ package cjls.server
 import std.collection.HashMap
 import calca.Storage
 import rope.{Encoding, Rope}
-import vfs.*
-import base_db.*
+import cjls.vfs.*
+import cjls.db.*
 
 /**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
