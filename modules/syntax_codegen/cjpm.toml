@@ -1,0 +1,23 @@
+[package]
+cjc-version = "1.3.0"
+name = "syntax_codegen"
+organization = ""
+description = "Generates a parser's syntax kinds and typed tree views from its kinds file and ungrammar"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "executable"
+compile-option = ""
+override-compile-option = ""
+link-option = "-lc++"
+package-configuration = {}
+
+[dependencies]
+cjtoml = { path = "../cjtoml" }
+stdxx = { path = "../stdxx" }
+
+# The tests check what the generator made against the parser it made it for; the generator itself must not need
+# that parser, or a broken output could not be made again.
+[test-dependencies]
+cjsyntax = { path = "../cjsyntax" }
+ginkgo = { path = "../ginkgo" }
