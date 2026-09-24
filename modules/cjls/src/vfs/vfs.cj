@@ -2,6 +2,7 @@ package cjls.vfs
 
 import std.collection.*
 import std.sync.*
+import index_map.{IndexMap, IndexSet}
 import rope.Rope
 
 /**
@@ -29,14 +30,13 @@ public struct FileId <: Hashable & Equatable<FileId> & ToString {
 }
 
 /**
- * Every path a `Vfs` has seen, each with its `FileId`, for good: an id never stands for another
- * path, even once its file is gone. Safe to share between threads, so a handler off the main loop
- * can look a path up.
+ * Every path a `Vfs` has seen, each with its `FileId`, for good: an id is its path's index in the
+ * order they were seen, and never stands for another path, even once its file is gone. Safe to
+ * share between threads, so a handler off the main loop can look a path up.
  */
 public class PathInterner {
     private let lock = ReadWriteLock()
-    private let ids = HashMap<VfsPath, FileId>()
-    private let paths = ArrayList<VfsPath>()
+    private let paths = IndexSet<VfsPath>()
 
     public init() {}
 
@@ -44,9 +44,10 @@ public class PathInterner {
      * The id `path` has, or `None` if it was never seen.
      */
     public func lookup(path: VfsPath): ?FileId {
-        synchronized(lock.readLock) {
-            ids.get(path)
+        let index = synchronized(lock.readLock) {
+            paths.indexOf(path)
         }
+        index.map {i => FileId(i)}
     }
 
     /**
@@ -55,15 +56,9 @@ public class PathInterner {
     public func intern(path: VfsPath): FileId {
         match (lookup(path)) {
             case Some(id) => id
+            // adding a path already there, as another thread may have meanwhile, keeps its index
             case None => synchronized(lock.writeLock) {
-                match (ids.get(path)) {
-                    case Some(id) => id
-                    case None =>
-                        let id = FileId(paths.size)
-                        paths.add(path)
-                        ids.add(path, id)
-                        id
-                }
+                FileId(paths.addWithIndex(path)[0])
             }
         }
     }
@@ -72,9 +67,10 @@ public class PathInterner {
      * @throws IndexOutOfBoundsException - if the id was not given here
      */
     public func path(id: FileId): VfsPath {
-        synchronized(lock.readLock) {
-            paths[id.index]
+        let path = synchronized(lock.readLock) {
+            paths.getAt(id.index)
         }
+        path.getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
     }
 }
 
@@ -125,8 +121,7 @@ public struct ChangedFile <: ToString {
 public class Vfs {
     public let paths = PathInterner()
     private let contents = ArrayList<?Rope>()
-    private let changes = ArrayList<FileId>()
-    private let pending = HashMap<FileId, ChangeKind>()
+    private let changes = IndexMap<FileId, ChangeKind>()
 
     public init() {}
 
@@ -182,31 +177,23 @@ public class Vfs {
     }
 
     /**
-     * The changes since they were last taken, one per file in the order the files first changed,
-     * folded into what they amount to: a file created then deleted is no change at all.
+     * The changes since they were last taken, one per file, folded into what they amount to: a
+     * file created then deleted is no change at all. In the order the files began to change,
+     * counting from after the last change of each that came to nothing.
      */
     public func takeChanges(): Array<ChangedFile> {
-        let taken = ArrayList<ChangedFile>()
-        for (id in changes) {
-            // an id listed twice, created, deleted and created again, is taken once
-            if (let Some(kind) <- pending.remove(id)) {
-                taken.add(ChangedFile(id, kind))
-            }
-        }
+        let taken = changes.toArray().map {change => ChangedFile(change[0], change[1])}
         changes.clear()
-        pending.clear()
-        taken.toArray()
+        taken
     }
 
     private func record(id: FileId, kind: ChangeKind): Unit {
-        match (pending.get(id)) {
-            case None =>
-                changes.add(id)
-                pending.add(id, kind)
-            case Some(Create) where kind == Delete => pending.remove(id)
+        match (changes.get(id)) {
+            case None => changes.add(id, kind)
+            case Some(Create) where kind == Delete => changes.remove(id)
             case Some(Create) => ()
-            case Some(Delete) where kind == Create => pending.add(id, Modify)
-            case Some(_) => pending.add(id, kind)
+            case Some(Delete) where kind == Create => changes.add(id, Modify)
+            case Some(_) => changes.add(id, kind)
         }
     }
 }

@@ -111,7 +111,7 @@ class VfsTest {
         vfs.setFileContents(b, Rope("again"))
 
         // assert
-        @Expect(kinds(vfs.takeChanges()), ["Create(FileId(2))", "Create(FileId(3))", "Modify(FileId(0))", "Delete(FileId(1))"])
+        @Expect(kinds(vfs.takeChanges()), ["Create(FileId(2))", "Modify(FileId(0))", "Delete(FileId(1))", "Create(FileId(3))"])
         @Expect(vfs.takeChanges().size, 0)
     }
 }

@@ -54,27 +54,21 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
  */
 class InternTable<K> <: Ingredient where K <: Hashable & Equatable<K> {
     private let lock = Mutex()
-    private let values = IndexMap<K, Unit>()
+    private let values = IndexSet<K>()
 
     InternTable(let ingredient: InternedIngredient<K>) {}
 
     func intern(fields: K): Id {
         synchronized(lock) {
-            match (values.indexOf(fields)) {
-                case Some(index) => Id(index)
-                case None => Id(values.addWithIndex(fields, ())[0])
-            }
+            Id(values.addWithIndex(fields)[0])
         }
     }
 
     func lookup(id: Id): K {
-        let entry = synchronized(lock) {
+        let fields = synchronized(lock) {
             values.getAt(id.index)
         }
-        match (entry) {
-            case Some((fields, _)) => fields
-            case None => throw IllegalStateException("${ingredient.name} has no value ${id} in this database")
-        }
+        fields.getOrThrow {=> IllegalStateException("${ingredient.name} has no value ${id} in this database")}
     }
 
     public func maybeChangedAfter(_: Database, _: Id, _: Int64): Bool {
