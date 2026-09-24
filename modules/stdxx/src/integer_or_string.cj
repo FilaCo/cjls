@@ -3,9 +3,6 @@ package stdxx
 import std.ast.*
 import stdx.serialization.serialization.*
 
-/**
- * `integer | string` type.
- */
 public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equatable<IntegerOrString> & Equatable<Int32> &
     Equatable<String> & Hashable & ToTokens {
     | Integer(Int32)

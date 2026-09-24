@@ -1,9 +1,8 @@
 package stdxx
 
 /**
- * Raised by the `get*OrThrow` accessors of a sum type when the value holds a
- * different variant than the one asked for. This is a programmer error, not a
- * recoverable condition - check with the matching `is*` predicate first.
+ * A `get*OrThrow` of a sum type asked for a variant the value does not hold - a programmer error,
+ * not a condition to recover from.
  */
 public class UnexpectedVariantException <: Exception {
     public init(expected: String, actual: String) {

@@ -3,69 +3,62 @@ package stdxx
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
+import stdxx.serialization.*
 
 @Test
+@Configure[randomSeed: 42]
 class NullableTest {
-    @TestCase[value in [ "", "hello", "42", "café", "日本語" ]]
-    func valueSerializesToUnderlying(value: String) {
-        // arrange
-        let sut = Nullable.Value(value)
-
+    @TestCase[value in random()]
+    func aValueTravelsAsItself(value: String) {
         // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelString)
-        let dms = (dm as DataModelString).getOrThrow()
-        @Assert(value, dms.getValue())
-    }
-
-    @TestCase
-    func nullSerializesToDataModelNull() {
-        // arrange
-        let sut = Nullable<String>.Null
-
-        // act
-        let dm = sut.serialize()
-
-        // assert
-        @Assert(dm is DataModelNull)
-    }
-
-    @TestCase
-    func deserializeNullYieldsNull() {
-        // arrange
-        let dm = DataModelNull()
-
-        // act
+        let dm = Nullable.Value(value).serialize()
         let restored = Nullable<String>.deserialize(dm)
 
         // assert
-        @Assert(restored.isNull())
-    }
-
-    @TestCase[value in [ "", "hello", "42", "日本語" ]]
-    func deserializeNonNullYieldsValue(value: String) {
-        // arrange
-        let dm = DataModelString(value)
-
-        // act
-        let restored = Nullable<String>.deserialize(dm)
-
-        // assert
-        @Assert(restored.isValue())
-        @Assert(value, restored.getOrThrow())
+        @Expect(value, dm.asStringOrThrow())
+        @Expect(value, restored.getOrThrow())
     }
 
     @TestCase
-    func getOnNullThrows() {
-        // arrange
-        let sut = Nullable<String>.Null
-
+    func nullTravelsAsNull() {
         // act
-        let e = @AssertThrows[NullValueException](sut.getOrThrow())
+        let dm = Nullable<String>.Null.serialize()
+        let restored = Nullable<String>.deserialize(dm)
+
+        // assert
+        @Expect(dm is DataModelNull)
+        @Expect(restored.isNull())
+    }
+
+    @TestCase
+    func askingNullForAValueThrows() {
+        // act
+        let e = @AssertThrows[NullValueException](Nullable<String>.Null.getOrThrow())
 
         // assert
         @Expect("value is null", e.message)
+    }
+
+    @TestCase
+    func anOptionalNullableTellsAnAbsentKeyFromANullOne() {
+        // arrange
+        let dms = DataModelStruct().add(Field("id", DataModelNull()))
+
+        // act
+        let absent = dms.getDeserializedOrNone<Nullable<String>>("missing")
+        let explicit = dms.getDeserializedOrNone<Nullable<String>>("id")
+
+        // assert
+        @Expect(absent.isNone())
+        @Expect(explicit.getOrThrow().isNull())
+    }
+
+    @TestCase
+    func someNullIsWrittenAsNullRatherThanOmitted() {
+        // act
+        let dms = DataModelStruct().addFieldIfSome("id", Some(Nullable<String>.Null))
+
+        // assert
+        @Expect(dms.getOrThrow("id") is DataModelNull)
     }
 }
