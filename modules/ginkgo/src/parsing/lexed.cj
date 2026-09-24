@@ -73,9 +73,11 @@ public class Lexed<K> where K <: Kind<K> {
 
     /**
      * What the parser sees: the tokens but trivia, each marked with whether trivia comes before it, and whether
-     * trivia counting as a newline does.
+     * trivia counting as a newline does. `contextual` gives a token a second kind by its text, for the grammar
+     * to ask about: a name that is a keyword in some places only.
      */
-    public func toInput(isTrivia: (K) -> Bool, isNewline: (K) -> Bool): Input<K> {
+    public func toInput(isTrivia: (K) -> Bool, isNewline: (K) -> Bool,
+        contextual!: (K, String) -> ?K = {_, _ => None}): Input<K> {
         let input = Input<K>()
         var afterTrivia = false
         var afterNewline = false
@@ -90,6 +92,9 @@ public class Lexed<K> where K <: Kind<K> {
                 input.markJointWithNext()
             }
             input.push(kind, afterNewline)
+            if (let Some(ctx) <- contextual(kind, tokenText(i))) {
+                input.setContextual(ctx)
+            }
             afterTrivia = false
             afterNewline = false
         }
@@ -110,6 +115,7 @@ public class Input<K> where K <: Kind<K> {
     let kinds = ArrayList<K>()
     let newlineBefore = ArrayList<Bool>()
     let jointWithNext = ArrayList<Bool>()
+    let contextualKinds = ArrayList<?K>()
 
     public init() {}
 
@@ -117,6 +123,22 @@ public class Input<K> where K <: Kind<K> {
         kinds.add(kind)
         newlineBefore.add(afterNewline)
         jointWithNext.add(false)
+        contextualKinds.add(None)
+    }
+
+    /**
+     * Gives the token pushed last a contextual kind.
+     */
+    public func setContextual(kind: K): Unit {
+        contextualKinds[contextualKinds.size - 1] = kind
+    }
+
+    public func contextualKind(i: Int64): ?K {
+        if (i < contextualKinds.size) {
+            contextualKinds[i]
+        } else {
+            None
+        }
     }
 
     /**

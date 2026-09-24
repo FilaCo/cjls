@@ -20,6 +20,8 @@ public enum SyntaxKind {
     | ErrorToken
     /** what the parser reads past the end; never in a tree */
     | Eof
+    /** the contextual kind of an `Ident` naming a builtin annotation; never in a tree */
+    | BuiltinAnnotationName
     // Punctuation
     | Dot
     | Comma
@@ -298,7 +300,8 @@ public enum SyntaxKind {
     | Guard
     | TryExpr
     | ResourceList
-    | Resource
+    /** `name: T = expr` in a try-with-resources */
+    | ResourceDecl
     | CatchClause
     | FinallyClause
     | ForInExpr
@@ -340,6 +343,7 @@ public enum SyntaxKind {
             case BlockComment => "BlockComment"
             case ErrorToken => "ErrorToken"
             case Eof => "Eof"
+            case BuiltinAnnotationName => "BuiltinAnnotationName"
             case Dot => "Dot"
             case Comma => "Comma"
             case LParen => "LParen"
@@ -586,7 +590,7 @@ public enum SyntaxKind {
             case Guard => "Guard"
             case TryExpr => "TryExpr"
             case ResourceList => "ResourceList"
-            case Resource => "Resource"
+            case ResourceDecl => "ResourceDecl"
             case CatchClause => "CatchClause"
             case FinallyClause => "FinallyClause"
             case ForInExpr => "ForInExpr"

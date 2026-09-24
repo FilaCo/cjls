@@ -126,20 +126,56 @@ class Lexer {
             popFrame()
             return
         }
+        var problem = None<String>
         while (pos < bytes.size) {
             if (atClosingQuote(frame) || (peek(0) == b'$' && peek(1) == b'{') || (!frame.multiline && atLineBreak())) {
                 break
             }
             if (peek(0) == b'\\') {
-                pos++
-                if (pos < bytes.size && (frame.multiline || !atLineBreak())) {
-                    pos++
+                if (let Some(message) <- escapeSequence()) {
+                    problem = problem ?? message
                 }
                 continue
             }
             pos++
         }
         emit(StringContent, start)
+        if (let Some(message) <- problem) {
+            lexed.error(message)
+        }
+    }
+
+    /**
+     * Consumes an escape, at its `\`: what is wrong with it, if anything.
+     */
+    func escapeSequence(): ?String {
+        pos++
+        let c = peek(0)
+        match (c) {
+            case b't' | b'b' | b'r' | b'n' | b'f' | b'v' | b'0' | b'\'' | b'"' | b'\\' | b'$' =>
+                pos++
+                None
+            case b'u' =>
+                pos++
+                if (peek(0) != b'{') {
+                    return "expected '{' in a unicode escape"
+                }
+                pos++
+                var digits = 0
+                while (isHexDigit(peek(0))) {
+                    pos++
+                    digits++
+                }
+                if (digits == 0 || digits > 8 || peek(0) != b'}') {
+                    return "expected '}' or a hexadecimal digit in a unicode escape"
+                }
+                pos++
+                None
+            case _ where pos >= bytes.size || atLineBreak() => "unterminated escape"
+            case _ =>
+                pos += utf8Len(c)
+                "unrecognized escape"
+        }
     }
 
     func codeToken(frame: Frame): Unit {
@@ -177,7 +213,11 @@ class Lexer {
                     emitIdentifier(DollarIdent, start, backquotedIdentifier())
                 } else {
                     identifierRest()
-                    emit(DollarIdent, start)
+                    if (SyntaxKind.keyword(String.fromUtf8(bytes[start + 1..pos])).isSome()) {
+                        emitError(DollarIdent, start, "expected an identifier after '$', found a keyword")
+                    } else {
+                        emit(DollarIdent, start)
+                    }
                 }
             case _ where isAsciiDigit(b) || (b == b'.' && isAsciiDigit(peek(1))) => number(start)
             case _ where isIdentStart(0) =>
@@ -268,26 +308,18 @@ class Lexer {
             emitError(kind, start, "empty character literal")
             return
         }
+        var problem = None<String>
         if (peek(0) == b'\\') {
-            if (peek(1) == b'u' && peek(2) == b'{') {
-                while (pos < bytes.size && peek(0) != b'}' && peek(0) != quoteChar && !atLineBreak()) {
-                    pos++
-                }
-                if (peek(0) == b'}') {
-                    pos++
-                }
-            } else {
-                pos++
-                if (pos < bytes.size && !atLineBreak()) {
-                    pos += utf8Len(bytes[pos])
-                }
-            }
+            problem = escapeSequence()
         } else {
             pos += utf8Len(bytes[pos])
         }
         if (peek(0) == quoteChar) {
             pos++
-            emit(kind, start)
+            match (problem) {
+                case Some(message) => emitError(kind, start, message)
+                case None => emit(kind, start)
+            }
             return
         }
         while (pos < bytes.size && peek(0) != quoteChar && !atLineBreak()) {
@@ -344,7 +376,7 @@ class Lexer {
         if (closed) {
             pos++
         }
-        closed && pos > open + 2
+        closed && isName(String.fromUtf8(bytes[open + 1..pos - 1]))
     }
 
     func emitIdentifier(kind: SyntaxKind, start: Int64, wellFormed: Bool): Unit {
@@ -361,7 +393,7 @@ class Lexer {
             return (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_'
         }
         let (r, _) = Rune.fromUtf8(bytes, pos + n)
-        r.isLetter()
+        isIdentLike(r)
     }
 
     func identifierRest(): Unit {
@@ -376,7 +408,7 @@ class Lexer {
                 return
             }
             let (r, size) = Rune.fromUtf8(bytes, pos)
-            if (!(r.isLetter() || r.isNumber() || isCombining(r))) {
+            if (!isIdentLike(r)) {
                 return
             }
             pos += size
@@ -402,12 +434,14 @@ class Lexer {
         }
         var isFloat = false
         digits(base)
-        if (peek(0) == b'.' && (base == 10 || base == 16) &&
-            (if (base == 16) { isHexDigit(peek(1)) } else { isAsciiDigit(peek(1)) })) {
+        // As in the compiler, only a decimal digit after the dot makes a fraction, in hex too: `0x1.f` is `0x1`, `.f`.
+        let fraction = peek(0) == b'.' && (base == 10 || base == 16) && isAsciiDigit(peek(1))
+        if (fraction) {
             pos++
             digits(base)
             isFloat = true
         }
+        var exponent = false
         let e = peek(0)
         if ((base == 10 && (e == b'e' || e == b'E')) || (base == 16 && (e == b'p' || e == b'P'))) {
             let sign = if (peek(1) == b'-' || peek(1) == b'+') { 1 } else { 0 }
@@ -415,7 +449,12 @@ class Lexer {
                 pos += 1 + sign
                 digits(10)
                 isFloat = true
+                exponent = true
             }
+        }
+        if (base == 16 && fraction && !exponent) {
+            emitError(FloatLit, start, "a hexadecimal float needs an exponent part")
+            return
         }
         var valid = true
         let s = peek(0)
@@ -460,6 +499,30 @@ class Lexer {
     }
 }
 
+/**
+ * Whether `text` is a name, keywords included, as a backquoted identifier must hold: not empty, not `_`, not
+ * starting with a digit.
+ */
+func isName(text: String): Bool {
+    if (text.isEmpty() || text == "_") {
+        return false
+    }
+    var first = true
+    for (r in text.runes()) {
+        let ok = if (UInt32(r) < 0x80) {
+            let b = UInt8(UInt32(r))
+            (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_' || (!first && isAsciiDigit(b))
+        } else {
+            isIdentLike(r)
+        }
+        if (!ok) {
+            return false
+        }
+        first = false
+    }
+    true
+}
+
 func isAsciiDigit(b: Byte): Bool {
     b >= b'0' && b <= b'9'
 }
@@ -468,9 +531,26 @@ func isHexDigit(b: Byte): Bool {
     isAsciiDigit(b) || (b >= b'a' && b <= b'f') || (b >= b'A' && b <= b'F')
 }
 
-func isCombining(r: Rune): Bool {
+/**
+ * A non-ASCII character that may be part of a name. Deliberately wider than Unicode's XID classes, which Cangjie
+ * uses: `std.unicode` has no general categories, and letters newer than its tables, combining marks and the like
+ * must not break a name apart. So anything but white space, punctuation and symbols is taken.
+ */
+func isIdentLike(r: Rune): Bool {
+    if (r.isLetter() || r.isNumber()) {
+        return true
+    }
+    if (r.isWhiteSpace()) {
+        return false
+    }
     let c = UInt32(r)
-    (c >= 0x0300 && c <= 0x036F) || c == 0x200C || c == 0x200D
+    let excluded = (c >= 0x80 && c <= 0xBF && c != 0xAA && c != 0xB5 && c != 0xB7 && c != 0xBA) ||
+        c == 0xD7 || c == 0xF7 || (c >= 0x2000 && c <= 0x206F && c != 0x200C && c != 0x200D && c != 0x203F &&
+        c != 0x2040 && c != 0x2054) || (c >= 0x2190 && c <= 0x2BFF) || (c >= 0x3000 && c <= 0x303F) ||
+        (c >= 0xFE10 && c <= 0xFE1F) || (c >= 0xFE30 && c <= 0xFE6F) || (c >= 0xFF01 && c <= 0xFF0F) ||
+        (c >= 0xFF1A && c <= 0xFF20) || (c >= 0xFF3B && c <= 0xFF40) || (c >= 0xFF5B && c <= 0xFF65) ||
+        (c >= 0x1F000 && c <= 0x1FAFF)
+    !excluded
 }
 
 func utf8Len(b: Byte): Int64 {

@@ -93,6 +93,13 @@ public class Parser<K> where K <: Kind<K> {
         kinds.any {candidate => candidate == k}
     }
 
+    /**
+     * The contextual kind of the token `n` ahead, if its text gives it one (see `Lexed.toInput`).
+     */
+    public func nthContextual(n: Int64): ?K {
+        input.contextualKind(pos + n)
+    }
+
     public func atEof(): Bool {
         pos >= input.size
     }
