@@ -5,6 +5,7 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.encoding.json.*
+import stdx.log.NoopLogger
 import stdx.serialization.serialization.*
 import stdxx.*
 import jsonrpc.*
@@ -37,41 +38,40 @@ func hoverParams(): ArrayOrObject {
 }
 
 func initializeParams(): ArrayOrObject {
-    let json = ##"{"processId": null, "rootUri": null, "capabilities": {}}"##
-    ArrayOrObject.Object(DataModel.fromJson(JsonValue.fromStr(json)).asStructOrThrow())
+    paramsOf(##"{"processId": null, "rootUri": null, "capabilities": {}}"##)
 }
 
 /**
  * The lifecycle's own handlers, doing nothing but answering.
  */
-func lifecycleRoutes(): Routes {
-    Routes()
+func lifecycleRouter(): Router {
+    Router()
         .route(InitializeRequestSpec()) {_ => InitializeResult(capabilities: ServerCapabilities())}
         .route(ShutdownRequestSpec()) {_ => ()}
 }
 
-func routerOf(routes: Routes): Router {
-    Router(routes, Client())
+func serverOf(router: Router, client!: Client = Client()): Server {
+    Server(router, client, NoopLogger())
 }
 
-func initialized(routes: Routes): Router {
-    let router = routerOf(routes)
+func initialized(router: Router, client!: Client = Client()): Server {
+    let server = serverOf(router, client: client)
     let asked = Asked(InitializeRequestSpec.METHOD, params: initializeParams())
-    router.onRequest(asked.request)
+    server.onRequest(asked.request)
     asked.answer().getResultOrThrow()
-    router
+    server
 }
 
 @Test
-class RouterLifecycleTest {
+class ServerLifecycleTest {
     @TestCase
     func aRequestBeforeInitializeIsRefused() {
         // arrange
-        let router = routerOf(lifecycleRoutes())
+        let server = serverOf(lifecycleRouter())
         let asked = Asked(ShutdownRequestSpec.METHOD)
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         @Expect(ErrorCode.SERVER_NOT_INITIALIZED, asked.answer().getErrorOrThrow().code)
@@ -79,13 +79,12 @@ class RouterLifecycleTest {
 
     @TestCase
     func aNotificationBeforeInitializeIsDropped() {
-        // arrange - a `route` handler runs within `onNotification`, so once it returns the
-        // handler has either run or never will
+        // arrange - a `route` handler runs within `onNotification`: once that returns, it has run or never will
         let ran = AtomicBool(false)
-        let router = routerOf(lifecycleRoutes().route(InitializedNotificationSpec()) {_ => ran.store(true)})
+        let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_ => ran.store(true)})
 
         // act
-        router.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
+        server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
 
         // assert
         @Expect(!ran.load())
@@ -94,10 +93,10 @@ class RouterLifecycleTest {
     @TestCase
     func aSuccessfulInitializeStartsTheServer() {
         // act
-        let router = initialized(lifecycleRoutes())
+        let server = initialized(lifecycleRouter())
 
         // assert
-        @Expect(match (router.state) {
+        @Expect(match (server.state) {
             case Initialized => true
             case _ => false
         })
@@ -106,15 +105,15 @@ class RouterLifecycleTest {
     @TestCase
     func aFailedInitializeLeavesTheServerUninitialized() {
         // arrange - `capabilities` is required, so these params do not decode
-        let router = routerOf(lifecycleRoutes())
+        let server = serverOf(lifecycleRouter())
         let asked = Asked(InitializeRequestSpec.METHOD, params: ArrayOrObject.Object(DataModelStruct()))
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         @Expect(ErrorCode.INVALID_PARAMS, asked.answer().getErrorOrThrow().code)
-        @Expect(match (router.state) {
+        @Expect(match (server.state) {
             case Uninitialized => true
             case _ => false
         })
@@ -123,11 +122,11 @@ class RouterLifecycleTest {
     @TestCase
     func aSecondInitializeIsRefused() {
         // arrange
-        let router = initialized(lifecycleRoutes())
+        let server = initialized(lifecycleRouter())
         let asked = Asked(InitializeRequestSpec.METHOD, params: initializeParams())
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         @Expect(ErrorCode.INVALID_REQUEST, asked.answer().getErrorOrThrow().code)
@@ -136,13 +135,13 @@ class RouterLifecycleTest {
     @TestCase
     func aRequestAfterShutdownIsRefused() {
         // arrange
-        let router = initialized(lifecycleRoutes())
+        let server = initialized(lifecycleRouter())
         let shutdown = Asked(ShutdownRequestSpec.METHOD)
-        router.onRequest(shutdown.request)
+        server.onRequest(shutdown.request)
         let again = Asked(ShutdownRequestSpec.METHOD)
 
         // act
-        router.onRequest(again.request)
+        server.onRequest(again.request)
 
         // assert
         @Expect(shutdown.answer().getResultOrThrow() is DataModelNull)
@@ -152,17 +151,17 @@ class RouterLifecycleTest {
     @TestCase
     func exitAfterShutdownExitsCleanly() {
         // arrange
-        let router = initialized(lifecycleRoutes())
+        let server = initialized(lifecycleRouter())
         let shutdown = Asked(ShutdownRequestSpec.METHOD)
-        router.onRequest(shutdown.request)
+        server.onRequest(shutdown.request)
         shutdown.answer()
 
         // act
-        router.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
+        server.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
 
         // assert
-        @Expect(0, router.exitCode)
-        @Expect(match (router.state) {
+        @Expect(0, server.exitCode)
+        @Expect(match (server.state) {
             case Exited => true
             case _ => false
         })
@@ -171,26 +170,26 @@ class RouterLifecycleTest {
     @TestCase
     func exitWithoutShutdownExitsWithAnError() {
         // arrange - `exit` is honoured in any state, even before `initialize`
-        let router = routerOf(lifecycleRoutes())
+        let server = serverOf(lifecycleRouter())
 
         // act
-        router.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
+        server.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
 
         // assert
-        @Expect(1, router.exitCode)
+        @Expect(1, server.exitCode)
     }
 }
 
 @Test
-class RouterDispatchTest {
+class ServerDispatchTest {
     @TestCase
     func anUnknownMethodIsNotFound() {
         // arrange
-        let router = initialized(lifecycleRoutes())
+        let server = initialized(lifecycleRouter())
         let asked = Asked("textDocument/hover")
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         @Expect(ErrorCode.METHOD_NOT_FOUND, asked.answer().getErrorOrThrow().code)
@@ -201,7 +200,7 @@ class RouterDispatchTest {
         // arrange - the handler parks until released; `onRequest` returning while it is parked
         // shows it did not run on the calling thread
         let release = LinkedBlockingQueue<Bool>()
-        let router = initialized(lifecycleRoutes().readonly(HoverRequestSpec()) {
+        let server = initialized(lifecycleRouter().readonly(HoverRequestSpec()) {
             _ =>
                 release.remove()
                 Nullable<Hover>.Null
@@ -209,7 +208,7 @@ class RouterDispatchTest {
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
         @Expect(!asked.request.isAnswered)
         release.add(true)
 
@@ -218,64 +217,68 @@ class RouterDispatchTest {
     }
 
     @TestCase
-    func aHandlerSeesItsParamsAndTheCancellationOfItsOwnRequest() {
+    func aHandlerGetsItsParamsAndWhatItAsksFor() {
         // arrange
-        let router = initialized(lifecycleRoutes().route(HoverRequestSpec()) {
-            ctx => Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
-                MarkupContent(kind: MarkupKind.PlainText,
-                    value: "${ctx.params.position.line}:${ctx.cancellation.isCancelled}"))))
-        })
+        let client = Client()
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
+            ctx: Context, own: Client, cancellation: CancellationToken, params =>
+                let seen = "${params.position.line}:${cancellation.isCancelled}:${refEq(own, ctx.client)}"
+                Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                    MarkupContent(kind: MarkupKind.PlainText, value: seen))))
+        }, client: client)
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
         asked.request.cancellation.cancel()
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         let contents = asked.answer().getResultOrThrow().asStructOrThrow().getOrThrow("contents").asStructOrThrow()
-        @Expect("3:true", contents.getOrThrow("value").asStringOrThrow())
-    }
-
-    @TestCase
-    func paramsThatDoNotReadAreInvalidParams() {
-        // arrange
-        let router = initialized(lifecycleRoutes().route(HoverRequestSpec()) {_ => Nullable<Hover>.Null})
-        let asked = Asked(HoverRequestSpec.METHOD, params: ArrayOrObject.Object(DataModelStruct()))
-
-        // act
-        router.onRequest(asked.request)
-
-        // assert
-        @Expect(ErrorCode.INVALID_PARAMS, asked.answer().getErrorOrThrow().code)
+        @Expect("3:true:true", contents.getOrThrow("value").asStringOrThrow())
     }
 
     @TestCase
     func aHandlerThatThrowsAnswersWithItsError() {
         // arrange
-        let router = initialized(Routes()
+        let server = initialized(Router()
             .route(InitializeRequestSpec()) {_ => InitializeResult(capabilities: ServerCapabilities())}
             .route(ShutdownRequestSpec()) {_ => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
         let asked = Asked(ShutdownRequestSpec.METHOD)
 
         // act
-        router.onRequest(asked.request)
+        server.onRequest(asked.request)
 
         // assert
         @Expect(ErrorCode.UNKNOWN_ERROR_CODE, asked.answer().getErrorOrThrow().code)
     }
+
+    @TestCase
+    func aNotificationHandlerThatThrowsDoesNotStopTheServer() {
+        // arrange
+        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_ => throw Exception("no")})
+
+        // act
+        server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
+
+        // assert
+        @Expect(match (server.state) {
+            case Initialized => true
+            case _ => false
+        })
+    }
 }
 
 @Test
-class RoutesTest {
+class RouterTest {
     @TestCase
     func twoHandlersForOneMethodAreRefused() {
         // act & assert
-        @AssertThrows[IllegalArgumentException](lifecycleRoutes().route(ShutdownRequestSpec()) {_ => ()})
+        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_ => ()})
     }
 
     @TestCase
     func aLifecycleMethodHandledOffTheReadLoopIsRefused() {
         // act & assert - whatever arrives after `shutdown` has to see the state it leaves
-        @AssertThrows[IllegalArgumentException](Routes().readonly(ShutdownRequestSpec()) {_ => ()})
+        @AssertThrows[IllegalArgumentException](Router().readonly(ShutdownRequestSpec()) {_ => ()})
     }
 }

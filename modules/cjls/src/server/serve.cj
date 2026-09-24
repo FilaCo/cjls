@@ -1,6 +1,6 @@
 package cjls.server
 
-import stdx.log.getGlobalLogger
+import stdx.log.Logger
 import jsonrpc.*
 
 /**
@@ -9,12 +9,12 @@ import jsonrpc.*
  * @return the exit code the protocol asks for: `0` for an `exit` after a `shutdown`, `1` otherwise
  * @throws TransportException - if the framing is lost in either direction
  */
-public func serveLsp(transport: JsonRpcTransport, routes: Routes): Int64 {
+public func serve(transport: JsonRpcTransport, router: Router, logger: Logger): Int64 {
     let client = Client()
-    let router = Router(routes, client)
-    let connection = Connection(transport, router, getGlobalLogger())
+    let server = Server(router, client, logger)
+    let connection = Connection(transport, server, logger)
     client.connect(connection)
     connection.serve()
 
-    router.exitCode
+    server.exitCode
 }

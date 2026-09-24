@@ -1,0 +1,186 @@
+package cjls.server
+
+import std.time.MonoTime
+import stdx.log.*
+import stdx.serialization.serialization.DataModel
+import stdxx.*
+import jsonrpc.*
+import cjls.lsp_types.*
+
+enum Lifecycle {
+    | Uninitialized
+    | Initialized
+    | ShuttingDown
+    | Exited
+}
+
+/**
+ * The `Handler` a connection hands inbound messages to: it keeps the lifecycle, finds each
+ * message's route, and runs it the way it was registered.
+ *
+ * The lifecycle is the protocol's, the same for every server, so it is kept by the methods alone:
+ * a successful `initialize` starts the server, a successful `shutdown` stops it taking requests,
+ * `exit` ends the connection. What each of them does besides is its handler's.
+ */
+class Server <: Handler {
+    private var lifecycle = Lifecycle.Uninitialized
+    private var shutDownCleanly = false
+
+    Server(private let router: Router, private let client: Client, private let logger: Logger) {}
+
+    prop state: Lifecycle {
+        get() {
+            lifecycle
+        }
+    }
+
+    /**
+     * Success only for an `exit` that followed a `shutdown`.
+     */
+    prop exitCode: Int64 {
+        get() {
+            if (shutDownCleanly) {
+                0
+            } else {
+                1
+            }
+        }
+    }
+
+    public func onRequest(request: InboundRequest): Unit {
+        let logger = logger.withAttrs([("method", request.method), ("id", request.id.toString())])
+        if (let Some(refusal) <- refusalOf(request.method)) {
+            logger.debug("refused", [("reason", refusal.message)])
+            request.respond(ResultOrError.Error(refusal))
+            return
+        }
+        match (router.requests.get(request.method)) {
+            case None =>
+                logger.debug("no handler")
+                request.respond(
+                    ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
+            case Some(Exclusive(handler)) =>
+                let ctx = Context(router.db, client, request.cancellation, logger)
+                if (answer(request, logger) {handler(ctx, request.params)}) {
+                    advance(request.method)
+                }
+            case Some(ReadOnly(handler)) =>
+                // taken here, on the read loop, so it holds what every message before this one did
+                let ctx = ReadOnlyContext(router.db.snapshot(), client, request.cancellation, logger)
+                spawn {
+                    answer(request, logger) {handler(ctx, request.params)}
+                }
+        }
+    }
+
+    public func onNotification(method: String, params: ?ArrayOrObject): Unit {
+        let logger = logger.withAttrs([("method", method)])
+        if (method == ExitNotificationSpec.METHOD) {
+            dispatch(method, params, logger)
+            exit()
+            return
+        }
+        match (lifecycle) {
+            case Initialized => dispatch(method, params, logger)
+            case _ => logger.debug("dropped", [("reason", "the server is ${describe(lifecycle)}")])
+        }
+    }
+
+    private func dispatch(method: String, params: ?ArrayOrObject, logger: Logger): Unit {
+        let cancellation = CancellationToken()
+        match (router.notifications.get(method)) {
+            // the `$/` ones are the protocol's own, and a server is free to ignore them
+            case None => logger.debug("no handler")
+            case Some(Exclusive(handler)) =>
+                run(logger) {handler(Context(router.db, client, cancellation, logger), params)}
+            case Some(ReadOnly(handler)) =>
+                let ctx = ReadOnlyContext(router.db.snapshot(), client, cancellation, logger)
+                spawn {
+                    run(logger) {handler(ctx, params)}
+                }
+        }
+    }
+
+    private func refusalOf(method: String): ?ResponseError {
+        match (lifecycle) {
+            case Uninitialized where method != InitializeRequestSpec.METHOD =>
+                ResponseError(ErrorCode.SERVER_NOT_INITIALIZED, "the server is not initialized yet")
+            case Initialized where method == InitializeRequestSpec.METHOD =>
+                ResponseError(ErrorCode.INVALID_REQUEST, "the server is already initialized")
+            case ShuttingDown | Exited => ResponseError(ErrorCode.INVALID_REQUEST, "the server is shutting down")
+            case _ => None
+        }
+    }
+
+    private func advance(method: String): Unit {
+        if (method == InitializeRequestSpec.METHOD) {
+            lifecycle = Initialized
+            logger.info("initialized")
+        } else if (method == ShutdownRequestSpec.METHOD) {
+            lifecycle = ShuttingDown
+            logger.info("shutting down")
+        }
+    }
+
+    private func exit(): Unit {
+        shutDownCleanly = match (lifecycle) {
+            case ShuttingDown => true
+            case _ => false
+        }
+        lifecycle = Exited
+        logger.info("exiting", [("clean", shutDownCleanly)])
+        client.close()
+    }
+}
+
+/**
+ * Answers `request` with what `handler` gives. Never throws, so it is a safe body for a `spawn`:
+ * a thread that throws dumps its stack even when nobody reads its future.
+ *
+ * @return whether the handler succeeded
+ */
+private func answer(request: InboundRequest, logger: Logger, handler: () -> DataModel): Bool {
+    let start = MonoTime.now()
+    let answer = try {
+        ResultOrError.Result(handler())
+    } catch (e: Exception) {
+        logFailure(logger, e)
+        ResultOrError.Error(responseErrorOf(e))
+    }
+    request.respond(answer)
+    logger.debug("answered", [("took", MonoTime.now() - start)])
+    answer.isResult()
+}
+
+/**
+ * Runs a notification's handler; nobody waits on its answer, so a failure is only logged.
+ */
+private func run(logger: Logger, handler: () -> Unit): Unit {
+    let start = MonoTime.now()
+    try {
+        handler()
+        logger.debug("handled", [("took", MonoTime.now() - start)])
+    } catch (e: Exception) {
+        logFailure(logger, e)
+    }
+}
+
+/**
+ * An `RpcException` is an answer the handler chose, so its message is enough; anything else is a
+ * bug, and gets its stack.
+ */
+private func logFailure(logger: Logger, e: Exception): Unit {
+    match (e) {
+        case rpc: RpcException => logger.warn("failed", [("error", rpc.message)])
+        case _ => logger.error("failed", [("cause", e)])
+    }
+}
+
+private func describe(lifecycle: Lifecycle): String {
+    match (lifecycle) {
+        case Uninitialized => "not initialized yet"
+        case Initialized => "running"
+        case ShuttingDown => "shutting down"
+        case Exited => "exited"
+    }
+}
