@@ -9,24 +9,24 @@ import std.collection.*
  * computed again only once something it read has changed.
  *
  * ```cangjie
- * @Tracked
+ * @CalcaTracked
  * public func lineCount(db: Db, file: SourceFile): Int64 {
  *     file.text(db).split("\n").size
  * }
  * ```
  *
  * The database comes first, typed as the database interface the body needs; the argument is
- * `Hashable` and `Equatable`, an `@Input` for one. A value computed again that equals the one
+ * `Hashable` and `Equatable`, an `@CalcaInput` for one. A value computed again that equals the one
  * remembered does not make what read it run again, so the result is `Equatable` too, unless
- * `@Tracked[noEq]` says to count every computation as a change.
+ * `@CalcaTracked[noEq]` says to count every computation as a change.
  */
-public macro Tracked(input: Tokens): Tokens {
+public macro CalcaTracked(input: Tokens): Tokens {
     tracked(input, quote({old, new => old == new}))
 }
 
-public macro Tracked(attrs: Tokens, input: Tokens): Tokens {
+public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
     if (attrs.size != 1 || attrs[0].value != "noEq") {
-        diagReport(DiagReportLevel.ERROR, attrs, "`@Tracked` takes no option but `noEq`", "")
+        diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked` takes no option but `noEq`", "")
         return input
     }
     tracked(input, quote({_, _ => false}))
@@ -36,7 +36,7 @@ private func tracked(input: Tokens, equal: Tokens): Tokens {
     let decl = match (parseDecl(input)) {
         case fd: FuncDecl => fd
         case _ =>
-            diagReport(DiagReportLevel.ERROR, input, "`@Tracked` goes on a function", "")
+            diagReport(DiagReportLevel.ERROR, input, "`@CalcaTracked` goes on a function", "")
             return input
     }
     let params = decl.funcParams

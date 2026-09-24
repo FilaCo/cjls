@@ -4,8 +4,8 @@ import std.collection.*
 import std.sync.*
 
 /**
- * An `@Input` type, process-wide: where its table and its columns are in any database. Held by the
- * static `@Input` generates; not for use by hand.
+ * An `@CalcaInput` type, process-wide: where its table and its columns are in any database. Held by the
+ * static `@CalcaInput` generates; not for use by hand.
  */
 public class InputIngredient {
     private let base: Int64
@@ -112,7 +112,7 @@ public class Setter<T> {
 }
 
 /**
- * The rows of one `@Input` type in one database. Its columns share its lock.
+ * The rows of one `@CalcaInput` type in one database. Its columns share its lock.
  */
 class InputTable <: Ingredient {
     let lock = Mutex()
@@ -134,7 +134,7 @@ class Stamp<T> {
 }
 
 /**
- * One field of an `@Input` type in one database.
+ * One field of an `@CalcaInput` type in one database.
  */
 class InputColumn<T> <: Ingredient {
     private let stamps = ArrayList<Stamp<T>>()

@@ -9,7 +9,7 @@ let nextIngredient = AtomicInt64(0)
 
 /**
  * Reserves `count` consecutive ingredient indices, process-wide, so the one index of an ingredient
- * names it in every database. Called once per `@Input` type and `@Tracked` function, from the
+ * names it in every database. Called once per `@CalcaInput` type and `@CalcaTracked` function, from the
  * static the macro gives it; the order of those calls decides only which numbers they get.
  */
 func reserveIngredients(count: Int64): Int64 {

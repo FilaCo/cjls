@@ -13,3 +13,4 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+index_map = { path = "../index_map" }

@@ -1,7 +1,7 @@
 package calca
 
 /**
- * What a value of an `@Input` type is: the row it occupies in its table in one database, and
+ * What a value of an `@CalcaInput` type is: the row it occupies in its table in one database, and
  * meaningless in any other.
  */
 public struct Id <: Hashable & Equatable<Id> & ToString {

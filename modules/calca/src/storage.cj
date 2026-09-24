@@ -4,7 +4,7 @@ import std.collection.*
 import std.sync.*
 
 /**
- * What a database is to the code `@Input` and `@Tracked` generate: something that hands out its
+ * What a database is to the code `@CalcaInput` and `@CalcaTracked` generate: something that hands out its
  * `Storage`. A project declares its own interface on top of it, for the tracked functions to take,
  * and a class implementing that:
  *

@@ -8,7 +8,7 @@ import std.collection.*
  * value of it is only the row's `Id`, as salsa's `#[salsa::input]` is.
  *
  * ```cangjie
- * @Input
+ * @CalcaInput
  * public struct SourceFile {
  *     public let path: String
  *     public var text: String
@@ -25,32 +25,11 @@ import std.collection.*
  * no initializer. Member functions are kept as they are. The type is `Hashable` and `Equatable` by
  * its `Id`.
  */
-public macro Input(input: Tokens): Tokens {
-    let decl = match (parseDecl(input)) {
-        case sd: StructDecl => sd
-        case _ =>
-            diagReport(DiagReportLevel.ERROR, input, "`@Input` goes on a struct", "")
-            return input
-    }
-    if (decl.isGenericDecl) {
-        diagReport(DiagReportLevel.ERROR, input, "an input is not generic", "")
-        return input
-    }
+public macro CalcaInput(input: Tokens): Tokens {
+    let decl = plainStruct(input, "CalcaInput") ?? return input
+    let (fields, kept) = storedFields(decl, "CalcaInput") ?? return input
 
     let name = decl.identifier
-    let fields = ArrayList<VarDecl>()
-    var kept = Tokens()
-    for (member in decl.body.decls) {
-        match (member) {
-            case field: VarDecl =>
-                if (!isFieldValid(field)) {
-                    return input
-                }
-                fields.add(field)
-            case _ => kept += member.toTokens()
-        }
-    }
-
     var fieldNames = Tokens()
     var params = Tokens()
     var puts = Tokens()
@@ -83,10 +62,8 @@ public macro Input(input: Tokens): Tokens {
 
     let visibility = modifiersOf(decl.modifiers)
     let nameLiteral = Token(TokenKind.STRING_LITERAL, stripBackquotes(name.value))
-    var superTypes = quote(Hashable & Equatable<$name> & ToString)
-    for (superType in decl.superTypes) {
-        superTypes += quote(& $(superType.toTokens()))
-    }
+    let superTypes = identitySuperTypes(decl)
+    let identity = identityMembers(name)
 
     quote(
         $visibility struct $name <: $superTypes {
@@ -102,52 +79,9 @@ public macro Input(input: Tokens): Tokens {
 
             $accessors
 
-            public func hashCode(): Int64 {
-                calcaId.hashCode()
-            }
-
-            public operator func ==(other: $name): Bool {
-                calcaId == other.calcaId
-            }
-
-            public operator func !=(other: $name): Bool {
-                calcaId != other.calcaId
-            }
-
-            public func toString(): String {
-                CALCA_INGREDIENT.describe(calcaId)
-            }
+            $identity
 
             $kept
         }
     )
-}
-
-private func isFieldValid(field: VarDecl): Bool {
-    let hasInitializer = try {
-        field.expr
-        true
-    } catch (_: ASTException) {
-        false
-    }
-    if (hasInitializer) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "an input field has no initializer",
-            "its value is given to the constructor")
-        return false
-    }
-    let hasType = try {
-        field.declType
-        true
-    } catch (_: ASTException) {
-        false
-    }
-    if (!hasType) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "an input field declares its type", "")
-        return false
-    }
-    for (modifier in field.modifiers where modifier.keyword.kind == TokenKind.STATIC) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "an input has no static fields", "")
-        return false
-    }
-    true
 }

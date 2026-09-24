@@ -2,10 +2,11 @@ package calca
 
 import std.collection.*
 import std.sync.*
+import index_map.*
 
 /**
- * A `@Tracked` function, process-wide: where its memos are in any database. Held by the static
- * `@Tracked` generates; not for use by hand.
+ * A `@CalcaTracked` function, process-wide: where its memos are in any database. Held by the static
+ * `@CalcaTracked` generates; not for use by hand.
  *
  * The body comes with every `fetch` rather than here: a static whose initializer reaches the body
  * does not compile once tracked functions call each other, since cjc then sees the static used
@@ -60,14 +61,12 @@ class Memo<V> {
 }
 
 /**
- * The memos of one tracked function in one database, one per key it was called with. A key gets an
- * `Id` the first time it is seen, so what depends on it can name it.
+ * The memos of one tracked function in one database, one per key it was called with. A key's `Id` is
+ * its index, given the first time it is seen, so what depends on it can name it.
  */
 class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equatable<K> {
     private let lock = Mutex()
-    private let ids = HashMap<K, Id>()
-    private let keys = ArrayList<K>()
-    private let memos = ArrayList<?Memo<V>>()
+    private let entries = IndexMap<K, ?Memo<V>>()
 
     /**
      * The function itself, the same whichever `fetch` gave it.
@@ -76,14 +75,9 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
 
     func intern(key: K): Id {
         synchronized(lock) {
-            match (ids.get(key)) {
-                case Some(id) => id
-                case None =>
-                    let id = Id(keys.size)
-                    keys.add(key)
-                    memos.add(None)
-                    ids.add(key, id)
-                    id
+            match (entries.indexOf(key)) {
+                case Some(index) => Id(index)
+                case None => Id(entries.addWithIndex(key, None)[0])
             }
         }
     }
@@ -96,7 +90,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         storage.enter(databaseKey)
         try {
             let old = synchronized(lock) {
-                memos[id.index]
+                entry(id)[1]
             }
             match (old) {
                 case Some(memo) where verify(db, storage.runtime, memo) => memo
@@ -143,7 +137,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         }
         let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
         synchronized(lock) {
-            memos[databaseKey.id.index] = memo
+            entries.add(key, memo)
         }
         memo
     }
@@ -154,12 +148,19 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
             case None => throw IllegalStateException("${function.name} is given a database of another type")
         }
         let key = synchronized(lock) {
-            keys[id.index]
+            entry(id)[0]
         }
         fetchMemo(typed, db.storage, id, key).changedAt > revision
     }
 
     public func describe(id: Id): String {
         "${function.name}(${id})"
+    }
+
+    /**
+     * Called with the lock held.
+     */
+    private func entry(id: Id): (K, ?Memo<V>) {
+        entries.getAt(id.index).getOrThrow {=> IllegalStateException("${function.name} has no key ${id}")}
     }
 }

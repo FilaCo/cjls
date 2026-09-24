@@ -62,59 +62,88 @@ class TestDatabase <: TestDb & Resource {
     }
 }
 
-@Input
+@CalcaInput
 struct SourceFile {
     let path: String
     var text: String
 }
 
-@Input
+@CalcaInput
 struct Mode {
     var cyclic: Bool
 }
 
-@Tracked
+@CalcaInterned
+struct Name {
+    let text: String
+}
+
+@CalcaInterned
+struct Qualified {
+    let pkg: String
+    let name: Name
+}
+
+@CalcaTracked
+func nameLength(db: TestDb, name: Name): Int64 {
+    db.log("nameLength(${name})")
+    name.text(db).size
+}
+
+@CalcaTracked
+func firstWord(db: TestDb, file: SourceFile): Name {
+    db.log("firstWord(${file})")
+    Name(db, file.text(db).split(" ")[0])
+}
+
+@CalcaTracked
+func firstWordLength(db: TestDb, file: SourceFile): Int64 {
+    db.log("firstWordLength(${file})")
+    nameLength(db, firstWord(db, file))
+}
+
+@CalcaTracked
 func length(db: TestDb, file: SourceFile): Int64 {
     db.log("length(${file})")
     file.text(db).size
 }
 
-@Tracked
+@CalcaTracked
 func isLong(db: TestDb, file: SourceFile): Bool {
     db.log("isLong(${file})")
     length(db, file) > 5
 }
 
-@Tracked
+@CalcaTracked
 func pathLength(db: TestDb, file: SourceFile): Int64 {
     db.log("pathLength(${file})")
     file.path(db).size
 }
 
-@Tracked
+@CalcaTracked
 func answer(db: TestDb): Int64 {
     db.log("answer")
     42
 }
 
-@Tracked[noEq]
+@CalcaTracked[noEq]
 func lengthNoEq(db: TestDb, file: SourceFile): Int64 {
     db.log("lengthNoEq(${file})")
     file.text(db).size
 }
 
-@Tracked
+@CalcaTracked
 func afterNoEq(db: TestDb, file: SourceFile): Int64 {
     db.log("afterNoEq(${file})")
     lengthNoEq(db, file)
 }
 
-@Tracked
+@CalcaTracked
 func first(db: TestDb, mode: Mode): Int64 {
     second(db, mode) + 1
 }
 
-@Tracked
+@CalcaTracked
 func second(db: TestDb, mode: Mode): Int64 {
     if (mode.cyclic(db)) {
         first(db, mode)
@@ -123,7 +152,7 @@ func second(db: TestDb, mode: Mode): Int64 {
     }
 }
 
-@Tracked
+@CalcaTracked
 func setsAnInput(db: TestDb, file: SourceFile): Int64 {
     match (db as TestDatabase) {
         case Some(writable) => file.setText(writable).to("")
@@ -412,6 +441,90 @@ class CalcaTest {
         snapshot.close()
         write.get()
         @Expect(length(db, file), 3)
+    }
+
+    @TestCase
+    func equalFieldsInternToOneValue(): Unit {
+        // arrange
+        let db = TestDatabase()
+
+        // act
+        let a = Name(db, "x")
+        let again = Name(db, "x")
+        let b = Name(db, "y")
+
+        // assert
+        @Expect(a == again)
+        @Expect(a != b)
+        @Expect(a.text(db), "x")
+        @Expect(b.text(db), "y")
+        @Expect(b.toString(), "Name(1)")
+    }
+
+    @TestCase
+    func severalFieldsAreInternedAsOneKey(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let name = Name(db, "HashMap")
+
+        // act
+        let a = Qualified(db, "std.collection", name)
+        let again = Qualified(db, "std.collection", Name(db, "HashMap"))
+        let otherPackage = Qualified(db, "index_map", name)
+        let otherName = Qualified(db, "std.collection", Name(db, "HashSet"))
+
+        // assert
+        @Expect(a == again)
+        @Expect(a != otherPackage)
+        @Expect(a != otherName)
+        @Expect(a.pkg(db), "std.collection")
+        @Expect(a.name(db), name)
+    }
+
+    @TestCase
+    func aSnapshotInternsIntoTheSameTable(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let name = Name(db, "x")
+
+        // act
+        var fromSnapshot = Option<Name>.None
+        try (snapshot = db.snapshot()) {
+            fromSnapshot = Name(snapshot, "x")
+        }
+
+        // assert
+        @Expect(fromSnapshot, Some(name))
+    }
+
+    @TestCase
+    func anInternedValueIsAnArgumentLikeAnyOther(): Unit {
+        // arrange
+        let db = TestDatabase()
+
+        // act
+        let results = [nameLength(db, Name(db, "abc")), nameLength(db, Name(db, "abc")), nameLength(db, Name(db, "de"))]
+
+        // assert
+        @Expect(results, [3, 3, 2])
+        @Expect(db.events.take(), ["nameLength(Name(0))", "nameLength(Name(1))"])
+    }
+
+    @TestCase
+    func anInternedResultInternedAgainDoesNotRunWhatReadIt(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "foo bar")
+        @Expect(firstWordLength(db, file), 3)
+        db.events.take()
+
+        // act
+        file.setText(db).to("foo baz")
+        let result = firstWordLength(db, file)
+
+        // assert
+        @Expect(result, 3)
+        @Expect(db.events.take(), ["firstWord(SourceFile(0))"])
     }
 
     /**
