@@ -5,6 +5,22 @@ package cjsyntax.ast
 import ginkgo.*
 import cjsyntax.SyntaxKind
 
+let NAME_SYMBOL = TokenSet<SyntaxKind>(
+    [SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.LParen, SyntaxKind.RParen, SyntaxKind.GtGt, SyntaxKind.GtEq,
+        SyntaxKind.Bang, SyntaxKind.Plus, SyntaxKind.Minus, SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash,
+        SyntaxKind.Percent, SyntaxKind.LtLt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.EqEq,
+        SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.Tilde])
+let PRIM_TYPE_KEYWORD = TokenSet<SyntaxKind>(
+    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
+        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
+        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
+        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let LITERAL_PAT_VALUE = TokenSet<SyntaxKind>(
+    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
+        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+let LITERAL_VALUE = TokenSet<SyntaxKind>(
+    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
+        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
 let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
     [SyntaxKind.LambdaExpr, SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr,
         SyntaxKind.CallExpr, SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr,
@@ -60,6 +76,11 @@ let IF_EXPR_ELSE_IF = TokenSet<SyntaxKind>(
         SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
         SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
         SyntaxKind.MacroExpandExpr])
+let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
+    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
+        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
+        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
+        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
 
 public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & Equatable<SourceFile> & Hashable & ToString {
     let node: SyntaxNode<SyntaxKind>
@@ -542,96 +563,8 @@ public struct Name <: AstNode<SyntaxKind, Name> & Equatable<Name> & Hashable & T
         astToken(node, SyntaxKind.Ident)
     }
 
-    public func lBracketToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.LBracket)
-    }
-
-    public func rBracketToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RBracket)
-    }
-
-    public func lParenToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.LParen)
-    }
-
-    public func rParenToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RParen)
-    }
-
-    public func gtGtToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.GtGt)
-    }
-
-    public func gtEqToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.GtEq)
-    }
-
-    public func bangToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Bang)
-    }
-
-    public func plusToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Plus)
-    }
-
-    public func minusToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Minus)
-    }
-
-    public func starStarToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.StarStar)
-    }
-
-    public func starToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Star)
-    }
-
-    public func slashToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Slash)
-    }
-
-    public func percentToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Percent)
-    }
-
-    public func ltLtToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.LtLt)
-    }
-
-    public func ltToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Lt)
-    }
-
-    public func ltEqToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.LtEq)
-    }
-
-    public func gtToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Gt)
-    }
-
-    public func eqEqToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.EqEq)
-    }
-
-    public func bangEqToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.BangEq)
-    }
-
-    public func ampToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Amp)
-    }
-
-    public func caretToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Caret)
-    }
-
-    public func pipeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Pipe)
-    }
-
-    public func tildeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Tilde)
+    public func symbol(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, NAME_SYMBOL)
     }
 
     public operator func ==(other: Name): Bool {
@@ -3323,72 +3256,8 @@ public struct PrimType <: AstNode<SyntaxKind, PrimType> & Equatable<PrimType> & 
         }
     }
 
-    public func int8Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int8Kw)
-    }
-
-    public func int16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int16Kw)
-    }
-
-    public func int32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int32Kw)
-    }
-
-    public func int64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int64Kw)
-    }
-
-    public func intNativeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.IntNativeKw)
-    }
-
-    public func uInt8Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt8Kw)
-    }
-
-    public func uInt16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt16Kw)
-    }
-
-    public func uInt32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt32Kw)
-    }
-
-    public func uInt64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt64Kw)
-    }
-
-    public func uIntNativeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UIntNativeKw)
-    }
-
-    public func float16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float16Kw)
-    }
-
-    public func float32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float32Kw)
-    }
-
-    public func float64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float64Kw)
-    }
-
-    public func runeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RuneKw)
-    }
-
-    public func boolToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.BoolKw)
-    }
-
-    public func nothingToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.NothingKw)
-    }
-
-    public func unitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UnitKw)
+    public func keyword(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, PRIM_TYPE_KEYWORD)
     }
 
     public operator func ==(other: PrimType): Bool {
@@ -4011,32 +3880,8 @@ public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & Equatable<LiteralP
         astToken(node, SyntaxKind.Minus)
     }
 
-    public func intLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.IntLit)
-    }
-
-    public func floatLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.FloatLit)
-    }
-
-    public func runeLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RuneLit)
-    }
-
-    public func byteLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.ByteLit)
-    }
-
-    public func rawStringLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RawStringLit)
-    }
-
-    public func trueToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.TrueKw)
-    }
-
-    public func falseToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.FalseKw)
+    public func value(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, LITERAL_PAT_VALUE)
     }
 
     public func stringLit(): ?StringLit {
@@ -4558,32 +4403,8 @@ public struct Literal <: AstNode<SyntaxKind, Literal> & Equatable<Literal> & Has
         }
     }
 
-    public func intLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.IntLit)
-    }
-
-    public func floatLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.FloatLit)
-    }
-
-    public func runeLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RuneLit)
-    }
-
-    public func byteLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.ByteLit)
-    }
-
-    public func rawStringLitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RawStringLit)
-    }
-
-    public func trueToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.TrueKw)
-    }
-
-    public func falseToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.FalseKw)
+    public func value(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, LITERAL_VALUE)
     }
 
     public operator func ==(other: Literal): Bool {
@@ -7344,72 +7165,8 @@ public struct PrimTypeExpr <: AstNode<SyntaxKind, PrimTypeExpr> & Equatable<Prim
         }
     }
 
-    public func int8Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int8Kw)
-    }
-
-    public func int16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int16Kw)
-    }
-
-    public func int32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int32Kw)
-    }
-
-    public func int64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Int64Kw)
-    }
-
-    public func intNativeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.IntNativeKw)
-    }
-
-    public func uInt8Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt8Kw)
-    }
-
-    public func uInt16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt16Kw)
-    }
-
-    public func uInt32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt32Kw)
-    }
-
-    public func uInt64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UInt64Kw)
-    }
-
-    public func uIntNativeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UIntNativeKw)
-    }
-
-    public func float16Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float16Kw)
-    }
-
-    public func float32Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float32Kw)
-    }
-
-    public func float64Token(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.Float64Kw)
-    }
-
-    public func runeToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.RuneKw)
-    }
-
-    public func boolToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.BoolKw)
-    }
-
-    public func nothingToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.NothingKw)
-    }
-
-    public func unitToken(): ?SyntaxToken<SyntaxKind> {
-        astToken(node, SyntaxKind.UnitKw)
+    public func keyword(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, PRIM_TYPE_EXPR_KEYWORD)
     }
 
     public operator func ==(other: PrimTypeExpr): Bool {

@@ -21,12 +21,15 @@ struct Child {
  * the parser puts it there.
  *
  * A tree without errors must match the grammar exactly. In one with errors, the parser may have left out any
- * part of a node and put an `ErrorNode` anywhere, so a node there must only hold nothing the grammar does not
- * allow, in no order it does not allow.
+ * part of a node, put an `ErrorNode` anywhere, and kept a declaration where it reported one out of place (a
+ * `package` in a class, an `import` after declarations, a macro call on a declaration as an operand); a node
+ * there must hold nothing else the grammar does not allow, in no order it does not allow.
  */
 class Conformance {
     let model: Model
     let rules = HashMap<String, Rule>()
+    /** what a tree with errors may hold anywhere */
+    let misplaceable = HashSet<String>(["ErrorNode", "PackageHeader", "ImportDecl", "FeaturesDirective"])
 
     init() {
         let generated = generate(Path(KINDS_FILE))
@@ -34,6 +37,7 @@ class Conformance {
         for (r in model.grammar.rules where !model.isEnum(r.name)) {
             rules.add(r.name, r.rule)
         }
+        misplaceable.add(all: model.kindsOf("Decl"))
     }
 
     /**
@@ -47,7 +51,7 @@ class Conformance {
             let children = ArrayList<Child>()
             for (el in node.childrenWithTokens()) {
                 match (el) {
-                    case SyntaxElement.Node(n) where !strict && n.kind == ErrorNode => ()
+                    case SyntaxElement.Node(n) where !strict && misplaceable.contains(n.kind.toString()) => ()
                     case SyntaxElement.Node(n) => children.add(Child(true, n.kind.toString()))
                     case SyntaxElement.Token(t) where t.kind.isTrivia() => ()
                     case SyntaxElement.Token(t) => children.add(Child(false, t.kind.toString()))
@@ -56,7 +60,8 @@ class Conformance {
             let ends = matches(rule, children, 0, strict)
             if (!ends.contains(children.size)) {
                 let shown = children.toArray().map {c => if (c.isNode) { c.kind } else { "'${c.kind}'" }}
-                result.add("${kind} at ${node.textRange}: ${String.join(shown, delimiter: " ")}")
+                let mode = if (strict) { "" } else { " (with errors)" }
+                result.add("${kind} at ${node.textRange}${mode}: ${String.join(shown, delimiter: " ")}")
             }
         }
         result
@@ -220,11 +225,14 @@ class ConformanceTest {
         let examples = HashMap<String, String>()
 
         // act
+        var notUtf8 = 0
         for (f in files) {
             let found = try {
                 sut.check(f)
-            } catch (e: Exception) {
-                ArrayList<String>(["${f}: ${e}"])
+            } catch (e: IllegalArgumentException) {
+                // not UTF-8, which a `String` cannot hold
+                notUtf8++
+                ArrayList<String>()
             }
             for (v in found) {
                 let kind = v[v.indexOf(": ").getOrThrow() + 2..].split(" ")[0]
@@ -240,7 +248,7 @@ class ConformanceTest {
         for ((kind, count) in byKind) {
             report.add("${count} x ${examples[kind]}")
         }
-        println("checked ${files.size} files")
+        println("checked ${files.size - notUtf8} files, skipped ${notUtf8} not in UTF-8")
         @Expect(printed(report.toArray()), Array<String>())
     }
 

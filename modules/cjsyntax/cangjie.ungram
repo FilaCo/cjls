@@ -8,7 +8,8 @@
 //   label:A              names what an accessor returns; in an enum, the variant
 //
 // Comments right above a rule document its node. What the grammar says holds of every tree without errors,
-// which the tests of `syntax_codegen` check; a tree with errors may lack any part and hold an `ErrorNode` anywhere.
+// which the tests of `syntax_codegen` check. A tree with errors may lack any part, and hold anywhere an `ErrorNode`
+// or a declaration the parser reported out of place.
 // A declaration anywhere starts with `Annotation* Modifiers?`: the parser reads those before knowing what follows.
 
 SourceFile =
@@ -38,8 +39,8 @@ ImportAlias =
 // a name being declared
 Name =
   'Ident'
-| '[' ']' | '(' ')' | '>>' | '>='
-| '!' | '+' | '-' | '**' | '*' | '/' | '%' | '<<' | '<' | '<=' | '>' | '==' | '!=' | '&' | '^' | '|' | '~'
+| symbol:( '[' ']' | '(' ')' | '>>' | '>='
+         | '!' | '+' | '-' | '**' | '*' | '/' | '%' | '<<' | '<' | '<=' | '>' | '==' | '!=' | '&' | '^' | '|' | '~' )
 
 // a name being used
 NameRef =
@@ -194,8 +195,8 @@ PathSegment =
   NameRef TypeArgList?
 
 PrimType =
-  'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64' | 'UIntNative'
-| 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit'
+  keyword:( 'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64'
+           | 'UIntNative' | 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit' )
 
 TupleType =
   '(' (Type | NamedType) (',' (Type | NamedType))* ','? ')'
@@ -234,7 +235,7 @@ WildcardPat =
   '_'
 
 LiteralPat =
-  '-'? ('IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false')
+  '-'? value:('IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false')
 | StringLit
 | '(' ')'
 
@@ -298,7 +299,7 @@ Expr =
 | MacroExpandExpr
 
 Literal =
-  'IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false'
+  value:('IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false')
 
 StringLit =
   'StringStart' ('StringContent' | Interpolation)* 'StringEnd'
@@ -457,8 +458,8 @@ TypeConvExpr =
 
 // `Int64` before `.`
 PrimTypeExpr =
-  'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64' | 'UIntNative'
-| 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit'
+  keyword:( 'Int8' | 'Int16' | 'Int32' | 'Int64' | 'IntNative' | 'UInt8' | 'UInt16' | 'UInt32' | 'UInt64'
+           | 'UIntNative' | 'Float16' | 'Float32' | 'Float64' | 'Rune' | 'Bool' | 'Nothing' | 'Unit' )
 
 VArrayExpr =
   VArrayType ArgList?
