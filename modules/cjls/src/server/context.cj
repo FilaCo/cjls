@@ -5,11 +5,12 @@ import stdx.serialization.serialization.*
 import jsonrpc.*
 
 /**
- * What a handler that runs on the read loop gets besides its params - the `Database` itself among
- * them, since nothing else runs meanwhile.
+ * What a handler that runs on the read loop gets: its params, and the `Database` itself, since
+ * nothing else runs meanwhile.
  */
-public class Context {
+public class Context<P> {
     Context(
+        public let params: P,
         public let db: Database,
         public let client: Client,
         public let cancellation: CancellationToken,
@@ -18,11 +19,12 @@ public class Context {
 }
 
 /**
- * What a handler that runs on a thread of its own gets besides its params: a snapshot in place of
+ * What a handler that runs on a thread of its own gets: as `Context`, with a snapshot in place of
  * the database, so such a handler cannot change the inputs.
  */
-public class ReadOnlyContext {
+public class ReadOnlyContext<P> {
     ReadOnlyContext(
+        public let params: P,
         public let db: DatabaseSnapshot,
         public let client: Client,
         public let cancellation: CancellationToken,
@@ -34,14 +36,34 @@ public class ReadOnlyContext {
  * A type a `@LspHandler` function can take before its params, the way axum's `FromRequestParts` is.
  */
 public interface FromContext<T> {
-    static func from(ctx: Context): T
+    static func from<P>(ctx: Context<P>): T
 }
 
 /**
  * A type a `@LspHandler[readonly]` function can take before its params.
  */
 public interface FromReadOnlyContext<T> {
-    static func from(ctx: ReadOnlyContext): T
+    static func from<P>(ctx: ReadOnlyContext<P>): T
+}
+
+/**
+ * A context but for its params, which the route decodes, knowing their type.
+ */
+class Parts {
+    Parts(let db: Database, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
+
+    func context<P>(params: P): Context<P> {
+        Context(params, db, client, cancellation, logger)
+    }
+}
+
+class ReadOnlyParts {
+    ReadOnlyParts(let db: DatabaseSnapshot, let client: Client, let cancellation: CancellationToken,
+        let logger: Logger) {}
+
+    func context<P>(params: P): ReadOnlyContext<P> {
+        ReadOnlyContext(params, db, client, cancellation, logger)
+    }
 }
 
 /**
@@ -51,7 +73,7 @@ public interface FromReadOnlyContext<T> {
 public class Database <: FromContext<Database> {
     public init() {}
 
-    public static func from(ctx: Context): Database {
+    public static func from<P>(ctx: Context<P>): Database {
         ctx.db
     }
 
@@ -61,7 +83,7 @@ public class Database <: FromContext<Database> {
 }
 
 public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
-    public static func from(ctx: ReadOnlyContext): DatabaseSnapshot {
+    public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
         ctx.db
     }
 }
@@ -70,11 +92,11 @@ public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
  * Never cancelled for a notification.
  */
 extend CancellationToken <: FromContext<CancellationToken> & FromReadOnlyContext<CancellationToken> {
-    public static func from(ctx: Context): CancellationToken {
+    public static func from<P>(ctx: Context<P>): CancellationToken {
         ctx.cancellation
     }
 
-    public static func from(ctx: ReadOnlyContext): CancellationToken {
+    public static func from<P>(ctx: ReadOnlyContext<P>): CancellationToken {
         ctx.cancellation
     }
 }
@@ -83,11 +105,11 @@ extend CancellationToken <: FromContext<CancellationToken> & FromReadOnlyContext
  * Carries the method, and the id of a request, on every line it writes.
  */
 extend Logger <: FromContext<Logger> & FromReadOnlyContext<Logger> {
-    public static func from(ctx: Context): Logger {
+    public static func from<P>(ctx: Context<P>): Logger {
         ctx.logger
     }
 
-    public static func from(ctx: ReadOnlyContext): Logger {
+    public static func from<P>(ctx: ReadOnlyContext<P>): Logger {
         ctx.logger
     }
 }
@@ -99,11 +121,11 @@ extend Logger <: FromContext<Logger> & FromReadOnlyContext<Logger> {
 public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     private var connection: ?Connection = None
 
-    public static func from(ctx: Context): Client {
+    public static func from<P>(ctx: Context<P>): Client {
         ctx.client
     }
 
-    public static func from(ctx: ReadOnlyContext): Client {
+    public static func from<P>(ctx: ReadOnlyContext<P>): Client {
         ctx.client
     }
 

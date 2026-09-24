@@ -3,15 +3,15 @@ macro package cjls.macros
 import std.ast.*
 
 /**
- * Makes a function of its params and what it takes from the server routable, by adding an
- * overload of the same name that takes the context instead and extracts the rest from it:
+ * Makes a function of what it takes from the server, params last, routable, by adding an overload
+ * of the same name that takes the context instead and extracts the arguments from it:
  *
  * ```cangjie
  * @LspHandler[readonly]
  * func handleHover(db: DatabaseSnapshot, cancellation: CancellationToken, params: HoverParams): Nullable<Hover>
  * // adds
- * func handleHover(context: ReadOnlyContext, params: HoverParams): Nullable<Hover> {
- *     handleHover(DatabaseSnapshot.from(context), CancellationToken.from(context), params)
+ * func handleHover(context: ReadOnlyContext<HoverParams>): Nullable<Hover> {
+ *     handleHover(DatabaseSnapshot.from(context), CancellationToken.from(context), context.params)
  * }
  * ```
  *
@@ -54,13 +54,7 @@ private func withContextOverload(input: Tokens, context: Tokens): Tokens {
         let extracted = params[i].paramType.toTokens()
         args += quote($extracted.from(context), )
     }
-    args += quote(params)
-    // an unused `context` would warn in every handler that takes nothing but its params
-    let contextName = if (params.size == 1) {
-        quote(_)
-    } else {
-        quote(context)
-    }
+    args += quote(context.params)
 
     var modifiers = Tokens()
     for (modifier in handler.modifiers) {
@@ -75,7 +69,7 @@ private func withContextOverload(input: Tokens, context: Tokens): Tokens {
     }
 
     input + quote(
-        $modifiers func $name($contextName: $context, params: $paramsType) $returnType {
+        $modifiers func $name(context: $context<$paramsType>) $returnType {
             $name($args)
         }
     )

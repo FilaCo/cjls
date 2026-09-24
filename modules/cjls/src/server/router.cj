@@ -13,12 +13,12 @@ import cjls.lsp_types.*
  *     .withState(Database())
  *     .route(InitializeRequestSpec(), handleInitialize)
  *     .route(HoverRequestSpec(), handleHover)
- *     .route(CancelNotificationSpec()) {ctx: Context, params => ctx.client.cancel(params.id)}
+ *     .route(CancelNotificationSpec()) {ctx: Context<CancelParams> => ctx.client.cancel(ctx.params.id)}
  * ```
  *
- * The spec gives the method and the types; a handler takes a context and the params, and returns
- * the result, and the compiler holds it to all of them. `@LspHandler` makes a function of the params
- * and what it needs from the context into one.
+ * The spec gives the method and the types; a handler takes a context of the params and returns the
+ * result, and the compiler holds it to both. `@LspHandler` makes a function of what it needs from
+ * the context, params last, into one.
  *
  * The context says how the handler runs. With a `Context` it runs on the read loop itself, in
  * arrival order, with the `Database` to itself: it is how the inputs change, and nothing else is
@@ -42,18 +42,18 @@ public class Router {
     /**
      * @throws IllegalArgumentException - if the method already has a handler
      */
-    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context, P) -> R): Router {
+    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context<P>) -> R): Router {
         add(requests, spec.method, RequestRoute.Exclusive({
-            ctx, params => spec.encodeResult(handler(ctx, spec.decodeParams(params)))
+            parts, params => spec.encodeResult(handler(parts.context(spec.decodeParams(params))))
         }))
     }
 
     /**
      * @throws IllegalArgumentException - if the method already has a handler
      */
-    public func route<P>(spec: LspInboundNotification<P>, handler: (Context, P) -> Unit): Router {
+    public func route<P>(spec: LspInboundNotification<P>, handler: (Context<P>) -> Unit): Router {
         add(notifications, spec.method, NotificationRoute.Exclusive({
-            ctx, params => handler(ctx, spec.decodeParams(params))
+            parts, params => handler(parts.context(spec.decodeParams(params)))
         }))
     }
 
@@ -61,10 +61,10 @@ public class Router {
      * @throws IllegalArgumentException - if the method already has a handler, or is one of the
      * lifecycle's: whatever arrives after it must see the state it leaves
      */
-    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext, P) -> R): Router {
+    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext<P>) -> R): Router {
         refuseLifecycle(spec.method)
         add(requests, spec.method, RequestRoute.ReadOnly({
-            ctx, params => spec.encodeResult(handler(ctx, spec.decodeParams(params)))
+            parts, params => spec.encodeResult(handler(parts.context(spec.decodeParams(params))))
         }))
     }
 
@@ -72,10 +72,10 @@ public class Router {
      * @throws IllegalArgumentException - if the method already has a handler, or is one of the
      * lifecycle's: whatever arrives after it must see the state it leaves
      */
-    public func route<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext, P) -> Unit): Router {
+    public func route<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext<P>) -> Unit): Router {
         refuseLifecycle(spec.method)
         add(notifications, spec.method, NotificationRoute.ReadOnly({
-            ctx, params => handler(ctx, spec.decodeParams(params))
+            parts, params => handler(parts.context(spec.decodeParams(params)))
         }))
     }
 
@@ -89,13 +89,13 @@ public class Router {
 }
 
 enum RequestRoute {
-    | Exclusive((Context, ?ArrayOrObject) -> DataModel)
-    | ReadOnly((ReadOnlyContext, ?ArrayOrObject) -> DataModel)
+    | Exclusive((Parts, ?ArrayOrObject) -> DataModel)
+    | ReadOnly((ReadOnlyParts, ?ArrayOrObject) -> DataModel)
 }
 
 enum NotificationRoute {
-    | Exclusive((Context, ?ArrayOrObject) -> Unit)
-    | ReadOnly((ReadOnlyContext, ?ArrayOrObject) -> Unit)
+    | Exclusive((Parts, ?ArrayOrObject) -> Unit)
+    | ReadOnly((ReadOnlyParts, ?ArrayOrObject) -> Unit)
 }
 
 private func refuseLifecycle(method: String): Unit {

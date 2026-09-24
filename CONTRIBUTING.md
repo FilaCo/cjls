@@ -28,7 +28,7 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
    Taking one the mode doesn't offer fails to compile. The `Logger` already carries the method and request id; add attributes rather than formatting them into the message.
 
-3. **Register it** with one line in `handlers/router.cj`: `.route(HoverRequestSpec(), handleHover)`. A one-liner can be a lambda instead, its context annotated: `.route(ShutdownRequestSpec()) {_: Context, _ => ()}`.
+3. **Register it** with one line in `handlers/router.cj`: `.route(HoverRequestSpec(), handleHover)`. A one-liner can be a lambda instead, its context annotated: `.route(ShutdownRequestSpec()) {_: Context<Unit> => ()}`.
 
 4. **Advertise it** in `capabilities()` in `handlers/router.cj`, or clients will never send it.
 

@@ -59,15 +59,15 @@ class Server <: Handler {
                 request.respond(
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
-                let ctx = Context(router.db, client, request.cancellation, logger)
-                if (answer(request, logger) {handler(ctx, request.params)}) {
+                let parts = Parts(router.db, client, request.cancellation, logger)
+                if (answer(request, logger) {handler(parts, request.params)}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
-                let ctx = ReadOnlyContext(router.db.snapshot(), client, request.cancellation, logger)
+                let parts = ReadOnlyParts(router.db.snapshot(), client, request.cancellation, logger)
                 spawn {
-                    answer(request, logger) {handler(ctx, request.params)}
+                    answer(request, logger) {handler(parts, request.params)}
                 }
         }
     }
@@ -91,11 +91,11 @@ class Server <: Handler {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                run(logger) {handler(Context(router.db, client, cancellation, logger), params)}
+                run(logger) {handler(Parts(router.db, client, cancellation, logger), params)}
             case Some(ReadOnly(handler)) =>
-                let ctx = ReadOnlyContext(router.db.snapshot(), client, cancellation, logger)
+                let parts = ReadOnlyParts(router.db.snapshot(), client, cancellation, logger)
                 spawn {
-                    run(logger) {handler(ctx, params)}
+                    run(logger) {handler(parts, params)}
                 }
         }
     }

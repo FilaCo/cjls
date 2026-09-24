@@ -48,8 +48,8 @@ func initializeParams(): ArrayOrObject {
  */
 func lifecycleRouter(): Router {
     Router()
-        .route(InitializeRequestSpec()) {_: Context, _ => InitializeResult(capabilities: ServerCapabilities())}
-        .route(ShutdownRequestSpec()) {_: Context, _ => ()}
+        .route(InitializeRequestSpec()) {_: Context<InitializeParams> => InitializeResult(capabilities: ServerCapabilities())}
+        .route(ShutdownRequestSpec()) {_: Context<Unit> => ()}
 }
 
 func serverOf(router: Router, client!: Client = Client()): Server {
@@ -96,7 +96,7 @@ class ServerLifecycleTest {
     func aNotificationBeforeInitializeIsDropped() {
         // arrange - a `route` handler runs within `onNotification`: once that returns, it has run or never will
         let ran = AtomicBool(false)
-        let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context, _ => ran.store(true)})
+        let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context<InitializedParams> => ran.store(true)})
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
@@ -216,7 +216,7 @@ class ServerDispatchTest {
         // shows it did not run on the calling thread
         let release = LinkedBlockingQueue<Bool>()
         let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
-            _: ReadOnlyContext, _ =>
+            _: ReadOnlyContext<HoverParams> =>
                 release.remove()
                 Nullable<Hover>.Null
         })
@@ -252,8 +252,8 @@ class ServerDispatchTest {
     func aHandlerThatThrowsAnswersWithItsError() {
         // arrange
         let server = initialized(Router()
-            .route(InitializeRequestSpec()) {_: Context, _ => InitializeResult(capabilities: ServerCapabilities())}
-            .route(ShutdownRequestSpec()) {_: Context, _ => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
+            .route(InitializeRequestSpec()) {_: Context<InitializeParams> => InitializeResult(capabilities: ServerCapabilities())}
+            .route(ShutdownRequestSpec()) {_: Context<Unit> => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
         let asked = Asked(ShutdownRequestSpec.METHOD)
 
         // act
@@ -266,7 +266,7 @@ class ServerDispatchTest {
     @TestCase
     func aNotificationHandlerThatThrowsDoesNotStopTheServer() {
         // arrange
-        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context, _ => throw Exception("no")})
+        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context<InitializedParams> => throw Exception("no")})
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
@@ -284,12 +284,12 @@ class RouterTest {
     @TestCase
     func twoHandlersForOneMethodAreRefused() {
         // act & assert
-        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_: Context, _ => ()})
+        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_: Context<Unit> => ()})
     }
 
     @TestCase
     func aLifecycleMethodHandledOffTheReadLoopIsRefused() {
         // act & assert - whatever arrives after `shutdown` has to see the state it leaves
-        @AssertThrows[IllegalArgumentException](Router().route(ShutdownRequestSpec()) {_: ReadOnlyContext, _ => ()})
+        @AssertThrows[IllegalArgumentException](Router().route(ShutdownRequestSpec()) {_: ReadOnlyContext<Unit> => ()})
     }
 }
