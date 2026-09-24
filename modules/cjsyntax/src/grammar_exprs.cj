@@ -54,6 +54,10 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, top: Bool, first: Comp
             }
             break
         }
+        if (lhs.kind == MacroExpandDecl) {
+            // `@M func f() {} is T`: what a macro call on a declaration expands to takes no operator
+            p.error("an operator cannot follow a declaration")
+        }
         let m = lhs.precede(p)
         p.bumpComposite(op, n)
         lhs = match (op) {

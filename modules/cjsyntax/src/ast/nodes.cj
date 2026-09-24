@@ -30,7 +30,8 @@ let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
         SyntaxKind.WhileExpr, SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
         SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
         SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr, SyntaxKind.TypeConvExpr,
-        SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr])
+        SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr,
+        SyntaxKind.MacroExpandDecl])
 let INDEX_EXPR_INDICES = TokenSet<SyntaxKind>(
     [SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr, SyntaxKind.CallExpr,
         SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr, SyntaxKind.UnaryExpr,
@@ -41,7 +42,7 @@ let INDEX_EXPR_INDICES = TokenSet<SyntaxKind>(
         SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
         SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
         SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr])
+        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
 let UNARY_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.Minus, SyntaxKind.Bang])
 let BIN_EXPR_OP = TokenSet<SyntaxKind>(
     [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
@@ -61,7 +62,7 @@ let BIN_EXPR_RHS = TokenSet<SyntaxKind>(
         SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
         SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
         SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr])
+        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
 let RANGE_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
 let POSTFIX_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.PlusPlus, SyntaxKind.MinusMinus])
 let IF_EXPR_ELSE_BLOCK = TokenSet<SyntaxKind>([SyntaxKind.Block])
@@ -75,7 +76,7 @@ let IF_EXPR_ELSE_IF = TokenSet<SyntaxKind>(
         SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
         SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
         SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr])
+        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
 let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
     [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
         SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
@@ -3026,7 +3027,7 @@ public enum Stmt <: AstNode<SyntaxKind, Stmt> & Equatable<Stmt> & Hashable & ToS
                 | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr
                 | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr
                 | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr
-                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr => true
+                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr | SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }
@@ -4206,6 +4207,10 @@ public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & Equatable<CatchPat> & 
     }
 }
 
+/**
+ * `MacroExpandDecl` too: a macro call on a declaration may stand for a value (`var f = @M func g() {}`), though
+ * no operator may follow it
+ */
 public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToString {
     | AsLiteral(Literal)
     | AsStringLit(StringLit)
@@ -4248,6 +4253,7 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
     | AsVArrayExpr(VArrayExpr)
     | AsQuoteExpr(QuoteExpr)
     | AsMacroExpandExpr(MacroExpandExpr)
+    | AsMacroExpandDecl(MacroExpandDecl)
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
@@ -4261,7 +4267,7 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
                 | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr
                 | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr
                 | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr
-                | SyntaxKind.MacroExpandExpr => true
+                | SyntaxKind.MacroExpandExpr | SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }
@@ -4309,6 +4315,7 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
             case SyntaxKind.VArrayExpr => AsVArrayExpr(VArrayExpr(node))
             case SyntaxKind.QuoteExpr => AsQuoteExpr(QuoteExpr(node))
             case SyntaxKind.MacroExpandExpr => AsMacroExpandExpr(MacroExpandExpr(node))
+            case SyntaxKind.MacroExpandDecl => AsMacroExpandDecl(MacroExpandDecl(node))
             case _ => None
         }
     }
@@ -4357,6 +4364,7 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
                 case AsVArrayExpr(it) => it.syntax
                 case AsQuoteExpr(it) => it.syntax
                 case AsMacroExpandExpr(it) => it.syntax
+                case AsMacroExpandDecl(it) => it.syntax
             }
         }
     }

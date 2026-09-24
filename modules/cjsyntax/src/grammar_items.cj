@@ -45,8 +45,13 @@ enum Scope {
      */
     func allows(kind: SyntaxKind): Bool {
         match (this) {
-            case InTopLevel | InForeignBlock => match (kind) {
+            case InTopLevel => match (kind) {
                 case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor => false
+                case _ => true
+            }
+            case InForeignBlock => match (kind) {
+                case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor | PackageHeader | ImportDecl |
+                    FeaturesDirective => false
                 case _ => true
             }
             case InClassBody => match (kind) {
@@ -195,6 +200,8 @@ func checkPreamble(p: P, preamble: Preamble, kind: SyntaxKind): Unit {
     }
     if (preamble.stage > stage) {
         p.error(message)
+    } else if (kind == PackageHeader && preamble.stage == stage) {
+        p.error("a file has one package header only")
     } else {
         preamble.stage = stage
     }

@@ -255,6 +255,8 @@ EnumPat =
 CatchPat =
   ('_' | Name) (':' Type ('|' Type)*)?
 
+// `MacroExpandDecl` too: a macro call on a declaration may stand for a value (`var f = @M func g() {}`), though
+// no operator may follow it
 Expr =
   Literal
 | StringLit
@@ -297,6 +299,7 @@ Expr =
 | VArrayExpr
 | QuoteExpr
 | MacroExpandExpr
+| MacroExpandDecl
 
 Literal =
   value:('IntLit' | 'FloatLit' | 'RuneLit' | 'ByteLit' | 'RawStringLit' | 'true' | 'false')
