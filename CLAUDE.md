@@ -39,6 +39,7 @@ It is a SIGABRT from the runtime, not a catchable exception, it compiles perfect
 The `cjls` executable goes one step further: it is linked with `--static` (its `package-configuration` in `modules/cjls/cjpm.toml`, so the flag reaches the executable alone — on the libraries it is only a warning), which takes std and the Cangjie runtime in too. The binary depends on nothing but the system's `libc++`/`libSystem` and runs without the SDK env — which an editor launching it never has. Without it the binary aborts in `dyld` (`@rpath/libcangjie-std-*.dylib`, no `LC_RPATH`). Measured on cjc 1.3.0-alpha, darwin:
 
 - cjpm passes **no `-O`** to cjc, and cjc's default is `-O0` — hence `-O2` in the workspace `compile-option`.
+- `-O2` miscompiles a tuple or struct taken apart straight from `ArrayList.remove`'s result (`list.remove(at: i)[1]`, `let (_, v) = list.remove(at: i)`): it yields another element — the one that moved into the gap, or even the first when the last is removed. `-O0`/`-O1` get it right. Read `list[i]` first, then remove.
 - LTO, and so bitcode (`.bc`) static libraries, are refused on Darwin (`Darwin does not support LTO`), `--experimental` or not; it is a Linux-only option.
 - `-dead_strip` shrinks the binary but the runtime aborts on the first message (`Check failed: objectTi != nullptr`): the linker drops type metadata the runtime reaches indirectly. Don't add it.
 - Most of the binary's code is whatever runtime packages drag in, not ours: anything reachable from `cjls` that implements `std.ast`'s `ToTokens` links `std.ast` *and the compiler's C++ parser under it* — about two thirds of `__text`. Keep `std.ast` out of runtime packages.
@@ -55,7 +56,7 @@ git config core.hooksPath .githooks
 
 ## Workspace layout
 
-Five members declared in the root `cjpm.toml`, each its own package:
+Six members declared in the root `cjpm.toml`, each its own package:
 
 - **`modules/stdxx`** (`static`) — foundation library, three packages, no project dependencies. Import what you use by name; nothing imports `stdxx.*` whole.
   - `stdxx` — the sum types (`IntegerOrString`, `Nullable`) and their exceptions.
@@ -63,6 +64,7 @@ Five members declared in the root `cjpm.toml`, each its own package:
   - `stdxx.deriving` — the **macro package** for `@DeriveExt[...]` codegen.
 - **`modules/jsonrpc`** (`static`) — the JSON-RPC peer: model, codec, framed transport, `Connection`. Knows **zero method names**. Depends on `stdxx`.
 - **`modules/cjls`** (`executable`) — the server: entrypoint and logging (`cjls`), the handlers (`cjls.handlers`), the framework they run in (`cjls.server`) with its `@LspHandler` macro (`cjls.macros`), and the generated `cjls.lsp_types`. Depends on `jsonrpc`.
+- **`modules/index_map`** (`static`) — `IndexMap`, a hash map that keeps insertion order and so gives each entry an index, after Rust's `indexmap`; it implements `std.collection.Map`. No project dependencies.
 - **`modules/cjtoml`** (`static`) — a vendored TOML parser/encoder (Huawei, Apache-2.0 with Runtime Library Exception), carried in-tree because `stdx` ships no TOML module. Its public entry point is `unmarshal<T>(path: String): T where T <: Serializable<T>` — it takes a **file path**, not TOML text. Third-party code: keep it byte-identical to upstream, and never run `cjfmt` over it.
 - **`modules/lsp_codegen`** (`executable`) — the generator that turns `modules/lsp_codegen/metaModel.json` into typed LSP declarations in `modules/cjls/src/lsp_types` (generated, checked in, never hand-edited — regenerate instead). It takes the meta model path on the command line and everything else from a TOML config passed with `-c`/`--config` (`modules/cjls/lsp_codegen.toml`). The generator does not prune, so the old files go first — and then `cjls` no longer builds, so don't go through `cjpm run`: `cjpm build`, `rm modules/cjls/src/lsp_types/*.cj`, then `target/release/bin/lsp_codegen modules/lsp_codegen/metaModel.json -c modules/cjls/lsp_codegen.toml` (with the SDK env loaded: it calls `cjfmt`). The config declares only `output-subpackage`; the output directory and the root package name are inherited from the `cjpm.toml` next to it (`src-dir`, defaulting to `src`, and `[package] name`), because cjpm requires every subpackage to be named `<package name>.<path under src-dir>`. A relative `src-dir` resolves against the config file's own directory, not the cwd.
 
@@ -74,7 +76,7 @@ Five members declared in the root `cjpm.toml`, each its own package:
   - **`extern`** (`[types.X] extern = "Target"` in the config) keeps an enumeration's type elsewhere and adopts its values onto that type: a `sealed interface X` of `static prop`s, and `extend Target <: X {}` — a bare `extend` would not export them past `lsp_types`. Values the target declares itself go in `declared = [...]`, since a `static const` and an adopted `static prop` of one name do not compile. That is how the LSP error codes land on jsonrpc's `ErrorCode` without jsonrpc knowing them.
   - **Doc comments** have `/*` and `*/` escaped: block comments nest in Cangjie, so a glob in the documentation would swallow the rest of the file.
 
-All three libraries are `static` deliberately — see the linking constraint above.
+All four libraries are `static` deliberately — see the linking constraint above.
 
 Dependencies flow one way: `cjls → jsonrpc → stdxx`. `lsp_codegen` sits outside that chain, on `cjtoml` (which depends on nothing) and `stdxx`.
 
