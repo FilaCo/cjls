@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 @Test
 class EmitDerivesTest {

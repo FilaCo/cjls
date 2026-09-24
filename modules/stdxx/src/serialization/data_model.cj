@@ -1,6 +1,8 @@
-package stdxx
+package stdxx.serialization
 
 import stdx.serialization.serialization.*
+
+// Interfaces rather than bare `extend`s: Cangjie exports a direct extension only to its own package.
 
 public interface DataModelShape {
     func asStructOrThrow(): DataModelStruct
@@ -58,8 +60,9 @@ extend DataModel <: DataModelShape {
 }
 
 extend DataModelStruct <: DataModelFields<DataModelStruct> {
-    /** 
-     * presence-aware, unlike get(): None = key absent; Some(DataModelNull) = present & null. Last wins.
+    /**
+     * Unlike `get`, which reads an absent key as `DataModelNull`, tells absent (`None`) from an
+     * explicit `null` (`Some(DataModelNull)`). A repeated key reads as its last value.
      */
     public func getOrNone(name: String): ?DataModel {
         getFields().filterMap {
@@ -72,20 +75,14 @@ extend DataModelStruct <: DataModelFields<DataModelStruct> {
     }
 
     /**
-     * presence-aware, unlike get(): None = key absent; Some(T) = present & deserialized. Last wins.
-     *
-     * @throws DataModelException - if T.deserialize throws it.
+     * `None` only for an absent key: an explicit `null` goes to `FieldT`, where a `Nullable` keeps it.
      */
     public func getDeserializedOrNone<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT> {
         getOrNone(name).map {it => FieldT.deserialize(it)}
     }
 
     /**
-     * `None` when the key is absent *or* explicitly `null` - for a plain optional field the two are
-     * the same absence of a value. Use `getDeserializedOrNone` where `null` has to stay
-     * distinguishable from absent, which is what `Nullable<T>` in the field type asks for.
-     *
-     * @throws DataModelException - if FieldT.deserialize throws it.
+     * `None` for an absent key and for an explicit `null` alike - to a plain optional they mean the same.
      */
     public func getDeserializedOrNoneOnNull<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT> {
         match (getOrNone(name)) {
@@ -95,9 +92,7 @@ extend DataModelStruct <: DataModelFields<DataModelStruct> {
     }
 
     /**
-     * presence-aware, unlike get(), throws if key was not found (DataModelNull = present & null). Last wins.
-     *
-     * @throws DataModelException - if name is not found in the DataModelStruct.
+     * @throws DataModelException - if the key is absent; an explicit `null` is present
      */
     public func getOrThrow(name: String): DataModel {
         getOrNone(name).getOrThrow {=> DataModelException("required field \"${name}\" is absent")}

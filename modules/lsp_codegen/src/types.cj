@@ -4,7 +4,8 @@ import std.ast.*
 import std.collection.*
 import std.sort.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.Nullable
+import stdxx.serialization.*
 
 enum TypeIr <: ToString {
     /**

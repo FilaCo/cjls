@@ -7,7 +7,8 @@ import std.unittest.testmacro.*
 import std.unittest.prop_test.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.IntegerOrString
+import stdxx.serialization.*
 
 func framed(payload: Array<Byte>): ByteBuffer {
     let bytes = ByteBuffer()

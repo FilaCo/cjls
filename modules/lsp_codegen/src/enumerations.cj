@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.ast.*
 import std.collection.any
-import stdxx.*
+import stdxx.IntegerOrString
 
 struct EnumIr {
     EnumIr(let base: EnumBase, let doc: DocIr, let shape!: EnumShape = Declared, let isOpen!: Bool = false,

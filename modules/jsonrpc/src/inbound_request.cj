@@ -1,7 +1,6 @@
 package jsonrpc
 
 import std.sync.AtomicBool
-import stdxx.*
 
 /**
  * A peer request with the one right to answer it, from whichever thread. Only the first answer

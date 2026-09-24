@@ -2,7 +2,7 @@ package lsp_codegen
 
 import std.collection.{ArrayList, HashMap}
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 
 enum TypeBinding {
     /**

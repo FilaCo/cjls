@@ -1,6 +1,5 @@
 package jsonrpc
 
-import stdxx.*
 
 /**
  * Both callbacks run on the read loop, one at a time, in arrival order, and nothing further

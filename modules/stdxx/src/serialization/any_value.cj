@@ -1,14 +1,12 @@
-package stdxx
+package stdxx.serialization
 
 import stdx.serialization.serialization.*
 
 /**
- * Any value at all, carried as the `DataModel`.
+ * Any value at all, `null` included, carried as its `DataModel`.
  *
  * `DataModel` cannot be `Serializable` itself: Cangjie forbids extending an imported type with an
- * imported interface, so it takes a type of our own to put one in a serializable field.
- *
- * `null` is one of the values it holds, not the absence of one.
+ * imported interface, so a serializable field holding any value takes a type of our own.
  */
 public struct AnyValue <: Serializable<AnyValue> {
     public AnyValue(public let data: DataModel) {}

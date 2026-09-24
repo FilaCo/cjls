@@ -1,7 +1,7 @@
 package jsonrpc
 
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 
 public struct ResponseError <: Serializable<ResponseError> {
     public ResponseError(public let code: ErrorCode, public let message: String, public let data!: ?DataModel = None) {}

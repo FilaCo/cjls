@@ -4,7 +4,7 @@ import std.collection.HashMap
 import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.*
+import stdxx.IntegerOrString
 
 private func enumerationOf(name: String, base: EnumerationBaseType, entries: Array<(String, IntegerOrString)>,
     isOpen!: Bool = false): Enumeration {

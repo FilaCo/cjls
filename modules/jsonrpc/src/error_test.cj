@@ -5,7 +5,7 @@ import std.unittest.testmacro.*
 import std.unittest.prop_test.*
 import stdx.encoding.json.*
 import stdx.serialization.serialization.*
-import stdxx.*
+import stdxx.serialization.*
 
 @Test
 class ResponseErrorTest {
