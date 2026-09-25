@@ -1,24 +1,16 @@
 package rope
 
+import std.deriving.*
+
 /**
  * What a column counts: bytes of UTF-8, UTF-16 code units, or characters (UTF-32 code units). The
  * three position encodings LSP knows.
  */
-public enum Encoding <: Equatable<Encoding> & ToString {
+@Derive[Equatable]
+public enum Encoding <: ToString {
     | Utf8
     | Utf16
     | Utf32
-
-    public operator func ==(other: Encoding): Bool {
-        match ((this, other)) {
-            case (Utf8, Utf8) | (Utf16, Utf16) | (Utf32, Utf32) => true
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: Encoding): Bool {
-        !(this == other)
-    }
 
     public func toString(): String {
         match (this) {
@@ -33,16 +25,9 @@ public enum Encoding <: Equatable<Encoding> & ToString {
  * A place in a text by line and column, both from zero; what the column counts is the `Encoding`
  * it was made with.
  */
-public struct LineColumn <: Equatable<LineColumn> & ToString {
+@Derive[Equatable]
+public struct LineColumn <: ToString {
     public LineColumn(public let line: Int64, public let column: Int64) {}
-
-    public operator func ==(other: LineColumn): Bool {
-        line == other.line && column == other.column
-    }
-
-    public operator func !=(other: LineColumn): Bool {
-        !(this == other)
-    }
 
     public func toString(): String {
         "${line}:${column}"
@@ -53,7 +38,8 @@ public struct LineColumn <: Equatable<LineColumn> & ToString {
  * How long a text is by every measure a rope looks it up by. Only `\n` breaks a line, as in
  * rust-analyzer: a `\r` before it is the line's last character, and a lone `\r` breaks nothing.
  */
-public struct TextSummary <: Equatable<TextSummary> & ToString {
+@Derive[Equatable, ToString]
+public struct TextSummary {
     public TextSummary(
         public let bytes: Int64,
         public let utf16: Int64,
@@ -80,18 +66,6 @@ public struct TextSummary <: Equatable<TextSummary> & ToString {
 
     public operator func +(other: TextSummary): TextSummary {
         TextSummary(bytes + other.bytes, utf16 + other.utf16, chars + other.chars, lineBreaks + other.lineBreaks)
-    }
-
-    public operator func ==(other: TextSummary): Bool {
-        bytes == other.bytes && utf16 == other.utf16 && chars == other.chars && lineBreaks == other.lineBreaks
-    }
-
-    public operator func !=(other: TextSummary): Bool {
-        !(this == other)
-    }
-
-    public func toString(): String {
-        "TextSummary(bytes: ${bytes}, utf16: ${utf16}, chars: ${chars}, lineBreaks: ${lineBreaks})"
     }
 }
 
