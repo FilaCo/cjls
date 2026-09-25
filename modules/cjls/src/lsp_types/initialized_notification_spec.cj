@@ -29,8 +29,6 @@ public struct InitializedNotificationSpec <: LspInboundNotification<InitializedP
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

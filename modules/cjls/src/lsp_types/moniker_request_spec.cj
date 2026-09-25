@@ -29,8 +29,6 @@ public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Ar
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

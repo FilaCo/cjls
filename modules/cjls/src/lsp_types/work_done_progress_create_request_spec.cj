@@ -28,8 +28,6 @@ public struct WorkDoneProgressCreateRequestSpec <: LspOutboundRequest<WorkDonePr
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

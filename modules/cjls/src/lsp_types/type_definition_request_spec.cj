@@ -29,8 +29,6 @@ public struct TypeDefinitionRequestSpec <: LspInboundRequest<TypeDefinitionParam
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

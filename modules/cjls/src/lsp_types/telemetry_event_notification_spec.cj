@@ -28,8 +28,6 @@ public struct TelemetryEventNotificationSpec <: LspOutboundNotification<LSPAny> 
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

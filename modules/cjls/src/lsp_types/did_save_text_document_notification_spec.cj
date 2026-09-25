@@ -28,8 +28,6 @@ public struct DidSaveTextDocumentNotificationSpec <: LspInboundNotification<DidS
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

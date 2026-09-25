@@ -30,8 +30,6 @@ public struct ReferencesRequestSpec <: LspInboundRequest<ReferenceParams, Nullab
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

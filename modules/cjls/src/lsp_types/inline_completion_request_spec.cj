@@ -31,8 +31,6 @@ public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionP
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

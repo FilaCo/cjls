@@ -24,8 +24,6 @@ public struct CancelNotificationSpec <: LspInboundNotification<CancelParams> & L
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

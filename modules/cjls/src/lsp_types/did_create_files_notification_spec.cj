@@ -30,8 +30,6 @@ public struct DidCreateFilesNotificationSpec <: LspInboundNotification<CreateFil
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -30,8 +30,6 @@ public struct DocumentHighlightRequestSpec <: LspInboundRequest<DocumentHighligh
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

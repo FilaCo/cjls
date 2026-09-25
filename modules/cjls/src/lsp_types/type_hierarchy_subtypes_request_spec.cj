@@ -29,8 +29,6 @@ public struct TypeHierarchySubtypesRequestSpec <: LspInboundRequest<TypeHierarch
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

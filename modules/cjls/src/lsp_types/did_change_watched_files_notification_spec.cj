@@ -28,8 +28,6 @@ public struct DidChangeWatchedFilesNotificationSpec <: LspInboundNotification<Di
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

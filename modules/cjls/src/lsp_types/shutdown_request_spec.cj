@@ -30,8 +30,6 @@ public struct ShutdownRequestSpec <: LspInboundRequest<Unit, Unit> {
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

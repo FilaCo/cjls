@@ -29,8 +29,6 @@ public struct CompletionResolveRequestSpec <: LspInboundRequest<CompletionItem, 
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

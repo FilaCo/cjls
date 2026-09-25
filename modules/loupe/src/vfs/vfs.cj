@@ -38,8 +38,6 @@ public class PathInterner {
     private let lock = ReadWriteLock()
     private let paths = IndexSet<VfsPath>()
 
-    public init() {}
-
     /**
      * The id `path` has, or `None` if it was never seen.
      */
@@ -122,8 +120,6 @@ public class Vfs {
     public let paths = PathInterner()
     private let contents = ArrayList<?Rope>()
     private let changes = IndexMap<FileId, ChangeKind>()
-
-    public init() {}
 
     /**
      * The id of `path` if it has contents: `None` for a file never set, or deleted.

@@ -30,8 +30,6 @@ public struct TypeHierarchyPrepareRequestSpec <: LspInboundRequest<TypeHierarchy
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

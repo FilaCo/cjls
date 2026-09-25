@@ -30,8 +30,6 @@ public struct SelectionRangeRequestSpec <: LspInboundRequest<SelectionRangeParam
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

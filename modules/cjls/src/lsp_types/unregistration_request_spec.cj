@@ -28,8 +28,6 @@ public struct UnregistrationRequestSpec <: LspOutboundRequest<UnregistrationPara
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

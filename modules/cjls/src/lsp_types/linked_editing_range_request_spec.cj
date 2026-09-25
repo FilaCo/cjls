@@ -29,8 +29,6 @@ public struct LinkedEditingRangeRequestSpec <: LspInboundRequest<LinkedEditingRa
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -27,8 +27,6 @@ public struct WorkspaceFoldersRequestSpec <: LspOutboundRequest<Unit, Nullable<A
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

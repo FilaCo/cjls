@@ -117,8 +117,6 @@ public class Input<K> where K <: Kind<K> {
     let jointWithNext = ArrayList<Bool>()
     let contextualKinds = ArrayList<?K>()
 
-    public init() {}
-
     public func push(kind: K, afterNewline: Bool): Unit {
         kinds.add(kind)
         newlineBefore.add(afterNewline)

@@ -15,8 +15,6 @@ public class NodeCache<K> where K <: Kind<K> {
     let tokens = HashMap<GreenToken<K>, GreenToken<K>>()
     let nodes = HashMap<GreenNode<K>, GreenNode<K>>()
 
-    public init() {}
-
     public func token(kind: K, text: String): GreenToken<K> {
         let candidate = GreenToken(kind, text)
         match (tokens.get(candidate)) {

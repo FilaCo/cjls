@@ -30,8 +30,6 @@ public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnos
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -28,8 +28,6 @@ public struct WillSaveTextDocumentNotificationSpec <: LspInboundNotification<Wil
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

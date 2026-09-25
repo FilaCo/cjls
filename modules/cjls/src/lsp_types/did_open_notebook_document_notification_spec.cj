@@ -29,8 +29,6 @@ public struct DidOpenNotebookDocumentNotificationSpec <: LspInboundNotification<
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

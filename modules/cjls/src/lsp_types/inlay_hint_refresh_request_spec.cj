@@ -27,8 +27,6 @@ public struct InlayHintRefreshRequestSpec <: LspOutboundRequest<Unit, Unit> {
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

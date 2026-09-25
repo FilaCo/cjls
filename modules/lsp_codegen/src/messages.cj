@@ -147,8 +147,6 @@ extend CjEmitter {
                 indented {=> emitln("get() { MessageDirection.${direction} }")}
                 emitln("}")
                 nl()
-                emitln("public init() {}")
-                nl()
                 emitln("public prop method: String {")
                 indented {=> emitln("get() { METHOD }")}
                 emitln("}")

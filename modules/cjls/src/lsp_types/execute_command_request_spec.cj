@@ -28,8 +28,6 @@ public struct ExecuteCommandRequestSpec <: LspInboundRequest<ExecuteCommandParam
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

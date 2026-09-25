@@ -30,8 +30,6 @@ public struct DidRenameFilesNotificationSpec <: LspInboundNotification<RenameFil
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

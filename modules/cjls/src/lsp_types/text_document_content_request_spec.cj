@@ -30,8 +30,6 @@ public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentCo
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

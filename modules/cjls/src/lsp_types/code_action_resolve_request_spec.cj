@@ -29,8 +29,6 @@ public struct CodeActionResolveRequestSpec <: LspInboundRequest<CodeAction, Code
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

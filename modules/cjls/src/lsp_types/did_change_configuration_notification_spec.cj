@@ -29,8 +29,6 @@ public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<D
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

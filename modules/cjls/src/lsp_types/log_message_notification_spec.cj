@@ -28,8 +28,6 @@ public struct LogMessageNotificationSpec <: LspOutboundNotification<LogMessagePa
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

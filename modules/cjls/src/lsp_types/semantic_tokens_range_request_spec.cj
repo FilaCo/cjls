@@ -27,8 +27,6 @@ public struct SemanticTokensRangeRequestSpec <: LspInboundRequest<SemanticTokens
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

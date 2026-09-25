@@ -30,8 +30,6 @@ public struct DocumentColorRequestSpec <: LspInboundRequest<DocumentColorParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -28,8 +28,6 @@ public struct WorkDoneProgressCancelNotificationSpec <: LspInboundNotification<W
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

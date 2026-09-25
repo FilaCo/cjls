@@ -25,8 +25,6 @@ public class Database <: FromContext<Database> {
      */
     public var encoding = Encoding.Utf16
 
-    public init() {}
-
     public static func from<P>(ctx: Context<P>): Database {
         ctx.db
     }

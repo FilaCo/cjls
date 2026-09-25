@@ -29,8 +29,6 @@ public struct PrepareRenameRequestSpec <: LspInboundRequest<PrepareRenameParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

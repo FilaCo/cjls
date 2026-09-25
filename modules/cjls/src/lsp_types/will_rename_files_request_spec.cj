@@ -30,8 +30,6 @@ public struct WillRenameFilesRequestSpec <: LspInboundRequest<RenameFilesParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -28,8 +28,6 @@ public struct PublishDiagnosticsNotificationSpec <: LspOutboundNotification<Publ
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD
