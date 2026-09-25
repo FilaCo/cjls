@@ -4,9 +4,11 @@ import std.collection.ArrayList
 import std.io.ByteBuffer
 import stdx.serialization.serialization.*
 import stdx.log.NoopLogger
-import stdxx.IntegerOrString
+import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
+import rope.Encoding
 import jsonrpc.*
+import cjls.lsp_types.*
 import cjls.server.*
 
 private func framed(json: String): String {
@@ -64,5 +66,33 @@ class LifecycleTest {
 
         // assert
         @Expect(1, exitCode)
+    }
+}
+
+@Test
+class InitializeTest {
+    /**
+     * `(what the client offers, what is agreed on, how it is advertised)`: UTF-8 if offered, else
+     * the UTF-16 every client can count in.
+     */
+    @TestCase[row in [
+        (ClientCapabilities(general: GeneralClientCapabilities(
+            positionEncodings: [PositionEncodingKind.UTF16, PositionEncodingKind.UTF8])), Encoding.Utf8, "utf-8"),
+        (ClientCapabilities(general: GeneralClientCapabilities(positionEncodings: [PositionEncodingKind.UTF16])),
+            Encoding.Utf16, "utf-16"),
+        (ClientCapabilities(), Encoding.Utf16, "utf-16")
+    ]]
+    func theEncodingIsUtf8WhenTheClientOffersItElseUtf16(row: (ClientCapabilities, Encoding, String)) {
+        // arrange
+        let (capabilities, expected, advertised) = row
+        let state = ServerState()
+
+        // act
+        let result = handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: capabilities))
+
+        // assert
+        @Expect(state.encoding, expected)
+        @Expect(result.capabilities.positionEncoding?.value, Some(advertised))
     }
 }
