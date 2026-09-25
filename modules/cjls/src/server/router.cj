@@ -99,8 +99,7 @@ enum NotificationRoute {
 }
 
 private func refuseLifecycle(method: String): Unit {
-    if (method == InitializeRequestSpec.METHOD || method == ShutdownRequestSpec.METHOD ||
-        method == ExitNotificationSpec.METHOD) {
+    if ([InitializeRequestSpec.METHOD, ShutdownRequestSpec.METHOD, ExitNotificationSpec.METHOD].contains(method)) {
         throw IllegalArgumentException("\"${method}\" cannot be handled with a `ReadOnlyContext`")
     }
 }

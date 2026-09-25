@@ -66,6 +66,30 @@ func initialized(router: Router, client!: Client = Client()): Server {
     server
 }
 
+let PARKED_PATH = VfsPath.file("/a.cj")
+
+/**
+ * The answer to a hover whose handler takes its snapshot, parks until `interrupt` has run, then
+ * queries it.
+ */
+func answerOfAQueryParkedUntil(interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
+    let release = LinkedBlockingQueue<Bool>()
+    let state = ServerState()
+    state.setFileContents(PARKED_PATH, Rope("a"))
+    let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
+        ctx: ReadOnlyContext<HoverParams> =>
+            release.remove()
+            ctx.snapshot.sourceFile(PARKED_PATH).getOrThrow().text(ctx.snapshot.analysis)
+            Nullable<Hover>.Null
+    })
+    let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+    server.onRequest(asked.request)
+
+    interrupt(state, asked.request)
+    release.add(true)
+    asked.answer()
+}
+
 let describedClients = LinkedBlockingQueue<Client>()
 
 /**
@@ -113,10 +137,7 @@ class ServerLifecycleTest {
         let server = initialized(lifecycleRouter())
 
         // assert
-        @Expect(match (server.state) {
-            case Initialized => true
-            case _ => false
-        })
+        @Expect(Lifecycle.Initialized, server.state)
     }
 
     @TestCase
@@ -130,10 +151,7 @@ class ServerLifecycleTest {
 
         // assert
         @Expect(ErrorCode.INVALID_PARAMS, asked.answer().getErrorOrThrow().code)
-        @Expect(match (server.state) {
-            case Uninitialized => true
-            case _ => false
-        })
+        @Expect(Lifecycle.Uninitialized, server.state)
     }
 
     @TestCase
@@ -178,10 +196,7 @@ class ServerLifecycleTest {
 
         // assert
         @Expect(0, server.exitCode)
-        @Expect(match (server.state) {
-            case Exited => true
-            case _ => false
-        })
+        @Expect(Lifecycle.Exited, server.state)
     }
 
     @TestCase
@@ -235,50 +250,20 @@ class ServerDispatchTest {
 
     @TestCase
     func aQueryTheFilesChangedUnderIsAnsweredContentModified() {
-        // arrange - the handler parks with its snapshot until the files have changed
-        let release = LinkedBlockingQueue<Bool>()
-        let path = VfsPath.file("/a.cj")
-        let state = ServerState()
-        state.setFileContents(path, Rope("a"))
-        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
-            ctx: ReadOnlyContext<HoverParams> =>
-                release.remove()
-                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
-                Nullable<Hover>.Null
-        })
-        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
-        server.onRequest(asked.request)
-
         // act
-        state.setFileContents(path, Rope("b"))
-        release.add(true)
+        let answer = answerOfAQueryParkedUntil {state, _ => state.setFileContents(PARKED_PATH, Rope("b"))}
 
         // assert
-        @Expect(ErrorCode.CONTENT_MODIFIED, asked.answer().getErrorOrThrow().code)
+        @Expect(ErrorCode.CONTENT_MODIFIED, answer.getErrorOrThrow().code)
     }
 
     @TestCase
     func aQueryOfARequestTheClientCancelledStopsMidway() {
-        // arrange - the handler parks with its snapshot until the request is cancelled
-        let release = LinkedBlockingQueue<Bool>()
-        let path = VfsPath.file("/a.cj")
-        let state = ServerState()
-        state.setFileContents(path, Rope("a"))
-        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
-            ctx: ReadOnlyContext<HoverParams> =>
-                release.remove()
-                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
-                Nullable<Hover>.Null
-        })
-        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
-        server.onRequest(asked.request)
-
         // act
-        asked.request.cancellation.cancel()
-        release.add(true)
+        let answer = answerOfAQueryParkedUntil {_, request => request.cancellation.cancel()}
 
         // assert
-        @Expect(ErrorCode.REQUEST_CANCELLED, asked.answer().getErrorOrThrow().code)
+        @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
     }
 
     @TestCase
@@ -301,10 +286,10 @@ class ServerDispatchTest {
     @TestCase
     func aHandlerThatThrowsAnswersWithItsError() {
         // arrange
-        let server = initialized(Router()
-            .route(InitializeRequestSpec()) {_: Context<InitializeParams> => InitializeResult(capabilities: ServerCapabilities())}
-            .route(ShutdownRequestSpec()) {_: Context<Unit> => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")})
-        let asked = Asked(ShutdownRequestSpec.METHOD)
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
+            _: Context<HoverParams> => throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
         server.onRequest(asked.request)
@@ -322,10 +307,7 @@ class ServerDispatchTest {
         server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
 
         // assert
-        @Expect(match (server.state) {
-            case Initialized => true
-            case _ => false
-        })
+        @Expect(Lifecycle.Initialized, server.state)
     }
 }
 

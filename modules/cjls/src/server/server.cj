@@ -1,5 +1,6 @@
 package cjls.server
 
+import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
 import stdx.serialization.serialization.DataModel
@@ -7,6 +8,7 @@ import calca.Cancelled
 import jsonrpc.*
 import cjls.lsp_types.*
 
+@Derive[Equatable]
 enum Lifecycle {
     | Uninitialized
     | Initialized
@@ -125,10 +127,7 @@ class Server <: Handler {
     }
 
     private func exit(): Unit {
-        shutDownCleanly = match (lifecycle) {
-            case ShuttingDown => true
-            case _ => false
-        }
+        shutDownCleanly = lifecycle == ShuttingDown
         lifecycle = Exited
         logger.info("exiting", [("clean", shutDownCleanly)])
         client.close()
