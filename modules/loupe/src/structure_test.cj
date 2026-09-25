@@ -92,6 +92,47 @@ class StructureTest {
     }
 
     @TestCase
+    func aPatternDeclaresEveryNameItBinds() {
+        // act
+        let result = outline("let ((a, _), Some(b), c: Int64, 1) = t")
+
+        // assert
+        @Expect(result, "Variable a\nVariable b\nVariable c")
+    }
+
+    @TestCase
+    func constructorsFinalizersAndPropertiesAreMembers() {
+        // act
+        let result = outline("""
+            class A {
+                A(let x: Int64) {}
+                init() {}
+                ~init() {}
+                prop p: Int64 { get() { 0 } }
+                static const K = 1
+            }
+            """)
+
+        // assert
+        @Expect(result, "Class A\n  Constructor A\n  Constructor init\n  Finalizer ~init\n  Property p\n  Constant K")
+    }
+
+    @TestCase
+    func whatAForeignBlockOrAMacroCallDeclaresIsInItsPlace() {
+        // act
+        let result = outline("""
+            foreign {
+                func f(): Unit
+            }
+            @M
+            class A {}
+            """)
+
+        // assert
+        @Expect(result, "Function f\nClass A")
+    }
+
+    @TestCase
     func aFileNeverSetHasNoStructure() {
         // act, assert
         @Expect(fileStructure(AnalysisDatabase(), FileId(7)).size, 0)
