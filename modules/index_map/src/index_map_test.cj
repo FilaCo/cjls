@@ -71,14 +71,6 @@ class IndexMapTest {
         @Expect(Some("b"), map.getAt(1).map {entry => entry[0]})
         @Expect(map.getAt(2).isNone())
         @Expect(map.getAt(-1).isNone())
-    }
-
-    @TestCase
-    func aMissingKeyThrowsFromTheSubscript() {
-        // arrange
-        let map = mapOf(["a"])
-
-        // act & assert
         @AssertThrows[NoneValueException](map["z"])
     }
 
