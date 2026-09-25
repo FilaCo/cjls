@@ -6,9 +6,9 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 @LspHandler
-func handleInitialize(db: Database, params: InitializeParams): InitializeResult {
-    db.encoding = negotiatedEncoding(params.capabilities)
-    InitializeResult(capabilities: capabilities(db.encoding), serverInfo: ServerInfo(name: "cjls", version: "0.1.0"))
+func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
+    state.encoding = negotiatedEncoding(params.capabilities)
+    InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: "0.1.0"))
 }
 
 /**

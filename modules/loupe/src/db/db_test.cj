@@ -14,7 +14,7 @@ let lineCountRuns = AtomicInt64(0)
  * A query of the kind every layer above writes, taking the database itself; it counts its runs.
  */
 @CalcaTracked
-func lineCount(db: RootDatabase, file: SourceFile): Int64 {
+func lineCount(db: AnalysisDatabase, file: SourceFile): Int64 {
     lineCountRuns.fetchAdd(1)
     file.text(db).lineCount
 }
@@ -24,7 +24,7 @@ class DbTest {
     @TestCase
     func aQueryRunsAgainOnlyOnceItsFileChanges() {
         // arrange
-        let db = RootDatabase()
+        let db = AnalysisDatabase()
         let file = db.setFileText(FileId(0), Rope("a\n"))
         @Expect(lineCount(db, file), 2)
         let runs = lineCountRuns.load()
@@ -44,7 +44,7 @@ class DbTest {
     @TestCase
     func aFileKeepsItsInputWhateverItsTextBecomes() {
         // arrange
-        let db = RootDatabase()
+        let db = AnalysisDatabase()
         let file = db.setFileText(FileId(3), Rope("a"))
 
         // act
@@ -61,7 +61,7 @@ class DbTest {
     func changesFromTheVfsReachTheFiles() {
         // arrange
         let vfs = Vfs()
-        let db = RootDatabase()
+        let db = AnalysisDatabase()
         let a = VfsPath.file("/a.cj")
         let b = VfsPath.file("/b.cj")
         vfs.setFileContents(a, Rope("a"))
@@ -83,7 +83,7 @@ class DbTest {
     @TestCase
     func aSnapshotSeesItsRevisionAndIsCancelledOnceItIsGone() {
         // arrange
-        let db = RootDatabase()
+        let db = AnalysisDatabase()
         let file = db.setFileText(FileId(0), Rope("let x = 1\n"))
         let snapshot = db.snapshot()
         @Expect(file.text(snapshot).toString(), "let x = 1\n")
@@ -99,7 +99,7 @@ class DbTest {
     @TestCase
     func aSnapshotCannotSetAFile() {
         // arrange
-        let db = RootDatabase()
+        let db = AnalysisDatabase()
         db.setFileText(FileId(0), Rope("a"))
 
         // act, assert

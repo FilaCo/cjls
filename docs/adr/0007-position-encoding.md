@@ -9,7 +9,7 @@ LSP 3.17 lets the server pick from the client's `general.positionEncodings`; UTF
 ## Decision
 
 - `initialize`: UTF-8 if offered, else UTF-16; advertised as `positionEncoding`.
-- Stored in `Database.encoding`, copied into every snapshot.
+- Stored in `ServerState.encoding`, copied into every snapshot.
 
 ## Consequences
 

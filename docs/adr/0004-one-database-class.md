@@ -8,12 +8,12 @@ rust-analyzer has one database trait per crate because its concrete database, at
 
 ## Decision
 
-- `RootDatabase <: calca.Database` in `loupe.db`, the lowest analysis package.
-- Every query, in every layer, takes `RootDatabase` itself.
-- Root handle and snapshots are both `RootDatabase`.
+- `AnalysisDatabase <: calca.Database` in `loupe.db`, the lowest analysis package.
+- Every query, in every layer, takes `AnalysisDatabase` itself.
+- Root handle and snapshots are both `AnalysisDatabase` (named in D9).
 
 ## Consequences
 
 - No `SourceDatabase`-style interfaces to keep in step.
 - An interface appears only with a second implementation.
-- A layer needing a new global input cannot add a field to `RootDatabase` from above: needs singleton inputs in calca (Q2).
+- A layer needing a new global input cannot add a field to `AnalysisDatabase` from above: needs singleton inputs in calca (Q2).

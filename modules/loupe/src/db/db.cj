@@ -18,15 +18,15 @@ public struct SourceFile {
 }
 
 /**
- * The analysis database: `RootDatabase()` makes one and its root handle, `snapshot` another handle
- * for another thread. See calca's `Storage`.
+ * The analysis database: `AnalysisDatabase()` makes one and its root handle, `snapshot` another
+ * handle for another thread. See calca's `Storage`.
  *
  * Every query takes this class itself, whatever layer it is in, with no interface of its own in
  * between: calca keeps the state of every query in `storage`, so the class need know none of them,
  * and can sit under all of them.
  */
-public class RootDatabase <: Database {
-    private RootDatabase(private let storage_: Storage, private let files: Files) {}
+public class AnalysisDatabase <: Database {
+    private AnalysisDatabase(private let storage_: Storage, private let files: Files) {}
 
     public init() {
         this(Storage(), Files())
@@ -41,8 +41,8 @@ public class RootDatabase <: Database {
     /**
      * Its queries are `Cancelled` once `cancelledBy` gives `true`, as well as once the files change.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): RootDatabase {
-        RootDatabase(storage_.snapshot(cancelledBy: cancelledBy), files)
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): AnalysisDatabase {
+        AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files)
     }
 
     /**

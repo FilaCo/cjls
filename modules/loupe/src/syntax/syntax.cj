@@ -11,6 +11,6 @@ import loupe.db.*
  * same leaves what read the tree alone, since `Parse` is `Equatable`.
  */
 @CalcaTracked
-public func parse(db: RootDatabase, file: SourceFile): CjParse {
+public func parse(db: AnalysisDatabase, file: SourceFile): CjParse {
     parseText(file.text(db).toString())
 }

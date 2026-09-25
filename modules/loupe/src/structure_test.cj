@@ -6,10 +6,10 @@ import std.unittest.testmacro.*
 import ginkgo.TextRange
 import rope.Rope
 import loupe.vfs.FileId
-import loupe.db.RootDatabase
+import loupe.db.AnalysisDatabase
 
 func structureOf(text: String): Array<StructureNode> {
-    let db = RootDatabase()
+    let db = AnalysisDatabase()
     db.setFileText(FileId(0), Rope(text))
     fileStructure(db, FileId(0))
 }
@@ -94,6 +94,6 @@ class StructureTest {
     @TestCase
     func aFileNeverSetHasNoStructure() {
         // act, assert
-        @Expect(fileStructure(RootDatabase(), FileId(7)).size, 0)
+        @Expect(fileStructure(AnalysisDatabase(), FileId(7)).size, 0)
     }
 }

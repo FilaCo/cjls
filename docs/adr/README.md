@@ -24,3 +24,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0006](0006-handlers-are-not-queries.md) | Handlers are not queries; queries are keyed by entities | accepted |
 | [0007](0007-position-encoding.md) | UTF-8 columns when the client offers them | accepted |
 | [0008](0008-cancellation.md) | Two cancellations, two answers | accepted |
+| [0009](0009-names-of-state-and-database.md) | `ServerState` holds the `AnalysisDatabase`; only calca says `Database` | accepted |

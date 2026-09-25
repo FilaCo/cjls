@@ -12,11 +12,11 @@ import cjls.macros.LspHandler
  * From now until `didClose`, the file holds what the editor's buffer does.
  */
 @LspHandler
-func handleDidOpen(db: Database, params: DidOpenTextDocumentParams): Unit {
+func handleDidOpen(state: ServerState, params: DidOpenTextDocumentParams): Unit {
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
-    db.openDocuments.add(path, document.version)
-    db.setFileContents(path, Rope(document.text))
+    state.openDocuments.add(path, document.version)
+    state.setFileContents(path, Rope(document.text))
 }
 
 /**
@@ -25,19 +25,19 @@ func handleDidOpen(db: Database, params: DidOpenTextDocumentParams): Unit {
  * dropped whole, with a warning.
  */
 @LspHandler
-func handleDidChange(db: Database, logger: Logger, params: DidChangeTextDocumentParams): Unit {
+func handleDidChange(state: ServerState, logger: Logger, params: DidChangeTextDocumentParams): Unit {
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
-    let text = match (db.fileContents(path)) {
-        case Some(text) where db.openDocuments.contains(path) => text
+    let text = match (state.fileContents(path)) {
+        case Some(text) where state.openDocuments.contains(path) => text
         case _ =>
             logger.warn("a change to a document not open", [("uri", document.uri)])
             return
     }
-    match (edited(text, params.contentChanges, db.encoding)) {
+    match (edited(text, params.contentChanges, state.encoding)) {
         case Some(result) =>
-            db.openDocuments.add(path, document.version)
-            db.setFileContents(path, result)
+            state.openDocuments.add(path, document.version)
+            state.setFileContents(path, result)
         case None => logger.warn("a change whose range ends before it starts", [("uri", document.uri)])
     }
 }
@@ -46,10 +46,10 @@ func handleDidChange(db: Database, logger: Logger, params: DidChangeTextDocument
  * The file goes back to what the disk holds, or away if it is not on the disk.
  */
 @LspHandler
-func handleDidClose(db: Database, params: DidCloseTextDocumentParams): Unit {
+func handleDidClose(state: ServerState, params: DidCloseTextDocumentParams): Unit {
     let path = VfsPath.fromUri(params.textDocument.uri)
-    db.openDocuments.remove(path)
-    db.setFileContents(path, diskContents(path))
+    state.openDocuments.remove(path)
+    state.setFileContents(path, diskContents(path))
 }
 
 /**

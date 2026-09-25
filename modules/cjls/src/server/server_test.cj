@@ -238,19 +238,19 @@ class ServerDispatchTest {
         // arrange - the handler parks with its snapshot until the files have changed
         let release = LinkedBlockingQueue<Bool>()
         let path = VfsPath.file("/a.cj")
-        let db = Database()
-        db.setFileContents(path, Rope("a"))
-        let server = initialized(lifecycleRouter().withState(db).route(HoverRequestSpec()) {
+        let state = ServerState()
+        state.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
             ctx: ReadOnlyContext<HoverParams> =>
                 release.remove()
-                ctx.db.sourceFile(path).getOrThrow().text(ctx.db.analysis)
+                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
                 Nullable<Hover>.Null
         })
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
         server.onRequest(asked.request)
 
         // act
-        db.setFileContents(path, Rope("b"))
+        state.setFileContents(path, Rope("b"))
         release.add(true)
 
         // assert
@@ -262,12 +262,12 @@ class ServerDispatchTest {
         // arrange - the handler parks with its snapshot until the request is cancelled
         let release = LinkedBlockingQueue<Bool>()
         let path = VfsPath.file("/a.cj")
-        let db = Database()
-        db.setFileContents(path, Rope("a"))
-        let server = initialized(lifecycleRouter().withState(db).route(HoverRequestSpec()) {
+        let state = ServerState()
+        state.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
             ctx: ReadOnlyContext<HoverParams> =>
                 release.remove()
-                ctx.db.sourceFile(path).getOrThrow().text(ctx.db.analysis)
+                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
                 Nullable<Hover>.Null
         })
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())

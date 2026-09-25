@@ -4,7 +4,7 @@ import std.collection.*
 import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import loupe.vfs.FileId
-import loupe.db.RootDatabase
+import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 
 public enum StructureKind <: Equatable<StructureKind> & ToString {
@@ -75,7 +75,7 @@ public class StructureNode {
  * The declarations of a file, nested as they are: what a type declares is under it, what a
  * function body declares is not in the outline. Empty for a file the database does not know.
  */
-public func fileStructure(db: RootDatabase, fileId: FileId): Array<StructureNode> {
+public func fileStructure(db: AnalysisDatabase, fileId: FileId): Array<StructureNode> {
     let file = db.sourceFile(fileId) ?? return []
     structureOf(parse(db, file).syntaxNode(), false)
 }

@@ -8,10 +8,10 @@ import loupe.db.*
 /**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
  * disk give them, the documents the editor has open, and the analysis, kept in step with the
- * files: a query takes `db.analysis`, the root handle of its database.
+ * files: a query takes `state.analysis`, the root handle of the analysis database.
  */
-public class Database <: FromContext<Database> {
-    public let analysis = RootDatabase()
+public class ServerState <: FromContext<ServerState> {
+    public let analysis = AnalysisDatabase()
     private let vfs = Vfs()
 
     /**
@@ -25,8 +25,8 @@ public class Database <: FromContext<Database> {
      */
     public var encoding = Encoding.Utf16
 
-    public static func from<P>(ctx: Context<P>): Database {
-        ctx.db
+    public static func from<P>(ctx: Context<P>): ServerState {
+        ctx.state
     }
 
     /**
@@ -50,8 +50,8 @@ public class Database <: FromContext<Database> {
      * The state as it is now, for a handler running on a thread of its own. Its queries stop,
      * `Cancelled`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): DatabaseSnapshot {
-        DatabaseSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, encoding)
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
+        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, encoding)
     }
 }
 
@@ -60,12 +60,12 @@ public class Database <: FromContext<Database> {
  * the files change after it, a query on `analysis`, a snapshot of the analysis database, throws
  * `Cancelled`, which the server answers with `ContentModified`.
  */
-public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
-    DatabaseSnapshot(public let analysis: RootDatabase, private let paths: PathInterner,
+public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
+    ServerSnapshot(public let analysis: AnalysisDatabase, private let paths: PathInterner,
         public let encoding: Encoding) {}
 
-    public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
-        ctx.db
+    public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
+        ctx.snapshot
     }
 
     /**

@@ -8,7 +8,7 @@
 | `Vfs` | `loupe.vfs` | `FileId → ?Rope` + changes folded until `takeChanges` (D2) |
 | `PathInterner` | `loupe.vfs` | `IndexSet<VfsPath>`: `FileId` = index, for good; the only thread-safe part |
 | `SourceFile` | `loupe.db` | `@CalcaInput { fileId, text: Rope }`, one per `FileId`, never dropped |
-| `RootDatabase` | `loupe.db` | the database; root handle or snapshot (D4) |
+| `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked`, backdated (`Parse` is `Equatable`) |
 | `fileStructure` | `loupe` | API: the outline of a file |
 
@@ -16,7 +16,7 @@
 
 | # | Rule |
 |---|---|
-| A1 | Every query takes `RootDatabase` itself; no database interface (D4). |
+| A1 | Every query takes `AnalysisDatabase` itself; no database interface (D4). |
 | A2 | A query is keyed by an entity (`SourceFile`, interned ids), never by a position: calca has no LRU or GC yet, a memo lives forever (D6). |
 | A3 | Position-dependent API (`hover(db, position)`) is a plain function over queries. |
 | A4 | Inputs are created and set on the root handle only, outside queries (`IllegalStateException` otherwise). |

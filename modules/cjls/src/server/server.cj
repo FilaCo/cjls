@@ -60,14 +60,14 @@ class Server <: Handler {
                 request.respond(
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
-                let parts = Parts(router.db, client, request.cancellation, logger)
+                let parts = Parts(router.state, client, request.cancellation, logger)
                 if (answer(request, logger) {handler(parts, request.params)}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
                 let cancellation = request.cancellation
-                let snapshot = router.db.snapshot(cancelledBy: {=> cancellation.isCancelled})
+                let snapshot = router.state.snapshot(cancelledBy: {=> cancellation.isCancelled})
                 let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
                 spawn {
                     answer(request, logger) {handler(parts, request.params)}
@@ -94,9 +94,9 @@ class Server <: Handler {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                run(logger) {handler(Parts(router.db, client, cancellation, logger), params)}
+                run(logger) {handler(Parts(router.state, client, cancellation, logger), params)}
             case Some(ReadOnly(handler)) =>
-                let parts = ReadOnlyParts(router.db.snapshot(), client, cancellation, logger)
+                let parts = ReadOnlyParts(router.state.snapshot(), client, cancellation, logger)
                 spawn {
                     run(logger) {handler(parts, params)}
                 }

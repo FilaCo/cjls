@@ -14,11 +14,11 @@ import cjls.server.*
 
 let URI = "file:///nowhere/a.cj"
 
-func opened(text: String): Database {
-    let db = Database()
-    handleDidOpen(db, DidOpenTextDocumentParams(
+func opened(text: String): ServerState {
+    let state = ServerState()
+    handleDidOpen(state, DidOpenTextDocumentParams(
         textDocument: TextDocumentItem(uri: URI, languageId: LanguageKind("cangjie"), version: 1, text: text)))
-    db
+    state
 }
 
 func partial(startLine: UInt32, startColumn: UInt32, endLine: UInt32, endColumn: UInt32, text: String): TextDocumentContentChangeEvent {
@@ -27,13 +27,13 @@ func partial(startLine: UInt32, startColumn: UInt32, endLine: UInt32, endColumn:
         text: text))
 }
 
-func change(db: Database, changes: Array<TextDocumentContentChangeEvent>): Unit {
-    handleDidChange(db, NoopLogger(), DidChangeTextDocumentParams(
+func change(state: ServerState, changes: Array<TextDocumentContentChangeEvent>): Unit {
+    handleDidChange(state, NoopLogger(), DidChangeTextDocumentParams(
         textDocument: VersionedTextDocumentIdentifier(uri: URI, version: 2), contentChanges: changes))
 }
 
-func textOf(db: Database): ?String {
-    db.fileContents(VfsPath.fromUri(URI))?.toString()
+func textOf(state: ServerState): ?String {
+    state.fileContents(VfsPath.fromUri(URI))?.toString()
 }
 
 @Test
@@ -41,10 +41,10 @@ class DocumentSyncTest {
     @TestCase
     func anOpenedDocumentIsWhatTheAnalysisSees() {
         // act
-        let db = opened("func f() {}\n")
+        let state = opened("func f() {}\n")
 
         // assert
-        let snapshot = db.snapshot()
+        let snapshot = state.snapshot()
         let file = snapshot.sourceFile(VfsPath.fromUri(URI)).getOrThrow()
         @Expect(file.text(snapshot.analysis).toString(), "func f() {}\n")
     }
@@ -52,27 +52,27 @@ class DocumentSyncTest {
     @TestCase
     func changesApplyInOrderEachToWhatTheOneBeforeLeft() {
         // arrange
-        let db = opened("let a = 1\nlet b = 2\n")
+        let state = opened("let a = 1\nlet b = 2\n")
 
         // act
-        change(db, [partial(0, 4, 0, 5, "x"), partial(1, 0, 1, 0, "// b\n"), partial(2, 8, 2, 9, "3")])
+        change(state, [partial(0, 4, 0, 5, "x"), partial(1, 0, 1, 0, "// b\n"), partial(2, 8, 2, 9, "3")])
 
         // assert
-        @Expect(textOf(db), Some("let x = 1\n// b\nlet b = 3\n"))
-        @Expect(db.openDocuments.get(VfsPath.fromUri(URI)), Some(Int32(2)))
+        @Expect(textOf(state), Some("let x = 1\n// b\nlet b = 3\n"))
+        @Expect(state.openDocuments.get(VfsPath.fromUri(URI)), Some(Int32(2)))
     }
 
     @TestCase
     func aWholeDocumentChangeReplacesTheText() {
         // arrange
-        let db = opened("old")
+        let state = opened("old")
 
         // act
-        change(db, [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
+        change(state, [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
             TextDocumentContentChangeWholeDocument(text: "new")), partial(0, 3, 0, 3, "er")])
 
         // assert
-        @Expect(textOf(db), Some("newer"))
+        @Expect(textOf(state), Some("newer"))
     }
 
     @TestCase
@@ -94,41 +94,41 @@ class DocumentSyncTest {
     @TestCase
     func aBatchWithABackwardRangeIsDroppedWhole() {
         // arrange
-        let db = opened("abc")
+        let state = opened("abc")
 
         // act
-        change(db, [partial(0, 0, 0, 1, "x"), partial(0, 2, 0, 1, "y")])
+        change(state, [partial(0, 0, 0, 1, "x"), partial(0, 2, 0, 1, "y")])
 
         // assert
-        @Expect(textOf(db), Some("abc"))
-        @Expect(db.openDocuments.get(VfsPath.fromUri(URI)), Some(Int32(1)))
+        @Expect(textOf(state), Some("abc"))
+        @Expect(state.openDocuments.get(VfsPath.fromUri(URI)), Some(Int32(1)))
     }
 
     @TestCase
     func aChangeToADocumentNotOpenIsIgnored() {
         // arrange
-        let db = Database()
+        let state = ServerState()
 
         // act
-        change(db, [partial(0, 0, 0, 0, "x")])
+        change(state, [partial(0, 0, 0, 0, "x")])
 
         // assert
-        @Expect(textOf(db), None<String>)
+        @Expect(textOf(state), None<String>)
     }
 
     @TestCase
     func aClosedDocumentNotOnDiskIsGone() {
         // arrange
-        let db = opened("let a = 1\n")
-        let file = db.snapshot().sourceFile(VfsPath.fromUri(URI)).getOrThrow()
+        let state = opened("let a = 1\n")
+        let file = state.snapshot().sourceFile(VfsPath.fromUri(URI)).getOrThrow()
 
         // act
-        handleDidClose(db, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI)))
+        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI)))
 
         // assert
-        @Expect(textOf(db), None<String>)
-        @Expect(db.openDocuments.isEmpty())
-        @Expect(file.text(db.analysis).toString(), "")
+        @Expect(textOf(state), None<String>)
+        @Expect(state.openDocuments.isEmpty())
+        @Expect(file.text(state.analysis).toString(), "")
     }
 
     @TestCase
@@ -138,16 +138,16 @@ class DocumentSyncTest {
         let onDisk = dir.join("b.cj")
         File.writeTo(onDisk, "on disk".toArray())
         let uri = VfsPath.file(onDisk.toString()).toUri()
-        let db = Database()
-        handleDidOpen(db, DidOpenTextDocumentParams(
+        let state = ServerState()
+        handleDidOpen(state, DidOpenTextDocumentParams(
             textDocument: TextDocumentItem(uri: uri, languageId: LanguageKind("cangjie"), version: 1, text: "in the editor")))
 
         // act
-        handleDidClose(db, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uri)))
+        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uri)))
         remove(dir, recursive: true)
 
         // assert
-        @Expect(db.fileContents(VfsPath.fromUri(uri))?.toString(), Some("on disk"))
+        @Expect(state.fileContents(VfsPath.fromUri(uri))?.toString(), Some("on disk"))
     }
 }
 
@@ -156,29 +156,29 @@ class InitializeTest {
     @TestCase
     func utf8IsAgreedOnWhenTheClientOffersIt() {
         // arrange
-        let db = Database()
+        let state = ServerState()
         let params = InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: ClientCapabilities(
             general: GeneralClientCapabilities(positionEncodings: [PositionEncodingKind.UTF16, PositionEncodingKind.UTF8])))
 
         // act
-        let result = handleInitialize(db, params)
+        let result = handleInitialize(state, params)
 
         // assert
-        @Expect(db.encoding, Encoding.Utf8)
+        @Expect(state.encoding, Encoding.Utf8)
         @Expect(result.capabilities.positionEncoding?.value, Some("utf-8"))
     }
 
     @TestCase
     func utf16IsTheDefault() {
         // arrange
-        let db = Database()
+        let state = ServerState()
 
         // act
-        let result = handleInitialize(db, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+        let result = handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
             capabilities: ClientCapabilities()))
 
         // assert
-        @Expect(db.encoding, Encoding.Utf16)
+        @Expect(state.encoding, Encoding.Utf16)
         @Expect(result.capabilities.positionEncoding?.value, Some("utf-16"))
     }
 }

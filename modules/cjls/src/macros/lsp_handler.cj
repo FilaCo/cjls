@@ -8,10 +8,10 @@ import std.ast.*
  *
  * ```cangjie
  * @LspHandler[readonly]
- * func handleHover(db: DatabaseSnapshot, cancellation: CancellationToken, params: HoverParams): Nullable<Hover>
+ * func handleHover(snap: ServerSnapshot, cancellation: CancellationToken, params: HoverParams): Nullable<Hover>
  * // adds
  * func handleHover(context: ReadOnlyContext<HoverParams>): Nullable<Hover> {
- *     handleHover(DatabaseSnapshot.from(context), CancellationToken.from(context), context.params)
+ *     handleHover(ServerSnapshot.from(context), CancellationToken.from(context), context.params)
  * }
  * ```
  *

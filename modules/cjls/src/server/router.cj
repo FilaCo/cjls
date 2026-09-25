@@ -10,7 +10,7 @@ import cjls.lsp_types.*
  *
  * ```cangjie
  * Router()
- *     .withState(Database())
+ *     .withState(ServerState())
  *     .route(InitializeRequestSpec(), handleInitialize)
  *     .route(HoverRequestSpec(), handleHover)
  *     .route(CancelNotificationSpec()) {ctx: Context<CancelParams> => ctx.client.cancel(ctx.params.id)}
@@ -21,21 +21,21 @@ import cjls.lsp_types.*
  * the context, params last, into one.
  *
  * The context says how the handler runs. With a `Context` it runs on the read loop itself, in
- * arrival order, with the `Database` to itself: it is how the inputs change, and nothing else is
+ * arrival order, with the `ServerState` to itself: it is how the inputs change, and nothing else is
  * read while it runs, so it must not take long. With a `ReadOnlyContext` it runs on a thread of its
- * own against a `DatabaseSnapshot` taken when its message arrived, so it sees every change before
+ * own against a `ServerSnapshot` taken when its message arrived, so it sees every change before
  * it and none after, and any number run at once.
  */
 public class Router {
-    var db = Database()
+    var state = ServerState()
     let requests = HashMap<String, RequestRoute>()
     let notifications = HashMap<String, NotificationRoute>()
 
     /**
-     * The database the handlers share; a fresh one unless given.
+     * The state the handlers share; a fresh one unless given.
      */
-    public func withState(db: Database): Router {
-        this.db = db
+    public func withState(state: ServerState): Router {
+        this.state = state
         this
     }
 

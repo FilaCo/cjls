@@ -6,8 +6,8 @@ import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 
-func documentSymbols(db: Database, uri: String): ?Array<DocumentSymbol> {
-    match (handleDocumentSymbol(db.snapshot(), DocumentSymbolParams(textDocument: TextDocumentIdentifier(uri: uri)))) {
+func documentSymbols(state: ServerState, uri: String): ?Array<DocumentSymbol> {
+    match (handleDocumentSymbol(state.snapshot(), DocumentSymbolParams(textDocument: TextDocumentIdentifier(uri: uri)))) {
         case Nullable.Value(SymbolInformationsOrDocumentSymbols.AsDocumentSymbols(symbols)) => symbols
         case _ => None
     }
@@ -18,10 +18,10 @@ class DocumentSymbolTest {
     @TestCase
     func theOutlineIsNestedWithRangesInTheColumnsAgreedOn() {
         // arrange - the emoji is two UTF-16 units and four bytes
-        let db = opened("/* 😀 */ class A {\n    func f() {}\n}\n")
+        let state = opened("/* 😀 */ class A {\n    func f() {}\n}\n")
 
         // act
-        let symbols = documentSymbols(db, URI).getOrThrow()
+        let symbols = documentSymbols(state, URI).getOrThrow()
 
         // assert
         @Expect(symbols.size, 1)
@@ -38,6 +38,6 @@ class DocumentSymbolTest {
     @TestCase
     func aDocumentTheServerDoesNotKnowHasNoOutline() {
         // act, assert
-        @Expect(documentSymbols(Database(), URI).isNone())
+        @Expect(documentSymbols(ServerState(), URI).isNone())
     }
 }
