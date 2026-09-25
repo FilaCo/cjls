@@ -257,7 +257,6 @@ func declKind(p: P, scope: Scope, mods: ModifierInfo): ?SyntaxKind {
  * Completes `m`, holding annotations and modifiers, with the declaration of `kind` at the current token.
  */
 func parseDecl(p: P, m: Marker, ctx: DeclContext, kind: SyntaxKind): Unit {
-    let scope = ctx.scope
     match (kind) {
         case FuncDecl => funcDecl(p, m, ctx)
         case MainDecl => mainDecl(p, m, ctx)
@@ -265,7 +264,7 @@ func parseDecl(p: P, m: Marker, ctx: DeclContext, kind: SyntaxKind): Unit {
         case ClassDecl => typeDecl(p, m, ClassKw, ClassDecl, InClassBody)
         case StructDecl => typeDecl(p, m, StructKw, StructDecl, InStructBody)
         case InterfaceDecl => typeDecl(p, m, InterfaceKw, InterfaceDecl, InInterfaceBody)
-        case EnumDecl => enumDecl(p, m)
+        case EnumDecl => typeDecl(p, m, EnumKw, EnumDecl, InEnumBody)
         case ExtendDecl => extendDecl(p, m)
         case TypeAliasDecl => typeAliasDecl(p, m)
         case VarDecl =>
@@ -274,14 +273,14 @@ func parseDecl(p: P, m: Marker, ctx: DeclContext, kind: SyntaxKind): Unit {
             }
             varDecl(p, m)
         case PropDecl => propDecl(p, m, ctx)
-        case InitDecl => initDecl(p, m, ctx)
-        case FinalizerDecl => finalizerDecl(p, m, ctx)
+        case InitDecl => initDecl(p, m)
+        case FinalizerDecl => finalizerDecl(p, m)
         case PackageHeader => packageHeader(p, m)
         case ImportDecl => importDecl(p, m)
         case FeaturesDirective => featuresDirective(p, m)
         case ForeignBlock => foreignBlock(p, m)
-        case MacroExpandDecl => macroExpandDecl(p, m, scope)
-        case PrimaryInitDecl => primaryInitDecl(p, m, ctx)
+        case MacroExpandDecl => macroExpandDecl(p, m, ctx.scope)
+        case PrimaryInitDecl => primaryInitDecl(p, m)
         case _ => enumCtor(p, m)
     }
 }
@@ -490,7 +489,7 @@ func whereClause(p: P): Unit {
 }
 
 /**
- * `class`, `struct` and `interface`: a name, type parameters, supertypes, constraints, a body.
+ * `class`, `struct`, `interface` and `enum`: a name, type parameters, supertypes, constraints, a body.
  */
 func typeDecl(p: P, m: Marker, keyword: SyntaxKind, kind: SyntaxKind, bodyScope: Scope): Unit {
     p.bump(keyword)
@@ -498,18 +497,27 @@ func typeDecl(p: P, m: Marker, keyword: SyntaxKind, kind: SyntaxKind, bodyScope:
     if (p.at(Lt)) {
         typeParamList(p)
     }
+    supertypesAndBody(p, bodyScope)
+    m.complete(p, kind)
+}
+
+/**
+ * Supertypes, constraints, and a body of declarations in `scope`, an enum's starting with its constructors.
+ */
+func supertypesAndBody(p: P, scope: Scope): Unit {
     if (p.at(LtColon)) {
         typeBoundList(p)
     }
     if (p.at(WhereKw)) {
         whereClause(p)
     }
-    if (p.at(LBrace)) {
-        declBody(p, bodyScope)
-    } else {
+    if (!p.at(LBrace)) {
         p.error("expected '{'")
+    } else if (scope == InEnumBody) {
+        enumBody(p)
+    } else {
+        declBody(p, scope)
     }
-    m.complete(p, kind)
 }
 
 func declBody(p: P, scope: Scope): Unit {
@@ -528,26 +536,6 @@ func members(p: P, scope: Scope): Unit {
         }
         declaration(p, scope)
     }
-}
-
-func enumDecl(p: P, m: Marker): Unit {
-    p.bump(EnumKw)
-    expectName(p)
-    if (p.at(Lt)) {
-        typeParamList(p)
-    }
-    if (p.at(LtColon)) {
-        typeBoundList(p)
-    }
-    if (p.at(WhereKw)) {
-        whereClause(p)
-    }
-    if (p.at(LBrace)) {
-        enumBody(p)
-    } else {
-        p.error("expected '{'")
-    }
-    m.complete(p, EnumDecl)
 }
 
 /**
@@ -599,17 +587,7 @@ func extendDecl(p: P, m: Marker): Unit {
         typeParamList(p)
     }
     typ(p)
-    if (p.at(LtColon)) {
-        typeBoundList(p)
-    }
-    if (p.at(WhereKw)) {
-        whereClause(p)
-    }
-    if (p.at(LBrace)) {
-        declBody(p, InExtendBody)
-    } else {
-        p.error("expected '{'")
-    }
+    supertypesAndBody(p, InExtendBody)
     m.complete(p, ExtendDecl)
 }
 
@@ -690,21 +668,21 @@ func propBody(p: P): Unit {
     m.complete(p, PropBody)
 }
 
-func initDecl(p: P, m: Marker, ctx: DeclContext): Unit {
+func initDecl(p: P, m: Marker): Unit {
     p.bump(InitKw)
     // A constructor of a mirror type has no body, which only the type's annotations tell.
     functionRest(p, true)
     m.complete(p, InitDecl)
 }
 
-func finalizerDecl(p: P, m: Marker, ctx: DeclContext): Unit {
+func finalizerDecl(p: P, m: Marker): Unit {
     p.bump(Tilde)
     p.bump(InitKw)
     functionRest(p, true)
     m.complete(p, FinalizerDecl)
 }
 
-func primaryInitDecl(p: P, m: Marker, ctx: DeclContext): Unit {
+func primaryInitDecl(p: P, m: Marker): Unit {
     name(p)
     functionRest(p, true)
     m.complete(p, PrimaryInitDecl)
