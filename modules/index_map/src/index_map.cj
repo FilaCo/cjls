@@ -227,8 +227,8 @@ extend<K, V> IndexMap<K, V> <: ToString where K <: Hashable & Equatable<K> & ToS
      * As `HashMap` renders: `[(k, v), (k, v)]`, in order.
      */
     public func toString(): String {
-        let rendered = entries.map {entry => "(${entry[0]}, ${entry[1]})"}
-        "[${String.join(rendered.toArray(), delimiter: ", ")}]"
+        let rendered = entries.iterator().map {entry => "(${entry[0]}, ${entry[1]})"} |> collectString(delimiter: ", ")
+        "[${rendered}]"
     }
 }
 
