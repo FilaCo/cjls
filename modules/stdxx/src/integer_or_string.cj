@@ -1,9 +1,10 @@
 package stdxx
 
+import std.deriving.*
 import stdx.serialization.serialization.*
 
-public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equatable<IntegerOrString> & Equatable<Int32> &
-    Equatable<String> & Hashable {
+@Derive[Equatable, Hashable]
+public enum IntegerOrString <: Serializable<IntegerOrString> & ToString {
     | Integer(Int32)
     | String(String)
 
@@ -38,22 +39,6 @@ public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equata
         }
     }
 
-    public operator func ==(other: IntegerOrString): Bool {
-        match ((this, other)) {
-            case (Integer(lhs), Integer(rhs)) => lhs == rhs
-            case (String(lhs), String(rhs)) => lhs == rhs
-            case _ => false
-        }
-    }
-
-    public operator func ==(other: Int32): Bool {
-        this == Integer(other)
-    }
-
-    public operator func ==(other: String): Bool {
-        this == String(other)
-    }
-
     public func isInteger(): Bool {
         match (this) {
             case Integer(_) => true
@@ -84,11 +69,15 @@ public enum IntegerOrString <: Serializable<IntegerOrString> & ToString & Equata
             case Integer(_) => throw UnexpectedVariantException("String", "Integer")
         }
     }
+}
 
-    public func hashCode(): Int64 {
-        match (this) {
-            case Integer(int) => int.hashCode()
-            case String(str) => str.hashCode()
-        }
+// in an extension of its own: inside the enum body these would hide the derived `==` they call
+extend IntegerOrString <: Equatable<Int32> & Equatable<String> {
+    public operator func ==(other: Int32): Bool {
+        this == Integer(other)
+    }
+
+    public operator func ==(other: String): Bool {
+        this == String(other)
     }
 }
