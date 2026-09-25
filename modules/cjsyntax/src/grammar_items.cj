@@ -1,6 +1,7 @@
 package cjsyntax
 
 import std.deriving.*
+import ginkgo.TokenSet
 import ginkgo.parsing.*
 
 /**
@@ -44,8 +45,13 @@ enum Scope {
      */
     func allows(kind: SyntaxKind): Bool {
         match (this) {
-            case InTopLevel | InForeignBlock => match (kind) {
+            case InTopLevel => match (kind) {
                 case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor => false
+                case _ => true
+            }
+            case InForeignBlock => match (kind) {
+                case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor | PackageHeader | ImportDecl |
+                    FeaturesDirective => false
                 case _ => true
             }
             case InClassBody => match (kind) {
@@ -194,6 +200,8 @@ func checkPreamble(p: P, preamble: Preamble, kind: SyntaxKind): Unit {
     }
     if (preamble.stage > stage) {
         p.error(message)
+    } else if (kind == PackageHeader && preamble.stage == stage) {
+        p.error("a file has one package header only")
     } else {
         preamble.stage = stage
     }
@@ -317,8 +325,8 @@ func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {
     m.complete(p, FuncDecl)
 }
 
-let OVERLOADABLE_OPERATORS: Array<SyntaxKind> = [Bang, Plus, Minus, StarStar, Star, Slash, Percent, LtLt, Lt, LtEq,
-    Gt, EqEq, BangEq, Amp, Caret, Pipe, Tilde]
+let OVERLOADABLE_OPERATORS = TokenSet<SyntaxKind>([Bang, Plus, Minus, StarStar, Star, Slash, Percent, LtLt, Lt, LtEq,
+    Gt, EqEq, BangEq, Amp, Caret, Pipe, Tilde])
 
 /**
  * A name, `main`, or for an `operator func`, the operator: `[]`, `()`, `>>`, `>=` and the plain ones.

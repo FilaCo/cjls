@@ -23,6 +23,8 @@ cjls ──> jsonrpc ──> stdxx
 
 Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `loupe → syntax → db → vfs`.
 
+Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`) and `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10), on `cjtoml` and `stdxx`.
+
 ## Layers of a request
 
 | # | Layer | Where | Knows | Down the boundary |

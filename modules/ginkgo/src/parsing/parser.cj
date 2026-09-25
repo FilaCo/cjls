@@ -86,6 +86,14 @@ public class Parser<K> where K <: Kind<K> {
         kinds.any {candidate => candidate == k}
     }
 
+    public func atAny(kinds: TokenSet<K>): Bool {
+        kinds.contains(nth(0))
+    }
+
+    public func nthAtAny(n: Int64, kinds: TokenSet<K>): Bool {
+        kinds.contains(nth(n))
+    }
+
     /**
      * The contextual kind of the token `n` ahead, if its text gives it one (see `Lexed.toInput`).
      */
@@ -218,6 +226,10 @@ public class Parser<K> where K <: Kind<K> {
      * knows how to go on from.
      */
     public func errRecover(message: String, recovery: Array<K>): Unit {
+        errRecover(message, TokenSet(recovery))
+    }
+
+    public func errRecover(message: String, recovery: TokenSet<K>): Unit {
         if (atAny(recovery) || atEof()) {
             error(message)
         } else {

@@ -146,6 +146,10 @@ class DeclarationParseTest {
         ("func +(a: A) {}", "(SourceFile (FuncDecl func (Name +) (ParamList ( (Param (Name a) : (PathType (PathSegment (NameRef A)))) )) (Block { }))) !5..5: only an operator function is named by an operator"),
         ("struct S { class C {} }", "(SourceFile (StructDecl struct (Name S) (DeclBody { (ClassDecl class (Name C) (DeclBody { })) }))) !11..11: unexpected class declaration in a struct body"),
         ("func f() {}\npackage p", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { })) (PackageHeader package (NameRef p))) !12..12: the package header must come before imports and declarations"),
+        ("var f = @M func g() {}", "(SourceFile (VarDecl var (Name f) = (MacroExpandDecl @ (NameRef M) (FuncDecl func (Name g) (ParamList ( )) (Block { })))))"),
+        ("func h() { @M func a() {} is Int64 }", "(SourceFile (FuncDecl func (Name h) (ParamList ( )) (Block { (IsExpr (MacroExpandDecl @ (NameRef M) (FuncDecl func (Name a) (ParamList ( )) (Block { }))) is (PrimType Int64)) }))) !25..25: an operator cannot follow a declaration"),
+        ("package a\npackage a", "(SourceFile (PackageHeader package (NameRef a)) (PackageHeader package (NameRef a))) !10..10: a file has one package header only"),
+        ("foreign {\npackage a\nimport b.c\n}", "(SourceFile (ForeignBlock (Modifiers foreign) { (PackageHeader package (NameRef a)) (ImportDecl import (ImportTree (NameRef b) . (NameRef c))) })) !10..10: unexpected package header in a foreign block !20..20: unexpected import in a foreign block"),
         ("class A { func f() {} func g() {} }", "(SourceFile (ClassDecl class (Name A) (DeclBody { (FuncDecl func (Name f) (ParamList ( )) (Block { })) (FuncDecl func (Name g) (ParamList ( )) (Block { })) })))"),
         ("func f() {} func g() {}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { })) (FuncDecl func (Name g) (ParamList ( )) (Block { }))) !11..11: expected a newline or ';'"),
     ]

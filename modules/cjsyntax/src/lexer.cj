@@ -27,25 +27,6 @@ class Frame {
     Frame(let inString: Bool, let quoteChar: Byte, let multiline: Bool) {}
 }
 
-let PUNCTUATION: Array<(Array<Byte>, SyntaxKind)> = [
-    ("...".toArray(), DotDotDot), ("..=".toArray(), DotDotEq), ("**=".toArray(), StarStarEq),
-    ("&&=".toArray(), AmpAmpEq), ("||=".toArray(), PipePipeEq), ("<<=".toArray(), LtLtEq),
-    ("..".toArray(), DotDot), ("**".toArray(), StarStar), ("*=".toArray(), StarEq), ("++".toArray(), PlusPlus),
-    ("+=".toArray(), PlusEq), ("--".toArray(), MinusMinus), ("-=".toArray(), MinusEq), ("->".toArray(), Arrow),
-    ("&&".toArray(), AmpAmp), ("&=".toArray(), AmpEq), ("||".toArray(), PipePipe), ("|=".toArray(), PipeEq),
-    ("|>".toArray(), PipeGt), ("^=".toArray(), CaretEq), ("~>".toArray(), TildeGt), ("<<".toArray(), LtLt),
-    ("<=".toArray(), LtEq), ("<:".toArray(), LtColon), ("<-".toArray(), LArrow), ("==".toArray(), EqEq),
-    ("=>".toArray(), FatArrow), ("!=".toArray(), BangEq), ("%=".toArray(), PercentEq), ("/=".toArray(), SlashEq),
-    ("::".toArray(), ColonColon), ("@!".toArray(), AtBang),
-    (".".toArray(), Dot), (",".toArray(), Comma), ("(".toArray(), LParen), (")".toArray(), RParen),
-    ("[".toArray(), LBracket), ("]".toArray(), RBracket), ("*".toArray(), Star), ("%".toArray(), Percent),
-    ("/".toArray(), Slash), ("+".toArray(), Plus), ("-".toArray(), Minus), ("!".toArray(), Bang),
-    ("&".toArray(), Amp), ("|".toArray(), Pipe), ("^".toArray(), Caret), ("~".toArray(), Tilde),
-    (":".toArray(), Colon), (";".toArray(), Semicolon), ("=".toArray(), Eq), ("#".toArray(), Hash),
-    ("@".toArray(), At), ("?".toArray(), Question), ("<".toArray(), Lt), (">".toArray(), Gt),
-    ("$".toArray(), Dollar), ("\\".toArray(), Backslash)
-]
-
 class Lexer {
     let bytes: Array<Byte>
     let lexed: Lexed<SyntaxKind>
@@ -244,7 +225,7 @@ class Lexer {
     }
 
     func punctuationOrError(start: Int64): Unit {
-        for ((text, kind) in PUNCTUATION) {
+        for ((text, kind) in LEXED_PUNCTUATION) {
             if (matches(text)) {
                 pos += text.size
                 emit(kind, start)

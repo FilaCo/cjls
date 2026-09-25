@@ -54,6 +54,10 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, top: Bool, first: Comp
             }
             break
         }
+        if (lhs.kind == MacroExpandDecl) {
+            // `@M func f() {} is T`: what a macro call on a declaration expands to takes no operator
+            p.error("an operator cannot follow a declaration")
+        }
         let m = lhs.precede(p)
         p.bumpComposite(op, n)
         lhs = match (op) {
@@ -702,7 +706,7 @@ func matchCase(p: P, hasSelector: Bool): Unit {
 func returnExpr(p: P): CompletedMarker<SyntaxKind> {
     let m = p.start()
     p.bump(ReturnKw)
-    let noValue = (atDeclStart(p) && !isContextualKeyword(p.current())) ||
+    let noValue = (atDeclStart(p) && !p.current().isContextualKeyword()) ||
         p.atAny([Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]) || p.atEof()
     if (!noValue) {
         exprOrError(p, Restrictions.NONE)

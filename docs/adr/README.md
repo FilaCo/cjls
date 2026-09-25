@@ -25,3 +25,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0007](0007-position-encoding.md) | UTF-8 columns when the client offers them | accepted |
 | [0008](0008-cancellation.md) | Two cancellations, two answers | accepted |
 | [0009](0009-names-of-state-and-database.md) | `ServerState` holds the `AnalysisDatabase`; only calca says `Database` | accepted |
+| [0010](0010-generated-syntax.md) | Syntax kinds and typed views are generated from an ungrammar | accepted |

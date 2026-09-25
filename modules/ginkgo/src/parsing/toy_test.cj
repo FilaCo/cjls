@@ -24,6 +24,26 @@ enum Toy {
     | Lit
     | ErrorNode
 
+    public func ordinal(): Int64 {
+        match (this) {
+            case Num => 0
+            case Plus => 1
+            case Star => 2
+            case Gt => 3
+            case Shr => 4
+            case Ws => 5
+            case Newline => 6
+            case Comment => 7
+            case Bad => 8
+            case Eof => 9
+            case Root => 10
+            case Line => 11
+            case Bin => 12
+            case Lit => 13
+            case ErrorNode => 14
+        }
+    }
+
     public func toString(): String {
         match (this) {
             case Num => "Num"
