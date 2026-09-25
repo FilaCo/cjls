@@ -41,11 +41,7 @@ class Branch <: Node {
 }
 
 private func summaryOf(children: Array<Node>): TextSummary {
-    var summary = TextSummary.EMPTY
-    for (child in children) {
-        summary = summary + child.summary
-    }
-    summary
+    children |> fold(TextSummary.EMPTY) {summary, child => summary + child.summary}
 }
 
 /**
@@ -171,11 +167,7 @@ private func merged(left: Node, right: Node): ArrayList<Node> {
 func grouped(nodes: ArrayList<Node>, height: Int64): ArrayList<Node> {
     let all = nodes.toArray()
     let groups = (all.size + MAX_CHILDREN - 1) / MAX_CHILDREN
-    let branches = ArrayList<Node>()
-    for (group in 0..groups) {
-        branches.add(Branch(height, all[all.size * group / groups..all.size * (group + 1) / groups]))
-    }
-    branches
+    ArrayList<Node>(groups) {group => Branch(height, all[all.size * group / groups..all.size * (group + 1) / groups])}
 }
 
 /**
@@ -290,35 +282,35 @@ func offsetAtUnits(node: Node, units: Int64, encoding: Encoding): Int64 {
  * The byte at `offset` under `node`, which holds more than `offset` bytes.
  */
 func byteAt(node: Node, offset: Int64): Byte {
-    match (node) {
-        case leaf: Leaf => leaf.text[offset]
-        case branch: Branch =>
-            var remaining = offset
-            for (child in branch.children) {
-                if (remaining < child.summary.bytes) {
-                    return byteAt(child, remaining)
-                }
-                remaining -= child.summary.bytes
-            }
-            throw IndexOutOfBoundsException("offset ${offset} of a node of ${branch.summary.bytes} bytes")
-    }
+    let (leaf, at) = leafAt(node, offset)
+    leaf.text[at]
 }
 
 /**
- * Whether `offset` under `node` falls between two characters.
+ * Whether `offset` under `node`, which holds at least `offset` bytes, falls between two characters.
  */
 func isCharBoundary(node: Node, offset: Int64): Bool {
+    let (leaf, at) = leafAt(node, offset)
+    at == leaf.text.size || !isContinuation(leaf.text[at])
+}
+
+/**
+ * The leaf holding the byte at `offset` under `node`, and the offset in it; the end of the last leaf
+ * for the end of the text.
+ */
+private func leafAt(node: Node, offset: Int64): (Leaf, Int64) {
     match (node) {
-        case leaf: Leaf => offset == leaf.text.size || !isContinuation(leaf.text[offset])
+        case leaf: Leaf => (leaf, offset)
         case branch: Branch =>
+            let children = branch.children
             var remaining = offset
-            for (child in branch.children) {
+            for (child in children[..children.size - 1]) {
                 if (remaining < child.summary.bytes) {
-                    return isCharBoundary(child, remaining)
+                    return leafAt(child, remaining)
                 }
                 remaining -= child.summary.bytes
             }
-            true
+            leafAt(children[children.size - 1], remaining)
     }
 }
 
