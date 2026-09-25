@@ -53,8 +53,8 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * The common part: empty when the two only touch, `None` when they are apart.
      */
     public func intersect(other: TextRange): ?TextRange {
-        let s = if (start > other.start) { start } else { other.start }
-        let e = if (end < other.end) { end } else { other.end }
+        let s = max(start, other.start)
+        let e = min(end, other.end)
         if (s <= e) {
             TextRange(s, e)
         } else {
@@ -66,9 +66,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
      * The smallest range containing both.
      */
     public func cover(other: TextRange): TextRange {
-        let s = if (start < other.start) { start } else { other.start }
-        let e = if (end > other.end) { end } else { other.end }
-        TextRange(s, e)
+        TextRange(min(start, other.start), max(end, other.end))
     }
 
     public func shift(by: Int64): TextRange {

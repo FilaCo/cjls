@@ -5,26 +5,23 @@ package ginkgo
  * What a grammar recovers at, or what may start a construct, is one of these, as in rust-analyzer.
  */
 public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
-    let words: Array<UInt64>
-
-    init(words!: Array<UInt64>) {
-        this.words = words
-    }
+    TokenSet(let words!: Array<UInt64>) {}
 
     public init(kinds: Array<K>) {
-        var size = 0
+        this(words: wordsOf(kinds))
+    }
+
+    static func wordsOf(kinds: Array<K>): Array<UInt64> {
+        let size = kinds.iterator().fold(0) {size, k => max(size, k.ordinal() / 64 + 1)}
+        let words = Array<UInt64>(size, repeat: 0)
         for (k in kinds) {
-            size = max(size, k.ordinal() / 64 + 1)
+            words[k.ordinal() / 64] |= 1 << UInt64(k.ordinal() % 64)
         }
-        let w = Array<UInt64>(size, repeat: 0)
-        for (k in kinds) {
-            w[k.ordinal() / 64] |= 1 << UInt64(k.ordinal() % 64)
-        }
-        words = w
+        words
     }
 
     public static func empty(): TokenSet<K> {
-        TokenSet<K>(words: Array<UInt64>())
+        TokenSet<K>(words: [])
     }
 
     public func contains(kind: K): Bool {
