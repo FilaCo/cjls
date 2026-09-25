@@ -122,6 +122,20 @@ func parkedLength(db: TestDb, file: SourceFile): Int64 {
 }
 
 /**
+ * `parkedLength` on `snapshot`, spawned: whether it was `Cancelled`.
+ */
+func spawnParkedLength(snapshot: TestDatabase, file: SourceFile): Future<Bool> {
+    spawn {
+        try {
+            parkedLength(snapshot, file)
+            false
+        } catch (_: Cancelled) {
+            true
+        }
+    }
+}
+
+/**
  * `parkedLength` on a handle of its own, released as soon as it parks.
  */
 func parkedLengthOf(db: TestDatabase, file: SourceFile): Int64 {
@@ -417,17 +431,6 @@ class CalcaTest {
     }
 
     @TestCase
-    func aQueryCannotChangeAnInput(): Unit {
-        // arrange
-        let db = TestDatabase()
-        let file = SourceFile(db, "a.cj", "hello")
-
-        // act, assert
-        @AssertThrows[IllegalStateException](setsAnInput(db, file))
-        @Expect(file.text(db), "hello")
-    }
-
-    @TestCase
     func aSnapshotReadsWhatTheDatabaseComputed(): Unit {
         // arrange
         let db = TestDatabase()
@@ -450,14 +453,7 @@ class CalcaTest {
         let file = SourceFile(db, "a.cj", "hello")
         let snapshot = db.snapshot()
         let probe = db.snapshot()
-        let reader = spawn {
-            try {
-                parkedLength(snapshot, file)
-                false
-            } catch (_: Cancelled) {
-                true
-            }
-        }
+        let reader = spawnParkedLength(snapshot, file)
         db.parking.parked.remove()
 
         // act
@@ -484,14 +480,7 @@ class CalcaTest {
         let file = SourceFile(db, "a.cj", "hello")
         let stop = AtomicBool(false)
         let snapshot = db.snapshot(cancelledBy: {=> stop.load()})
-        let reader = spawn {
-            try {
-                parkedLength(snapshot, file)
-                false
-            } catch (_: Cancelled) {
-                true
-            }
-        }
+        let reader = spawnParkedLength(snapshot, file)
         db.parking.parked.remove()
 
         // act
@@ -537,32 +526,25 @@ class CalcaTest {
     }
 
     @TestCase
-    func aSnapshotCannotCreateAnInput(): Unit {
-        // arrange
-        let db = TestDatabase()
-
-        // act, assert
-        @AssertThrows[IllegalStateException](SourceFile(db.snapshot(), "a.cj", "hello"))
-    }
-
-    @TestCase
-    func aQueryCannotCreateAnInput(): Unit {
+    func neitherASnapshotNorAQueryCanCreateAnInput(): Unit {
         // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
 
         // act, assert
+        @AssertThrows[IllegalStateException](SourceFile(db.snapshot(), "b.cj", "hello"))
         @AssertThrows[IllegalStateException](createsAnInput(db, file))
     }
 
     @TestCase
-    func aSnapshotCannotChangeAnInput(): Unit {
+    func neitherASnapshotNorAQueryCanChangeAnInput(): Unit {
         // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
 
         // act, assert
         @AssertThrows[IllegalStateException](file.setText(db.snapshot()).to("bye"))
+        @AssertThrows[IllegalStateException](setsAnInput(db, file))
         @Expect(file.text(db), "hello")
     }
 
