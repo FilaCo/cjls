@@ -10,4 +10,3 @@
 | Q6 | Batched writes | every file change is its own revision |
 | Q7 | `protected` instead of `public` across `cjls` packages | module-wide visibility |
 | Q8 | Move the architecture notes of CLAUDE.md into `design/` | jsonrpc, calca, serialization, lsp_codegen |
-| Q9 | `loupe` on `cjsyntax.ast` | `structure.cj` matches raw `SyntaxKind`s and walks children by hand; the typed views (D10) name them |

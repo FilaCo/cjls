@@ -1,8 +1,9 @@
 package loupe
 
 import std.collection.*
-import ginkgo.{SyntaxElement, TextRange}
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import ginkgo.TextRange
+import cjsyntax.CjSyntaxToken
+import cjsyntax.ast.{Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl}
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -77,50 +78,56 @@ public class StructureNode {
  */
 public func fileStructure(db: AnalysisDatabase, fileId: FileId): Array<StructureNode> {
     let file = db.sourceFile(fileId) ?? return []
-    structureOf(parse(db, file).syntaxNode(), false)
+    let root = SourceFile.cast(parse(db, file).syntaxNode()) ?? return []
+    structureOf(root.decls(), false)
 }
 
 /**
- * The declarations among `container`'s children; `inType` when it is a type's body.
+ * The outline of `decls`; `inType` when they are a type's members.
  */
-private func structureOf(container: CjSyntaxNode, inType: Bool): Array<StructureNode> {
+private func structureOf(decls: Iterator<Decl>, inType: Bool): Array<StructureNode> {
     let nodes = ArrayList<StructureNode>()
-    for (child in container.children()) {
-        nodes.add(all: declarationsOf(child, inType))
+    for (decl in decls) {
+        nodes.add(all: declarationsOf(decl, inType))
     }
     nodes.toArray()
 }
 
-private func declarationsOf(node: CjSyntaxNode, inType: Bool): Array<StructureNode> {
-    match (node.kind) {
-        case SyntaxKind.ClassDecl => named(node, StructureKind.Class, bodyOf(node))
-        case SyntaxKind.InterfaceDecl => named(node, StructureKind.Interface, bodyOf(node))
-        case SyntaxKind.StructDecl => named(node, StructureKind.Struct, bodyOf(node))
-        case SyntaxKind.EnumDecl => named(node, StructureKind.Enum, bodyOf(node))
-        case SyntaxKind.EnumCtor => named(node, StructureKind.EnumConstructor, [])
-        case SyntaxKind.ExtendDecl => extension(node)
-        case SyntaxKind.FuncDecl =>
-            named(node, if (inType) { StructureKind.Method } else { StructureKind.Function }, [])
-        case SyntaxKind.MacroDecl => named(node, StructureKind.Macro, [])
-        case SyntaxKind.PrimaryInitDecl => named(node, StructureKind.Constructor, [])
-        case SyntaxKind.PropDecl => named(node, StructureKind.Property, [])
-        case SyntaxKind.TypeAliasDecl => named(node, StructureKind.TypeAlias, [])
-        case SyntaxKind.MainDecl => byKeyword(node, "main", StructureKind.Main, SyntaxKind.MainKw)
-        case SyntaxKind.InitDecl => byKeyword(node, "init", StructureKind.Constructor, SyntaxKind.InitKw)
-        case SyntaxKind.FinalizerDecl => byKeyword(node, "~init", StructureKind.Finalizer, SyntaxKind.InitKw)
-        case SyntaxKind.VarDecl => variables(node, inType)
+private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
+    match (decl) {
+        case Decl.AsClassDecl(it) => named(decl, it.name(), StructureKind.Class, members(it.declBody()?.decls()))
+        case Decl.AsInterfaceDecl(it) =>
+            named(decl, it.name(), StructureKind.Interface, members(it.declBody()?.decls()))
+        case Decl.AsStructDecl(it) => named(decl, it.name(), StructureKind.Struct, members(it.declBody()?.decls()))
+        case Decl.AsEnumDecl(it) => named(decl, it.name(), StructureKind.Enum, members(it.enumBody()?.decls()))
+        case Decl.AsEnumCtor(it) => named(decl, it.name(), StructureKind.EnumConstructor, [])
+        case Decl.AsExtendDecl(it) => extension(it)
+        case Decl.AsFuncDecl(it) =>
+            named(decl, it.name(), if (inType) { StructureKind.Method } else { StructureKind.Function }, [])
+        case Decl.AsMacroDecl(it) => named(decl, it.name(), StructureKind.Macro, [])
+        case Decl.AsPrimaryInitDecl(it) => named(decl, it.name(), StructureKind.Constructor, [])
+        case Decl.AsPropDecl(it) => named(decl, it.name(), StructureKind.Property, [])
+        case Decl.AsTypeAliasDecl(it) => named(decl, it.name(), StructureKind.TypeAlias, [])
+        case Decl.AsMainDecl(it) => byKeyword(decl, "main", StructureKind.Main, it.mainToken())
+        case Decl.AsInitDecl(it) => byKeyword(decl, "init", StructureKind.Constructor, it.initToken())
+        case Decl.AsFinalizerDecl(it) => byKeyword(decl, "~init", StructureKind.Finalizer, it.initToken())
+        case Decl.AsVarDecl(it) => variables(it, inType)
         // a macro call or a `foreign` block declares what is inside it
-        case SyntaxKind.MacroExpandDecl | SyntaxKind.ForeignBlock => structureOf(node, inType)
-        case _ => []
+        case Decl.AsMacroExpandDecl(it) => match (it.decl()) {
+            case Some(inner) => declarationsOf(inner, inType)
+            case None => []
+        }
+        case Decl.AsForeignBlock(it) => structureOf(it.decls(), inType)
     }
 }
 
 /**
  * A declaration named by its `Name`; none if it has none yet, as while it is being typed.
  */
-private func named(node: CjSyntaxNode, kind: StructureKind, children: Array<StructureNode>): Array<StructureNode> {
-    match (childOf(node, SyntaxKind.Name)) {
-        case Some(name) => [StructureNode(name.text(), kind, node.textRange, name.textRange, children)]
+private func named(decl: Decl, name: ?Name, kind: StructureKind, children: Array<StructureNode>): Array<StructureNode> {
+    match (name) {
+        case Some(name) => [StructureNode(name.syntax.text(), kind, decl.syntax.textRange, name.syntax.textRange,
+                children)]
         case None => []
     }
 }
@@ -128,38 +135,28 @@ private func named(node: CjSyntaxNode, kind: StructureKind, children: Array<Stru
 /**
  * `main`, `init`, `~init`: named by a keyword, which is what is selected.
  */
-private func byKeyword(node: CjSyntaxNode, name: String, kind: StructureKind, keyword: SyntaxKind): Array<StructureNode> {
-    for (element in node.childrenWithTokens()) {
-        match (element) {
-            case SyntaxElement.Token(token) where token.kind == keyword =>
-                return [StructureNode(name, kind, node.textRange, token.textRange, [])]
-            case _ => ()
-        }
+private func byKeyword(decl: Decl, name: String, kind: StructureKind, keyword: ?CjSyntaxToken): Array<StructureNode> {
+    match (keyword) {
+        case Some(token) => [StructureNode(name, kind, decl.syntax.textRange, token.textRange, [])]
+        case None => []
     }
-    []
 }
 
 /**
  * Named by the type it extends, as written.
  */
-private func extension(node: CjSyntaxNode): Array<StructureNode> {
-    for (child in node.children()) {
-        match (child.kind) {
-            case SyntaxKind.Modifiers | SyntaxKind.Annotation | SyntaxKind.TypeParamList => ()
-            case SyntaxKind.DeclBody => return []
-            case _ => return [StructureNode(child.text(), StructureKind.Extension, node.textRange, child.textRange,
-                    bodyOf(node))]
-        }
-    }
-    []
+private func extension(decl: ExtendDecl): Array<StructureNode> {
+    let ty = decl.ty() ?? return []
+    [StructureNode(ty.syntax.text(), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange,
+        members(decl.declBody()?.decls()))]
 }
 
 /**
  * One per name a `let`, `var` or `const` binds: `let (a, b) = t` declares two.
  */
-private func variables(node: CjSyntaxNode, inType: Bool): Array<StructureNode> {
-    let isConst = match (childOf(node, SyntaxKind.Modifiers)) {
-        case Some(modifiers) => modifiers.text().contains("const")
+private func variables(decl: VarDecl, inType: Bool): Array<StructureNode> {
+    let isConst = match (decl.modifiers()) {
+        case Some(modifiers) => modifiers.constToken().isSome()
         case None => false
     }
     let kind = if (isConst) {
@@ -169,27 +166,39 @@ private func variables(node: CjSyntaxNode, inType: Bool): Array<StructureNode> {
     } else {
         StructureKind.Variable
     }
-    if (let Some(name) <- childOf(node, SyntaxKind.Name)) {
-        return [StructureNode(name.text(), kind, node.textRange, name.textRange, [])]
+    let names = ArrayList<Name>()
+    match ((decl.name(), decl.pattern())) {
+        case (Some(name), _) => names.add(name)
+        case (None, Some(pattern)) => collectBindings(pattern, names)
+        case _ => ()
     }
-    // a pattern: the first child node that binds, before the type and the initializer
-    let pattern = node.children().filter {child => child.kind.toString().endsWith("Pat")}.next() ?? return []
-    let names = pattern.descendants()
-        .filter {descendant => descendant.kind == SyntaxKind.Name}
-        .map {name => StructureNode(name.text(), kind, node.textRange, name.textRange, [])}
-    collectArray(names)
+    names.toArray().map {name => StructureNode(name.syntax.text(), kind, decl.syntax.textRange, name.syntax.textRange, [])}
 }
 
-private func bodyOf(node: CjSyntaxNode): Array<StructureNode> {
-    for (child in node.children()) {
-        match (child.kind) {
-            case SyntaxKind.DeclBody | SyntaxKind.EnumBody => return structureOf(child, true)
-            case _ => ()
+/**
+ * The names `pattern` binds, in the order they are written.
+ */
+private func collectBindings(pattern: Pattern, names: ArrayList<Name>): Unit {
+    match (pattern) {
+        case Pattern.AsBindPat(it) => if (let Some(name) <- it.name()) {
+            names.add(name)
         }
+        case Pattern.AsTypePat(it) => if (let Some(name) <- it.name()) {
+            names.add(name)
+        }
+        case Pattern.AsTuplePat(it) => for (inner in it.patterns()) {
+            collectBindings(inner, names)
+        }
+        case Pattern.AsEnumPat(it) => for (inner in it.patterns()) {
+            collectBindings(inner, names)
+        }
+        case Pattern.AsWildcardPat(_) | Pattern.AsLiteralPat(_) => ()
     }
-    []
 }
 
-private func childOf(node: CjSyntaxNode, kind: SyntaxKind): ?CjSyntaxNode {
-    node.children().filter {child => child.kind == kind}.next()
+/**
+ * A type's members; none while it has no body.
+ */
+private func members(decls: ?Iterator<Decl>): Array<StructureNode> {
+    structureOf(decls ?? return [], true)
 }
