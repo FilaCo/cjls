@@ -1,17 +1,7 @@
 package lsp_codegen
 
-import std.io.{ByteBuffer, readToEnd}
 import std.unittest.*
 import std.unittest.testmacro.*
-
-func emittedBy(body: (CjEmitter) -> Unit): String {
-    let output = ByteBuffer()
-    let emitter = CjEmitter(output)
-    body(emitter)
-    emitter.flush()
-
-    unsafe { String.fromUtf8(readToEnd(output)) }
-}
 
 @Test
 class CjEmitterTest {

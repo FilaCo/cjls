@@ -1,7 +1,6 @@
 package lsp_codegen
 
 import std.ast.*
-import std.collection.{ArrayList, enumerate}
 
 extend CjEmitter {
     /**
@@ -16,13 +15,7 @@ extend CjEmitter {
         blockln {
             => for (variant in unionIr.variants) {
                 let variantIdent = escapedIdent(variant.ident)
-                var payloads = Tokens()
-                for ((i, payload) in variant.payloads |> enumerate) {
-                    if (i > 0) {
-                        payloads += Tokens(Token(COMMA))
-                    }
-                    payloads += payload.toTokens()
-                }
+                let payloads = joined(variant.payloads.map {it: TypeIr => it.toTokens()}) ?? Tokens()
                 emitln(quote(| $variantIdent($payloads)))
             }
         }

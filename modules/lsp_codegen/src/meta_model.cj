@@ -1,5 +1,6 @@
 package lsp_codegen
 
+import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.IntegerOrString
 import stdxx.serialization.*
@@ -146,7 +147,11 @@ enum BaseTypes {
     Null
 }
 
+/**
+ * Its `toString`, `MessageDirection.Both`, is how the generated code names the variant too.
+ */
 @DeriveExt[Serializable]
+@Derive[ToString]
 enum MessageDirection {
     | @DeriveExtSerializable[value: "clientToServer"]
     ClientToServer

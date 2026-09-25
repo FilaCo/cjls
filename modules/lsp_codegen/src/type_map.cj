@@ -1,6 +1,6 @@
 package lsp_codegen
 
-import std.collection.{ArrayList, HashMap}
+import std.collection.{HashMap, collectArray, filterMap}
 import stdx.serialization.serialization.*
 import stdxx.serialization.*
 
@@ -51,14 +51,12 @@ struct TypeMap <: Serializable<TypeMap> {
      * `(lspName, target)` of every aliased entry
      */
     func aliases(): Array<(String, String)> {
-        let found = ArrayList<(String, String)>()
-        for ((lspName, binding) in entries) {
-            if (let Aliased(target) <- binding) {
-                found.add((lspName, target))
+        entries |> filterMap {
+            entry: (String, TypeBinding) => match (entry[1]) {
+                case Aliased(target) => (entry[0], target)
+                case _ => None
             }
-        }
-
-        found.toArray()
+        } |> collectArray
     }
 
     /**
@@ -88,7 +86,7 @@ struct TypeMap <: Serializable<TypeMap> {
 private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
     let entry = dm.asStructOrThrow()
 
-    let declared = entry.getOrNone("declared").map {it => declaredOf(lspName, it)}
+    let declared = entry.getOrNone("declared").map {it => declaredOf(it)}
     let fields = entry.getFields().filter {it => it.getName() != "declared"}
     if (fields.isEmpty()) {
         throw DataModelException("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
@@ -113,7 +111,7 @@ private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
     }
 }
 
-private func declaredOf(lspName: String, dm: DataModel): Array<String> {
+private func declaredOf(dm: DataModel): Array<String> {
     dm.asSeqOrThrow().getItems().map {it => it.asStringOrThrow()}.toArray()
 }
 

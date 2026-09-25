@@ -1,5 +1,6 @@
 package lsp_codegen
 
+import std.collection.fold
 import std.fs.*
 import stdx.serialization.serialization.*
 import stdxx.serialization.*
@@ -14,12 +15,8 @@ struct Config {
         let imports!: Collection<String> = [],
         let typeMap!: TypeMap = TypeMap()
     ) {
-        var outputDirVal = srcDir
         // cjpm names a subpackage `<root>.<path under src-dir>`: the root is no directory
-        for (s in outputPackage.split(".")[1..]) {
-            outputDirVal = outputDirVal.join(s)
-        }
-        outputDir = outputDirVal
+        outputDir = outputPackage.split(".")[1..] |> fold(srcDir) {dir: Path, part: String => dir.join(part)}
     }
 
     static func load(cfgPath: Path): Config {

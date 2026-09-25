@@ -1,7 +1,7 @@
 package lsp_codegen
 
 import std.ast.*
-import std.io.{OutputStream, StringWriter}
+import std.io.{ByteBuffer, OutputStream, StringWriter, readToEnd}
 
 class CjEmitter {
     private let output: StringWriter<OutputStream>
@@ -19,26 +19,17 @@ class CjEmitter {
         output.write("\n")
     }
 
-    func block(body: () -> Unit): Unit {
-        emitln("{")
-        indentedln(body)
-        emit("}")
-    }
-
     func blockln(body: () -> Unit): Unit {
-        block(body)
+        emitln("{")
+        indented(body)
         nl()
+        emitln("}")
     }
 
     func indented(body: () -> Unit): Unit {
         indentation++
         body()
         indentation--
-    }
-
-    func indentedln(body: () -> Unit): Unit {
-        indented(body)
-        nl()
     }
 
     func emit(dc: DocComment): Unit {
@@ -77,6 +68,18 @@ class CjEmitter {
         emit(s)
         nl()
     }
+}
+
+/**
+ * What `body` has an emitter write.
+ */
+func emittedBy(body: (CjEmitter) -> Unit): String {
+    let output = ByteBuffer()
+    let emitter = CjEmitter(output)
+    body(emitter)
+    emitter.flush()
+
+    unsafe { String.fromUtf8(readToEnd(output)) }
 }
 
 struct DocComment {

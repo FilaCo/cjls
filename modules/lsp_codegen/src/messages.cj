@@ -128,11 +128,6 @@ extend CjEmitter {
             case ServerToClient => ("LspOutbound${types}", false)
             case Both => ("LspInbound${types} & LspOutbound${types}", true)
         }
-        let direction = match (messageIr.direction) {
-            case ClientToServer => "ClientToServer"
-            case ServerToClient => "ServerToClient"
-            case Both => "Both"
-        }
 
         emitDoc(messageIr.doc)
         // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type
@@ -144,7 +139,7 @@ extend CjEmitter {
                 emitln("}")
                 nl()
                 emitln("public static prop DIRECTION: MessageDirection {")
-                indented {=> emitln("get() { MessageDirection.${direction} }")}
+                indented {=> emitln("get() { ${messageIr.direction} }")}
                 emitln("}")
                 nl()
                 emitln("public prop method: String {")
