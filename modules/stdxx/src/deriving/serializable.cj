@@ -25,8 +25,8 @@ func deriveSerializable(decl: Decl): Tokens {
     }
 
     // two fields of one wire name would write the same key, and both read whichever value came last
-    if (let Some(clash) <- firstDuplicate(fields.map {field => (field.wireName.value, field.ident)}.toArray())) {
-        return report(clash, "two fields share the wire name \"${clash.value}\"", "rename one of them")
+    if (let Some((wireName, clash)) <- firstDuplicate(fields.map {field => (field.wireName.value, field.ident)}.toArray())) {
+        return report(clash, "two fields share the wire name \"${wireName}\"", "rename one of them")
     }
 
     if (typeOptions.transparent) {

@@ -51,7 +51,7 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
     }
 
     // two variants of one value would be indistinguishable, and the earlier one would answer for both
-    if (let Some(clash) <- firstDuplicate(variants.map {variant => (variant.value.text, variant.ident)}.toArray())) {
+    if (let Some((_, clash)) <- firstDuplicate(variants.map {variant => (variant.value.text, variant.ident)}.toArray())) {
         return report(clash, "two variants share the same value on the wire", "give one of them a different `value:`")
     }
 

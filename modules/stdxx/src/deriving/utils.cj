@@ -67,13 +67,13 @@ func commaSeparated(parts: Array<Tokens>): Tokens {
 }
 
 /**
- * The token of the first entry whose key an earlier one already took.
+ * The first entry whose key an earlier one already took.
  */
-func firstDuplicate(entries: Array<(String, Token)>): ?Token {
+func firstDuplicate(entries: Array<(String, Token)>): ?(String, Token) {
     let taken = HashSet<String>()
     for ((key, token) in entries) {
         if (!taken.add(key)) {
-            return token
+            return (key, token)
         }
     }
 
