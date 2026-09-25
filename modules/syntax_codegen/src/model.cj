@@ -90,7 +90,7 @@ class Model {
     ) {}
 
     func isEnum(name: String): Bool {
-        enums.any {e => e.name == name}
+        enumOf(name).isSome()
     }
 
     func enumOf(name: String): ?EnumIr {
@@ -145,7 +145,6 @@ func buildModel(file: KindsFile, grammar: Grammar): Model {
     addAll(file.tokens, Token)
     addAll(file.keywords, Keyword)
     addAll(file.nodes, Node)
-    checkKinds(kinds)
 
     // a token is named by its kind's name, or by its text: the first kind spelled so, punctuation and keywords
     // coming first (`}` is `RBrace`, and the end of an interpolation `'InterpolationEnd'`)
@@ -234,13 +233,8 @@ func checkRefs(owner: String, rule: Rule, known: HashSet<String>, tokenKinds: Ha
  * An enum variant is in scope throughout its package, unqualified: one named like a type there would hide it.
  */
 func checkVariantNames(model: Model): Unit {
-    let types = HashSet<String>()
-    for (k in model.kinds where !k.isToken()) {
-        types.add(k.name)
-    }
-    for (e in model.enums) {
-        types.add(e.name)
-    }
+    let types = HashSet<String>(model.kinds.filter {k => !k.isToken()}.map {k => k.name})
+    types.add(all: model.enums.map {e => e.name})
     for (e in model.enums) {
         for (v in e.variants where types.contains(v.name)) {
             throw GrammarException("the variant `${v.name}` of `${e.name}` would hide the type of that name: label it")
