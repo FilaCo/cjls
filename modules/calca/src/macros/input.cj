@@ -14,7 +14,7 @@ import std.collection.*
  *     public var text: String
  * }
  * // gives
- * public init(db: Database, path: String, text: String, durability!: Durability = Durability.Low)
+ * public SourceFile(db: Database, path: String, text: String, durability!: Durability = Durability.Low)
  * public func path(db: Database): String
  * public func text(db: Database): String
  * public func setText(db: Database): Setter<String>   // file.setText(db).to(text)
@@ -71,7 +71,7 @@ public macro CalcaInput(input: Tokens): Tokens {
 
             private let calcaId: Id
 
-            $visibility init(db: Database, $params durability!: Durability = Durability.Low) {
+            $visibility $name(db: Database, $params durability!: Durability = Durability.Low) {
                 calcaId = CALCA_INGREDIENT.create(db, durability) {
                     row => $puts
                 }

@@ -6,7 +6,7 @@ package calca
  * the snapshot asked it to stop. Catch it where the handle is used, and drop the handle.
  */
 public class Cancelled <: Exception {
-    init() {
+    Cancelled() {
         super("the query was cancelled")
     }
 
@@ -19,7 +19,7 @@ public class Cancelled <: Exception {
  * Thrown when a tracked function ends up needing its own result, directly or through others.
  */
 public class CycleException <: Exception {
-    init(message: String) {
+    CycleException(message: String) {
         super(message)
     }
 

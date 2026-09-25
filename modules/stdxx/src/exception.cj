@@ -5,12 +5,12 @@ package stdxx
  * not a condition to recover from.
  */
 public class UnexpectedVariantException <: Exception {
-    public init(expected: String, actual: String) {
-        super("expected `${expected}` variant, got `${actual}`")
+    public UnexpectedVariantException(message: String) {
+        super(message)
     }
 
-    public init(message: String) {
-        super(message)
+    public init(expected: String, actual: String) {
+        this("expected `${expected}` variant, got `${actual}`")
     }
 
     protected override func getClassName(): String {
@@ -19,12 +19,12 @@ public class UnexpectedVariantException <: Exception {
 }
 
 public class NullValueException <: Exception {
-    public init() {
-        super("value is null")
+    public NullValueException(message: String) {
+        super(message)
     }
 
-    public init(message: String) {
-        super(message)
+    public init() {
+        this("value is null")
     }
 
     protected override func getClassName(): String {

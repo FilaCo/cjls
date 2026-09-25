@@ -23,7 +23,7 @@ class Asked {
     let answers = LinkedBlockingQueue<ResultOrError>()
     let request: InboundRequest
 
-    init(method: String, params!: ?ArrayOrObject = Option<ArrayOrObject>.None) {
+    Asked(method: String, params!: ?ArrayOrObject = Option<ArrayOrObject>.None) {
         let answers = this.answers
         request = InboundRequest(Integer(1), method, params, CancellationToken(), {answer => answers.add(answer)})
     }

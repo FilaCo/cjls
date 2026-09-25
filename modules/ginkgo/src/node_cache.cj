@@ -26,7 +26,7 @@ public class NodeCache<K> where K <: Kind<K> {
     }
 
     public func node(kind: K, children: Array<GreenElement<K>>): GreenNode<K> {
-        let candidate = GreenNode(kind, children)
+        let candidate = GreenNode(children, kind)
         if (children.size > MAX_CACHED_CHILDREN) {
             return candidate
         }
