@@ -17,18 +17,13 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
     for (ctor in decl.constructors) {
         let ident = ctor.identifier
         let options = variantOptions.get(ident.value) ?? MarkerOptions()
-        let payloadTypes = ArrayList<Tokens>()
-        let payloadShapes = ArrayList<FieldShape>()
-        for (payloadType in ctor.typeArguments) {
-            payloadTypes.add(payloadType.toTokens())
-            payloadShapes.add(shapeOf(payloadType))
-        }
+        let payloadTypes = ctor.typeArguments.toArray()
 
         let variant = DerivedVariant(
             ident: ident,
             value: options.value ?? WireValue.ofString(stripBackquotes(ident.value)),
-            payloadTypes: payloadTypes.toArray(),
-            payloadShapes: payloadShapes.toArray(),
+            payloadTypes: payloadTypes.map {payloadType => payloadType.toTokens()},
+            payloadShapes: payloadTypes.map {payloadType => shapeOf(payloadType)},
             payloadNames: options.payload
         )
         if (!options.other) {
@@ -55,12 +50,14 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
             "there is nothing to recognise")
     }
 
-    if (let Some(clash) <- duplicateWireValue(variants)) {
+    // two variants of one value would be indistinguishable, and the earlier one would answer for both
+    if (let Some(clash) <- firstDuplicate(variants.map {variant => (variant.value.text, variant.ident)}.toArray())) {
         return report(clash, "two variants share the same value on the wire", "give one of them a different `value:`")
     }
 
+    let isScalar = variants.all {variant => variant.payloadTypes.isEmpty()}
     if (let Some(o) <- other) {
-        if (typeOptions.tag.isSome() || !isScalar(variants)) {
+        if (typeOptions.tag.isSome() || !isScalar) {
             return report(o.ident, "`other` applies only to an enum whose variants are plain values",
                 "a tagged or an untagged enum has no single value to fall back on")
         }
@@ -69,7 +66,7 @@ func deriveSerializableEnum(decl: EnumDecl): Tokens {
     match (typeOptions.tag) {
         case Some(tag) => taggedEnumExtension(decl, variants, tag, typeOptions.skipNone)
         case None =>
-            if (isScalar(variants)) {
+            if (isScalar) {
                 scalarEnumExtension(decl, variants, other)
             } else {
                 untaggedEnumExtension(decl, variants)
@@ -92,13 +89,8 @@ private struct DerivedVariant {
     /**
      * `p0, p1, ...` - the names the generated `match` binds this variant's payload to.
      */
-    func payloadBindings(): Array<Token> {
-        let bindings = ArrayList<Token>()
-        for (i in 0..payloadTypes.size) {
-            bindings.add(Token(TokenKind.IDENTIFIER, "p${i}"))
-        }
-
-        bindings.toArray()
+    func payloadBindings(): Array<Tokens> {
+        Array(payloadTypes.size) {i => Tokens(Token(TokenKind.IDENTIFIER, "p${i}"))}
     }
 }
 
@@ -114,29 +106,17 @@ private func isIntegerType(tokens: Tokens): Bool {
     }
 }
 
-private func isScalar(variants: ArrayList<DerivedVariant>): Bool {
-    for (variant in variants) {
-        if (variant.payloadTypes.size > 0) {
-            return false
-        }
-    }
-
-    true
-}
-
 /**
  * Variants without a payload are the value itself - a string, or an integer when `value:` says so.
  */
 private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVariant>, other: ?DerivedVariant): Tokens {
     let isInteger = variants[0].value.isInteger
-    for (variant in variants) {
-        if (variant.value.isInteger != isInteger) {
-            return report(
-                decl,
-                "`@DeriveExt[Serializable]` needs every `value:` of an enum to be of one kind",
-                "`${variant.ident.value}` breaks the string/integer choice the other variants made"
-            )
-        }
+    if (let Some(variant) <- variants.filter {variant => variant.value.isInteger != isInteger}.first) {
+        return report(
+            decl,
+            "`@DeriveExt[Serializable]` needs every `value:` of an enum to be of one kind",
+            "`${variant.ident.value}` breaks the string/integer choice the other variants made"
+        )
     }
 
     let reader = if (isInteger) {
@@ -183,7 +163,7 @@ private func scalarEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVari
         )
     }
 
-    enumExtension(
+    serializableExtension(
         decl,
         quote(
             match ($reader) {
@@ -234,23 +214,24 @@ private func untaggedEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVa
                 )
             case arity =>
                 let bindings = variant.payloadBindings()
-                var readArgs = Tokens()
+                let readArgs = commaSeparated(
+                    Array(arity) {
+                        i =>
+                            let payloadType = variant.payloadTypes[i]
+                            let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
+                            quote($payloadType.deserialize(items[$index]))
+                    }
+                )
                 // one `add` per payload rather than an `ArrayList` literal: the expansion must not
                 // depend on the caller importing `std.collection`
                 var writeItems = Tokens()
-                for ((i, payloadType) in variant.payloadTypes |> enumerate) {
-                    if (i > 0) {
-                        readArgs += Tokens(Token(TokenKind.COMMA))
-                    }
-                    let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
-                    let binding = bindings[i]
-                    readArgs += quote($payloadType.deserialize(items[$index]))
+                for (binding in bindings) {
                     writeItems += quote(
                         items.add($binding.serialize())
                     )
                 }
                 let size = Token(TokenKind.INTEGER_LITERAL, "${arity}")
-                let pattern = joinedTokens(bindings)
+                let pattern = commaSeparated(bindings)
                 attempts += quote(
                     try {
                         let items = dm.asSeqOrThrow().getItems()
@@ -269,7 +250,7 @@ private func untaggedEnumExtension(decl: EnumDecl, variants: ArrayList<DerivedVa
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "no `${decl.identifier.value}` variant matched the value")
 
-    enumExtension(
+    serializableExtension(
         decl,
         quote(
             $attempts
@@ -316,25 +297,11 @@ private func taggedEnumExtension(
         let literal = variant.value.literal
         let bindings = variant.payloadBindings()
 
-        var readArgs = Tokens()
+        let nameLiterals = variant.payloadNames.map {name => Token(TokenKind.STRING_LITERAL, name)}
+        let readArgs = commaSeparated(Array(nameLiterals.size) {i => variant.payloadShapes[i].reader(nameLiterals[i])})
         var writeFields = Tokens()
-        for ((i, name) in variant.payloadNames |> enumerate) {
-            let nameLiteral = Token(TokenKind.STRING_LITERAL, name)
-            let binding = bindings[i]
-            let shape = variant.payloadShapes[i]
-            if (i > 0) {
-                readArgs += Tokens(Token(TokenKind.COMMA))
-            }
-            readArgs += match (shape) {
-                case Required => quote(dms.getDeserializedOrThrow($nameLiteral))
-                case Optional => quote(dms.getDeserializedOrNoneOnNull($nameLiteral))
-                case OptionalNullable => quote(dms.getDeserializedOrNone($nameLiteral))
-            }
-            writeFields += if (skipNone && shape.isOptional) {
-                quote(.addFieldIfSome($nameLiteral, $binding))
-            } else {
-                quote(.add(field($nameLiteral, $binding)))
-            }
+        for ((i, shape) in variant.payloadShapes |> enumerate) {
+            writeFields += shape.writer(nameLiterals[i], bindings[i], skipNone)
         }
 
         readCases += if (bindings.size == 0) {
@@ -351,7 +318,7 @@ private func taggedEnumExtension(
                 case $ident => DataModelStruct().add(field($tagLiteral, $literal))
             )
         } else {
-            let pattern = joinedTokens(bindings)
+            let pattern = commaSeparated(bindings)
             quote(
                 case $ident($pattern) => DataModelStruct().add(field($tagLiteral, $literal))$writeFields
             )
@@ -359,7 +326,7 @@ private func taggedEnumExtension(
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${decl.identifier.value}` ${tag}: ")
 
-    enumExtension(
+    serializableExtension(
         decl,
         quote(
             let dms = dm.asStructOrThrow()
@@ -375,61 +342,4 @@ private func taggedEnumExtension(
             }
         )
     )
-}
-
-/**
- * The identifier of the first variant whose value on the wire was already taken - two of them would
- * be indistinguishable, and the earlier one would answer for both.
- */
-private func duplicateWireValue(variants: ArrayList<DerivedVariant>): ?Token {
-    let taken = HashSet<String>()
-    for (variant in variants) {
-        if (!taken.add(variant.value.text)) {
-            return variant.ident
-        }
-    }
-
-    None
-}
-
-private func enumExtension(decl: EnumDecl, deserializeBody: Tokens, serializeBody: Tokens): Tokens {
-    let typeIdent = decl.identifier
-    let typeArgs = typeArgsOf(decl)
-    let whereClause = serializableWhereClause(decl)
-
-    quote(
-        extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
-            public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
-                $deserializeBody
-            }
-
-            public func serialize(): DataModel {
-                $serializeBody
-            }
-        }
-    )
-}
-
-private func joinedTokens(tokens: Array<Token>): Tokens {
-    var joined = Tokens()
-    for ((i, token) in tokens |> enumerate) {
-        if (i > 0) {
-            joined += Tokens(Token(TokenKind.COMMA))
-        }
-        joined += Tokens(token)
-    }
-
-    joined
-}
-
-private func report(ident: Token, message: String, hint: String): Tokens {
-    diagReport(DiagReportLevel.ERROR, ident.toTokens(), message, hint)
-
-    Tokens()
-}
-
-private func report(decl: Decl, message: String, hint: String): Tokens {
-    diagReport(DiagReportLevel.ERROR, decl.identifier.toTokens(), message, hint)
-
-    Tokens()
 }

@@ -8,9 +8,12 @@ func deriveSerializable(decl: Decl): Tokens {
         return deriveSerializableEnum(enumDecl)
     }
     if (bodyDeclsOf(decl).isNone()) {
-        return reportUnsupportedDecl(decl)
+        return report(decl, "`@DeriveExt[Serializable]` only derives for a `struct`, a `class` or an `enum`",
+            "hand-write `Serializable` for anything else")
     }
-    let primaryCtor = primaryCtorOf(decl) ?? return reportNoPrimaryCtor(decl)
+    let primaryCtor = primaryCtorOf(decl) ?? return report(decl,
+        "`@DeriveExt[Serializable]` needs a primary constructor to read the fields from",
+        "declare the fields as primary constructor parameters, or hand-write `Serializable`")
 
     let (typeOptions, memberOptions) = collectMarkers()
 
@@ -21,7 +24,8 @@ func deriveSerializable(decl: Decl): Tokens {
         fields.add(field)
     }
 
-    if (let Some(clash) <- duplicateWireName(fields)) {
+    // two fields of one wire name would write the same key, and both read whichever value came last
+    if (let Some(clash) <- firstDuplicate(fields.map {field => (field.wireName.value, field.ident)}.toArray())) {
         return report(clash, "two fields share the wire name \"${clash.value}\"", "rename one of them")
     }
 
@@ -31,7 +35,6 @@ func deriveSerializable(decl: Decl): Tokens {
 
     let typeIdent = decl.identifier
     let typeArgs = typeArgsOf(decl)
-    let whereClause = serializableWhereClause(decl)
 
     var tagCheck = Tokens()
     var serializeChain = Tokens()
@@ -51,28 +54,20 @@ func deriveSerializable(decl: Decl): Tokens {
             serializeChain = quote(.add(field($name, $value)))
     }
 
-    var ctorArgs = Tokens()
-    for ((i, field) in fields.enumerate()) {
-        if (i > 0) {
-            ctorArgs += Tokens(Token(TokenKind.COMMA))
-        }
-        ctorArgs += field.toCtorArg()
+    for (field in fields) {
         serializeChain += field.toSerializeCall()
     }
+    let ctorArgs = commaSeparated(fields.map {field => field.toCtorArg()}.toArray())
 
-    quote(
-        extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
-            public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
-                let dms = dm.asStructOrThrow()
-                $tagCheck
+    serializableExtension(
+        decl,
+        quote(
+            let dms = dm.asStructOrThrow()
+            $tagCheck
 
-                $typeIdent$typeArgs($ctorArgs)
-            }
-
-            public func serialize(): DataModel {
-                DataModelStruct()$serializeChain
-            }
-        }
+            $typeIdent$typeArgs($ctorArgs)
+        ),
+        quote(DataModelStruct()$serializeChain)
     )
 }
 
@@ -152,7 +147,6 @@ private func transparentExtension(
     }
 
     let typeArgs = typeArgsOf(decl)
-    let whereClause = serializableWhereClause(decl)
     let ident = field.ident
     let fieldType = field.fieldType
     let ctorArg = if (field.isNamed) {
@@ -161,17 +155,7 @@ private func transparentExtension(
         quote($fieldType.deserialize(dm))
     }
 
-    quote(
-        extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
-            public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
-                $typeIdent$typeArgs($ctorArg)
-            }
-
-            public func serialize(): DataModel {
-                this.$ident.serialize()
-            }
-        }
-    )
+    serializableExtension(decl, quote($typeIdent$typeArgs($ctorArg)), quote(this.$ident.serialize()))
 }
 
 /**
@@ -203,6 +187,31 @@ enum FieldShape {
             }
         }
     }
+
+    /**
+     * Reads the key `wireName` of `dms` the way this shape wants it read.
+     */
+    func reader(wireName: Token): Tokens {
+        match (this) {
+            case Required => quote(dms.getDeserializedOrThrow($wireName))
+            case Optional => quote(dms.getDeserializedOrNoneOnNull($wireName))
+            case OptionalNullable => quote(dms.getDeserializedOrNone($wireName))
+        }
+    }
+
+    /**
+     * The link that writes `value` under `wireName` onto a `DataModelStruct` chain.
+     *
+     * `Option<T>` serializes itself as `null`, so writing it is the same call whatever the shape -
+     * until `skipNone` asks for the key to be dropped instead.
+     */
+    func writer(wireName: Token, value: Tokens, skipNone: Bool): Tokens {
+        if (skipNone && isOptional) {
+            quote(.addFieldIfSome($wireName, $value))
+        } else {
+            quote(.add(field($wireName, $value)))
+        }
+    }
 }
 
 /**
@@ -222,12 +231,7 @@ private struct DerivedField {
      * The argument that reconstructs this field, as it appears in the `deserialize` constructor call.
      */
     func toCtorArg(): Tokens {
-        let wireName = this.wireName
-        let value = match (shape) {
-            case Required => quote(dms.getDeserializedOrThrow($wireName))
-            case Optional => quote(dms.getDeserializedOrNoneOnNull($wireName))
-            case OptionalNullable => quote(dms.getDeserializedOrNone($wireName))
-        }
+        let value = shape.reader(wireName)
 
         if (isNamed) {
             let ident = this.ident
@@ -239,19 +243,11 @@ private struct DerivedField {
 
     /**
      * The link this field adds to the `DataModelStruct` chain in `serialize`.
-     *
-     * `Option<T>` serializes itself as `null`, so writing the field is the same call whatever its
-     * shape - until `skipNone` asks for the key to be dropped instead.
      */
     func toSerializeCall(): Tokens {
-        let wireName = this.wireName
         let ident = this.ident
 
-        if (skipNone && shape.isOptional) {
-            quote(.addFieldIfSome($wireName, this.$ident))
-        } else {
-            quote(.add(field($wireName, this.$ident)))
-        }
+        shape.writer(wireName, quote(this.$ident), skipNone)
     }
 }
 
@@ -359,51 +355,29 @@ func serializableWhereClause(decl: Decl): Tokens {
         }
         bounds.add("Serializable<${typeParam.value}>")
 
-        clauses.add("${typeParam.value} <: ${joined(bounds, " & ")}")
+        clauses.add("${typeParam.value} <: ${String.join(bounds.toArray(), delimiter: " & ")}")
     }
 
-    cangjieLex("where ${joined(clauses, ", ")}")
+    cangjieLex("where ${String.join(clauses.toArray(), delimiter: ", ")}")
 }
 
 /**
- * The identifier of the first field whose name on the wire was already taken - two of them would
- * write the same key, and both would read whichever value came last.
+ * `extend T <: Serializable<T>` around the two bodies given - every derivation ends in one.
  */
-private func duplicateWireName(fields: ArrayList<DerivedField>): ?Token {
-    let taken = HashSet<String>()
-    for (field in fields) {
-        if (!taken.add(field.wireName.value)) {
-            return field.ident
+func serializableExtension(decl: Decl, deserializeBody: Tokens, serializeBody: Tokens): Tokens {
+    let typeIdent = decl.identifier
+    let typeArgs = typeArgsOf(decl)
+    let whereClause = serializableWhereClause(decl)
+
+    quote(
+        extend $typeArgs $typeIdent$typeArgs <: Serializable<$typeIdent$typeArgs> $whereClause {
+            public static func deserialize(dm: DataModel): $typeIdent$typeArgs {
+                $deserializeBody
+            }
+
+            public func serialize(): DataModel {
+                $serializeBody
+            }
         }
-    }
-
-    None
-}
-
-private func report(ident: Token, message: String, hint: String): Tokens {
-    diagReport(DiagReportLevel.ERROR, ident.toTokens(), message, hint)
-
-    Tokens()
-}
-
-private func reportUnsupportedDecl(decl: Decl): Tokens {
-    diagReport(
-        DiagReportLevel.ERROR,
-        decl.identifier.toTokens(),
-        "`@DeriveExt[Serializable]` only derives for a `struct`, a `class` or an `enum`",
-        "hand-write `Serializable` for anything else"
     )
-
-    Tokens()
-}
-
-private func reportNoPrimaryCtor(decl: Decl): Tokens {
-    diagReport(
-        DiagReportLevel.ERROR,
-        decl.identifier.toTokens(),
-        "`@DeriveExt[Serializable]` needs a primary constructor to read the fields from",
-        "declare the fields as primary constructor parameters, or hand-write `Serializable`"
-    )
-
-    Tokens()
 }

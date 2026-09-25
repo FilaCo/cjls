@@ -171,22 +171,13 @@ private func expected(
     let tokens = argument.toTokens()
     let name = tokens[0].value
 
-    var allowed = false
-    for (allowedPosition in positions) {
-        if (allowedPosition.name == position.name) {
-            allowed = true
-        }
-    }
-    if (!allowed) {
-        let names = ArrayList<String>()
-        for (allowedPosition in positions) {
-            names.add(allowedPosition.name)
-        }
+    let names = positions.map {allowed => allowed.name}
+    if (!names.contains(position.name)) {
         diagReport(
             DiagReportLevel.ERROR,
             tokens,
             "`${name}` does not apply to ${position.name}",
-            "it belongs on ${joined(names, " or ")}"
+            "it belongs on ${String.join(names, delimiter: " or ")}"
         )
         return false
     }
@@ -254,12 +245,8 @@ private func integerTextOf(tokens: Tokens): ?String {
 }
 
 private func setPayloadOption(argument: Argument, value: Tokens): Unit {
-    let names = ArrayList<String>()
-    for (token in value) {
-        if (token.kind == TokenKind.STRING_LITERAL) {
-            names.add(token.value)
-        }
-    }
+    let names = value |> filter {token: Token => token.kind == TokenKind.STRING_LITERAL} |>
+        map {token: Token => token.value} |> collectArray
 
     if (names.isEmpty()) {
         diagReport(
@@ -271,7 +258,7 @@ private func setPayloadOption(argument: Argument, value: Tokens): Unit {
         return
     }
 
-    setItem(ITEM_PAYLOAD, joined(names, ","))
+    setItem(ITEM_PAYLOAD, String.join(names, delimiter: ","))
 }
 
 /**
@@ -341,30 +328,23 @@ func collectMarkers(): (MarkerOptions, HashMap<String, MarkerOptions>) {
 }
 
 private func optionsOf(message: MacroMessage): MarkerOptions {
-    var value: ?WireValue = None
-    if (message.hasItem(ITEM_VALUE)) {
-        value = WireValue.of(message.getString(ITEM_VALUE), message.getString(ITEM_VALUE_IS_INTEGER) == "true")
-    }
-
     MarkerOptions(
-        rename: if (message.hasItem(ITEM_RENAME)) {
-            Some(message.getString(ITEM_RENAME))
-        } else {
-            None
-        },
+        rename: stringItemOf(message, ITEM_RENAME),
         skipNone: message.hasItem(ITEM_SKIP_NONE),
-        tag: if (message.hasItem(ITEM_TAG)) {
-            Some(message.getString(ITEM_TAG))
-        } else {
-            None
-        },
+        tag: stringItemOf(message, ITEM_TAG),
         transparent: message.hasItem(ITEM_TRANSPARENT),
-        value: value,
-        payload: if (message.hasItem(ITEM_PAYLOAD)) {
-            message.getString(ITEM_PAYLOAD).split(",")
-        } else {
-            []
+        value: stringItemOf(message, ITEM_VALUE).map {
+            value => WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
         },
+        payload: stringItemOf(message, ITEM_PAYLOAD).map {payload => payload.split(",")} ?? [],
         other: message.hasItem(ITEM_OTHER)
     )
+}
+
+private func stringItemOf(message: MacroMessage, key: String): ?String {
+    if (message.hasItem(key)) {
+        message.getString(key)
+    } else {
+        None
+    }
 }
