@@ -1,8 +1,6 @@
 package lsp_codegen
 
 import cjtoml.*
-import std.env.getTempDirectory
-import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
@@ -12,15 +10,7 @@ import stdxx.serialization.*
  * `unmarshal` reads a path, so the TOML under test has to reach the disk first.
  */
 private func typeMapOf(toml: String): TypeMap {
-    let dir = Directory.createTemp(getTempDirectory())
-    try {
-        let path = dir.join("types.toml")
-        File.writeTo(path, toml.toArray())
-
-        unmarshal<TypesOnly>(path.toString()).typeMap
-    } finally {
-        remove(dir, recursive: true)
-    }
+    withConfigDir(toml) {path, _ => unmarshal<TypesOnly>(path.toString()).typeMap}
 }
 
 private struct TypesOnly <: Serializable<TypesOnly> {

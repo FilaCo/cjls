@@ -1,16 +1,13 @@
 package lsp_codegen
 
-import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 
 private func resolveMessagesOf(requests!: Array<Request> = [], notifications!: Array<Notification> = []): Array<
     MessageIr> {
-    let mm = MetaModel(metaData: MetaData(version: "3.18.0"), requests: requests, notifications: notifications,
-        structures: [], enumerations: [], typeAliases: [])
-    let resolver = TypeResolver(mm, Config(srcDir: Path("src"), outputPackage: "demo.lsp_types"))
+    let mm = metaModelOf(requests: requests, notifications: notifications)
 
-    resolveMessages(resolver, mm)
+    resolveMessages(TypeResolver(mm, configOf()), mm)
 }
 
 private func requestOf(method: String, typeName: String, result: Type, params!: ?OneOrMany<Type> = None): Request {
