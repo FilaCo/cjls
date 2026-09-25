@@ -2,6 +2,7 @@
 
 package cjsyntax.ast
 
+import std.deriving.*
 import ginkgo.*
 import cjsyntax.SyntaxKind
 
@@ -83,12 +84,9 @@ let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
         SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
         SyntaxKind.NothingKw, SyntaxKind.UnitKw])
 
-public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & Equatable<SourceFile> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & ToString {
+    SourceFile(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.SourceFile
@@ -136,29 +134,14 @@ public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & Equatable<SourceFi
         astChild<SyntaxKind, Modifiers>(node)
     }
 
-    public operator func ==(other: SourceFile): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: SourceFile): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & Equatable<FeaturesDirective> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & ToString {
+    FeaturesDirective(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.FeaturesDirective
@@ -210,29 +193,14 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & Equa
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: FeaturesDirective): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: FeaturesDirective): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & Equatable<PackageHeader> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & ToString {
+    PackageHeader(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PackageHeader
@@ -280,29 +248,14 @@ public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & Equatable<Pa
         astToken(node, SyntaxKind.Dot)
     }
 
-    public operator func ==(other: PackageHeader): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PackageHeader): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & Equatable<ImportDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & ToString {
+    ImportDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ImportDecl
@@ -338,18 +291,6 @@ public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & Equatable<ImportDe
         astChild<SyntaxKind, ImportTree>(node)
     }
 
-    public operator func ==(other: ImportDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ImportDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -358,12 +299,9 @@ public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & Equatable<ImportDe
 /**
  * `a.b.c`, `a.b.*`, `a.b.c as d`, `a.{b, c.*}`, `org::a.b`
  */
-public struct ImportTree <: AstNode<SyntaxKind, ImportTree> & Equatable<ImportTree> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ImportTree <: AstNode<SyntaxKind, ImportTree> & ToString {
+    ImportTree(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ImportTree
@@ -407,29 +345,14 @@ public struct ImportTree <: AstNode<SyntaxKind, ImportTree> & Equatable<ImportTr
         astChild<SyntaxKind, ImportAlias>(node)
     }
 
-    public operator func ==(other: ImportTree): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ImportTree): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & Equatable<ImportTreeList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & ToString {
+    ImportTreeList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ImportTreeList
@@ -465,29 +388,14 @@ public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & Equatable<
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: ImportTreeList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ImportTreeList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & Equatable<ImportAlias> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & ToString {
+    ImportAlias(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ImportAlias
@@ -515,18 +423,6 @@ public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & Equatable<Import
         astChild<SyntaxKind, Name>(node)
     }
 
-    public operator func ==(other: ImportAlias): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ImportAlias): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -535,12 +431,9 @@ public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & Equatable<Import
 /**
  * a name being declared
  */
-public struct Name <: AstNode<SyntaxKind, Name> & Equatable<Name> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Name <: AstNode<SyntaxKind, Name> & ToString {
+    Name(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Name
@@ -568,18 +461,6 @@ public struct Name <: AstNode<SyntaxKind, Name> & Equatable<Name> & Hashable & T
         astToken(node, NAME_SYMBOL)
     }
 
-    public operator func ==(other: Name): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Name): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -588,12 +469,9 @@ public struct Name <: AstNode<SyntaxKind, Name> & Equatable<Name> & Hashable & T
 /**
  * a name being used
  */
-public struct NameRef <: AstNode<SyntaxKind, NameRef> & Equatable<NameRef> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct NameRef <: AstNode<SyntaxKind, NameRef> & ToString {
+    NameRef(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.NameRef
@@ -617,29 +495,14 @@ public struct NameRef <: AstNode<SyntaxKind, NameRef> & Equatable<NameRef> & Has
         astToken(node, SyntaxKind.Ident)
     }
 
-    public operator func ==(other: NameRef): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: NameRef): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Annotation <: AstNode<SyntaxKind, Annotation> & Equatable<Annotation> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Annotation <: AstNode<SyntaxKind, Annotation> & ToString {
+    Annotation(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Annotation
@@ -671,29 +534,14 @@ public struct Annotation <: AstNode<SyntaxKind, Annotation> & Equatable<Annotati
         astChild<SyntaxKind, AnnotationArgList>(node)
     }
 
-    public operator func ==(other: Annotation): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Annotation): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct AnnotationArgList <: AstNode<SyntaxKind, AnnotationArgList> & Equatable<AnnotationArgList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct AnnotationArgList <: AstNode<SyntaxKind, AnnotationArgList> & ToString {
+    AnnotationArgList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.AnnotationArgList
@@ -729,29 +577,14 @@ public struct AnnotationArgList <: AstNode<SyntaxKind, AnnotationArgList> & Equa
         astToken(node, SyntaxKind.RBracket)
     }
 
-    public operator func ==(other: AnnotationArgList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: AnnotationArgList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & Equatable<Modifiers> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
+    Modifiers(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Modifiers
@@ -841,18 +674,6 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & Equatable<Modifiers>
 
     public func specificToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.SpecificKw)
-    }
-
-    public operator func ==(other: Modifiers): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Modifiers): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
     }
 
     public func toString(): String {
@@ -954,12 +775,9 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & Equatable<Decl> & Hashable & ToS
     }
 }
 
-public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & Equatable<FuncDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & ToString {
+    FuncDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.FuncDecl
@@ -1015,29 +833,14 @@ public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & Equatable<FuncDecl> & 
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: FuncDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: FuncDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & Equatable<MainDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & ToString {
+    MainDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MainDecl
@@ -1089,29 +892,14 @@ public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & Equatable<MainDecl> & 
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: MainDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MainDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & Equatable<MacroDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & ToString {
+    MacroDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MacroDecl
@@ -1167,29 +955,14 @@ public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & Equatable<MacroDecl>
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: MacroDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MacroDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & Equatable<ClassDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & ToString {
+    ClassDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ClassDecl
@@ -1241,29 +1014,14 @@ public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & Equatable<ClassDecl>
         astChild<SyntaxKind, DeclBody>(node)
     }
 
-    public operator func ==(other: ClassDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ClassDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & Equatable<InterfaceDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & ToString {
+    InterfaceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.InterfaceDecl
@@ -1315,29 +1073,14 @@ public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & Equatable<In
         astChild<SyntaxKind, DeclBody>(node)
     }
 
-    public operator func ==(other: InterfaceDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: InterfaceDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & Equatable<StructDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & ToString {
+    StructDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.StructDecl
@@ -1389,29 +1132,14 @@ public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & Equatable<StructDe
         astChild<SyntaxKind, DeclBody>(node)
     }
 
-    public operator func ==(other: StructDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: StructDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & Equatable<EnumDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & ToString {
+    EnumDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.EnumDecl
@@ -1463,29 +1191,14 @@ public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & Equatable<EnumDecl> & 
         astChild<SyntaxKind, EnumBody>(node)
     }
 
-    public operator func ==(other: EnumDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: EnumDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & Equatable<ExtendDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & ToString {
+    ExtendDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ExtendDecl
@@ -1537,29 +1250,14 @@ public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & Equatable<ExtendDe
         astChild<SyntaxKind, DeclBody>(node)
     }
 
-    public operator func ==(other: ExtendDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ExtendDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & Equatable<TypeAliasDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & ToString {
+    TypeAliasDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeAliasDecl
@@ -1607,18 +1305,6 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & Equatable<Ty
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: TypeAliasDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeAliasDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -1627,12 +1313,9 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & Equatable<Ty
 /**
  * `let`, `var` or `const`, of a name or a pattern
  */
-public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & Equatable<VarDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & ToString {
+    VarDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.VarDecl
@@ -1692,29 +1375,14 @@ public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & Equatable<VarDecl> & Has
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: VarDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: VarDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & Equatable<PropDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & ToString {
+    PropDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PropDecl
@@ -1762,29 +1430,14 @@ public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & Equatable<PropDecl> & 
         astChild<SyntaxKind, PropBody>(node)
     }
 
-    public operator func ==(other: PropDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PropDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & Equatable<InitDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & ToString {
+    InitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.InitDecl
@@ -1836,18 +1489,6 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & Equatable<InitDecl> & 
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: InitDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: InitDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -1856,12 +1497,9 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & Equatable<InitDecl> & 
 /**
  * `~init`
  */
-public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & Equatable<FinalizerDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & ToString {
+    FinalizerDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.FinalizerDecl
@@ -1917,18 +1555,6 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & Equatable<Fi
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: FinalizerDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: FinalizerDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -1937,12 +1563,9 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & Equatable<Fi
 /**
  * a primary constructor, named as its type
  */
-public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & Equatable<PrimaryInitDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & ToString {
+    PrimaryInitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PrimaryInitDecl
@@ -1994,29 +1617,14 @@ public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & Equatabl
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: PrimaryInitDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PrimaryInitDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & Equatable<EnumCtor> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & ToString {
+    EnumCtor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.EnumCtor
@@ -2064,29 +1672,14 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & Equatable<EnumCtor> & 
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: EnumCtor): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: EnumCtor): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & Equatable<ForeignBlock> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & ToString {
+    ForeignBlock(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ForeignBlock
@@ -2130,18 +1723,6 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & Equatable<Fore
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: ForeignBlock): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ForeignBlock): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -2150,12 +1731,9 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & Equatable<Fore
 /**
  * a macro call on a declaration
  */
-public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & Equatable<MacroExpandDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & ToString {
+    MacroExpandDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MacroExpandDecl
@@ -2215,18 +1793,6 @@ public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & Equatabl
         astChild<SyntaxKind, Param>(node)
     }
 
-    public operator func ==(other: MacroExpandDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MacroExpandDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -2235,12 +1801,9 @@ public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & Equatabl
 /**
  * the `{}` of a class, interface, struct or extend
  */
-public struct DeclBody <: AstNode<SyntaxKind, DeclBody> & Equatable<DeclBody> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct DeclBody <: AstNode<SyntaxKind, DeclBody> & ToString {
+    DeclBody(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.DeclBody
@@ -2276,29 +1839,14 @@ public struct DeclBody <: AstNode<SyntaxKind, DeclBody> & Equatable<DeclBody> & 
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: DeclBody): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: DeclBody): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct EnumBody <: AstNode<SyntaxKind, EnumBody> & Equatable<EnumBody> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct EnumBody <: AstNode<SyntaxKind, EnumBody> & ToString {
+    EnumBody(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.EnumBody
@@ -2342,29 +1890,14 @@ public struct EnumBody <: AstNode<SyntaxKind, EnumBody> & Equatable<EnumBody> & 
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: EnumBody): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: EnumBody): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct PropBody <: AstNode<SyntaxKind, PropBody> & Equatable<PropBody> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
+    PropBody(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PropBody
@@ -2400,18 +1933,6 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & Equatable<PropBody> & 
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: PropBody): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PropBody): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -2420,12 +1941,9 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & Equatable<PropBody> & 
 /**
  * `get()` or `set(v)` in a property
  */
-public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & Equatable<PropAccessor> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & ToString {
+    PropAccessor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PropAccessor
@@ -2465,29 +1983,14 @@ public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & Equatable<Prop
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: PropAccessor): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PropAccessor): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & Equatable<TypeParamList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & ToString {
+    TypeParamList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeParamList
@@ -2523,29 +2026,14 @@ public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & Equatable<Ty
         astToken(node, SyntaxKind.Gt)
     }
 
-    public operator func ==(other: TypeParamList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeParamList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & Equatable<TypeParam> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & ToString {
+    TypeParam(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeParam
@@ -2569,29 +2057,14 @@ public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & Equatable<TypeParam>
         astChild<SyntaxKind, Name>(node)
     }
 
-    public operator func ==(other: TypeParam): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeParam): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct WhereClause <: AstNode<SyntaxKind, WhereClause> & Equatable<WhereClause> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct WhereClause <: AstNode<SyntaxKind, WhereClause> & ToString {
+    WhereClause(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.WhereClause
@@ -2623,29 +2096,14 @@ public struct WhereClause <: AstNode<SyntaxKind, WhereClause> & Equatable<WhereC
         astToken(node, SyntaxKind.Comma)
     }
 
-    public operator func ==(other: WhereClause): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: WhereClause): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct GenericConstraint <: AstNode<SyntaxKind, GenericConstraint> & Equatable<GenericConstraint> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct GenericConstraint <: AstNode<SyntaxKind, GenericConstraint> & ToString {
+    GenericConstraint(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.GenericConstraint
@@ -2673,18 +2131,6 @@ public struct GenericConstraint <: AstNode<SyntaxKind, GenericConstraint> & Equa
         astChild<SyntaxKind, TypeBoundList>(node)
     }
 
-    public operator func ==(other: GenericConstraint): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: GenericConstraint): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -2693,12 +2139,9 @@ public struct GenericConstraint <: AstNode<SyntaxKind, GenericConstraint> & Equa
 /**
  * `<: A & B`
  */
-public struct TypeBoundList <: AstNode<SyntaxKind, TypeBoundList> & Equatable<TypeBoundList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeBoundList <: AstNode<SyntaxKind, TypeBoundList> & ToString {
+    TypeBoundList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeBoundList
@@ -2730,29 +2173,14 @@ public struct TypeBoundList <: AstNode<SyntaxKind, TypeBoundList> & Equatable<Ty
         astToken(node, SyntaxKind.Amp)
     }
 
-    public operator func ==(other: TypeBoundList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeBoundList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ParamList <: AstNode<SyntaxKind, ParamList> & Equatable<ParamList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
+    ParamList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ParamList
@@ -2792,29 +2220,14 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & Equatable<ParamList>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: ParamList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ParamList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Param <: AstNode<SyntaxKind, Param> & Equatable<Param> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Param <: AstNode<SyntaxKind, Param> & ToString {
+    Param(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Param
@@ -2882,29 +2295,14 @@ public struct Param <: AstNode<SyntaxKind, Param> & Equatable<Param> & Hashable 
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: Param): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Param): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct RetType <: AstNode<SyntaxKind, RetType> & Equatable<RetType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct RetType <: AstNode<SyntaxKind, RetType> & ToString {
+    RetType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.RetType
@@ -2932,29 +2330,14 @@ public struct RetType <: AstNode<SyntaxKind, RetType> & Equatable<RetType> & Has
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: RetType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: RetType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Block <: AstNode<SyntaxKind, Block> & Equatable<Block> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Block <: AstNode<SyntaxKind, Block> & ToString {
+    Block(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Block
@@ -2988,18 +2371,6 @@ public struct Block <: AstNode<SyntaxKind, Block> & Equatable<Block> & Hashable 
 
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
-    }
-
-    public operator func ==(other: Block): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Block): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
     }
 
     public func toString(): String {
@@ -3132,12 +2503,9 @@ public enum Type <: AstNode<SyntaxKind, Type> & Equatable<Type> & Hashable & ToS
     }
 }
 
-public struct PathType <: AstNode<SyntaxKind, PathType> & Equatable<PathType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PathType <: AstNode<SyntaxKind, PathType> & ToString {
+    PathType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PathType
@@ -3165,29 +2533,14 @@ public struct PathType <: AstNode<SyntaxKind, PathType> & Equatable<PathType> & 
         astToken(node, SyntaxKind.Dot)
     }
 
-    public operator func ==(other: PathType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PathType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct PathSegment <: AstNode<SyntaxKind, PathSegment> & Equatable<PathSegment> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PathSegment <: AstNode<SyntaxKind, PathSegment> & ToString {
+    PathSegment(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PathSegment
@@ -3215,29 +2568,14 @@ public struct PathSegment <: AstNode<SyntaxKind, PathSegment> & Equatable<PathSe
         astChild<SyntaxKind, TypeArgList>(node)
     }
 
-    public operator func ==(other: PathSegment): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PathSegment): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct PrimType <: AstNode<SyntaxKind, PrimType> & Equatable<PrimType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PrimType <: AstNode<SyntaxKind, PrimType> & ToString {
+    PrimType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PrimType
@@ -3261,29 +2599,14 @@ public struct PrimType <: AstNode<SyntaxKind, PrimType> & Equatable<PrimType> & 
         astToken(node, PRIM_TYPE_KEYWORD)
     }
 
-    public operator func ==(other: PrimType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PrimType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TupleType <: AstNode<SyntaxKind, TupleType> & Equatable<TupleType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TupleType <: AstNode<SyntaxKind, TupleType> & ToString {
+    TupleType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TupleType
@@ -3323,18 +2646,6 @@ public struct TupleType <: AstNode<SyntaxKind, TupleType> & Equatable<TupleType>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: TupleType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TupleType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -3343,12 +2654,9 @@ public struct TupleType <: AstNode<SyntaxKind, TupleType> & Equatable<TupleType>
 /**
  * `name: T` in a tuple type
  */
-public struct NamedType <: AstNode<SyntaxKind, NamedType> & Equatable<NamedType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct NamedType <: AstNode<SyntaxKind, NamedType> & ToString {
+    NamedType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.NamedType
@@ -3380,29 +2688,14 @@ public struct NamedType <: AstNode<SyntaxKind, NamedType> & Equatable<NamedType>
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: NamedType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: NamedType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ParenType <: AstNode<SyntaxKind, ParenType> & Equatable<ParenType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ParenType <: AstNode<SyntaxKind, ParenType> & ToString {
+    ParenType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ParenType
@@ -3442,18 +2735,6 @@ public struct ParenType <: AstNode<SyntaxKind, ParenType> & Equatable<ParenType>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: ParenType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ParenType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -3462,12 +2743,9 @@ public struct ParenType <: AstNode<SyntaxKind, ParenType> & Equatable<ParenType>
 /**
  * Written by hand, as the grammar cannot tell them by position: `types`, `ret`.
  */
-public struct FuncType <: AstNode<SyntaxKind, FuncType> & Equatable<FuncType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
+    FuncType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.FuncType
@@ -3507,29 +2785,14 @@ public struct FuncType <: AstNode<SyntaxKind, FuncType> & Equatable<FuncType> & 
         astToken(node, SyntaxKind.Arrow)
     }
 
-    public operator func ==(other: FuncType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: FuncType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct OptionType <: AstNode<SyntaxKind, OptionType> & Equatable<OptionType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct OptionType <: AstNode<SyntaxKind, OptionType> & ToString {
+    OptionType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.OptionType
@@ -3557,29 +2820,14 @@ public struct OptionType <: AstNode<SyntaxKind, OptionType> & Equatable<OptionTy
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: OptionType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: OptionType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ThisType <: AstNode<SyntaxKind, ThisType> & Equatable<ThisType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ThisType <: AstNode<SyntaxKind, ThisType> & ToString {
+    ThisType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ThisType
@@ -3603,29 +2851,14 @@ public struct ThisType <: AstNode<SyntaxKind, ThisType> & Equatable<ThisType> & 
         astToken(node, SyntaxKind.ThisTypeKw)
     }
 
-    public operator func ==(other: ThisType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ThisType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct VArrayType <: AstNode<SyntaxKind, VArrayType> & Equatable<VArrayType> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct VArrayType <: AstNode<SyntaxKind, VArrayType> & ToString {
+    VArrayType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.VArrayType
@@ -3673,29 +2906,14 @@ public struct VArrayType <: AstNode<SyntaxKind, VArrayType> & Equatable<VArrayTy
         astToken(node, SyntaxKind.Gt)
     }
 
-    public operator func ==(other: VArrayType): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: VArrayType): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypeArgList <: AstNode<SyntaxKind, TypeArgList> & Equatable<TypeArgList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeArgList <: AstNode<SyntaxKind, TypeArgList> & ToString {
+    TypeArgList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeArgList
@@ -3729,18 +2947,6 @@ public struct TypeArgList <: AstNode<SyntaxKind, TypeArgList> & Equatable<TypeAr
 
     public func gtToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Gt)
-    }
-
-    public operator func ==(other: TypeArgList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeArgList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
     }
 
     public func toString(): String {
@@ -3806,12 +3012,9 @@ public enum Pattern <: AstNode<SyntaxKind, Pattern> & Equatable<Pattern> & Hasha
     }
 }
 
-public struct WildcardPat <: AstNode<SyntaxKind, WildcardPat> & Equatable<WildcardPat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct WildcardPat <: AstNode<SyntaxKind, WildcardPat> & ToString {
+    WildcardPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.WildcardPat
@@ -3835,29 +3038,14 @@ public struct WildcardPat <: AstNode<SyntaxKind, WildcardPat> & Equatable<Wildca
         astToken(node, SyntaxKind.Underscore)
     }
 
-    public operator func ==(other: WildcardPat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: WildcardPat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & Equatable<LiteralPat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & ToString {
+    LiteralPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.LiteralPat
@@ -3897,18 +3085,6 @@ public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & Equatable<LiteralP
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: LiteralPat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: LiteralPat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -3917,12 +3093,9 @@ public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & Equatable<LiteralP
 /**
  * a lone name: a binding, or an enum constructor without arguments
  */
-public struct BindPat <: AstNode<SyntaxKind, BindPat> & Equatable<BindPat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct BindPat <: AstNode<SyntaxKind, BindPat> & ToString {
+    BindPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.BindPat
@@ -3946,29 +3119,14 @@ public struct BindPat <: AstNode<SyntaxKind, BindPat> & Equatable<BindPat> & Has
         astChild<SyntaxKind, Name>(node)
     }
 
-    public operator func ==(other: BindPat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: BindPat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypePat <: AstNode<SyntaxKind, TypePat> & Equatable<TypePat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypePat <: AstNode<SyntaxKind, TypePat> & ToString {
+    TypePat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypePat
@@ -4004,29 +3162,14 @@ public struct TypePat <: AstNode<SyntaxKind, TypePat> & Equatable<TypePat> & Has
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: TypePat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypePat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TuplePat <: AstNode<SyntaxKind, TuplePat> & Equatable<TuplePat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TuplePat <: AstNode<SyntaxKind, TuplePat> & ToString {
+    TuplePat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TuplePat
@@ -4062,29 +3205,14 @@ public struct TuplePat <: AstNode<SyntaxKind, TuplePat> & Equatable<TuplePat> & 
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: TuplePat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TuplePat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & Equatable<EnumPat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & ToString {
+    EnumPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.EnumPat
@@ -4128,29 +3256,14 @@ public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & Equatable<EnumPat> & Has
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: EnumPat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: EnumPat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & Equatable<CatchPat> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & ToString {
+    CatchPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.CatchPat
@@ -4188,18 +3301,6 @@ public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & Equatable<CatchPat> & 
 
     public func pipeToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Pipe)
-    }
-
-    public operator func ==(other: CatchPat): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: CatchPat): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
     }
 
     public func toString(): String {
@@ -4386,12 +3487,9 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
     }
 }
 
-public struct Literal <: AstNode<SyntaxKind, Literal> & Equatable<Literal> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Literal <: AstNode<SyntaxKind, Literal> & ToString {
+    Literal(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Literal
@@ -4415,29 +3513,14 @@ public struct Literal <: AstNode<SyntaxKind, Literal> & Equatable<Literal> & Has
         astToken(node, LITERAL_VALUE)
     }
 
-    public operator func ==(other: Literal): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Literal): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct StringLit <: AstNode<SyntaxKind, StringLit> & Equatable<StringLit> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct StringLit <: AstNode<SyntaxKind, StringLit> & ToString {
+    StringLit(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.StringLit
@@ -4473,29 +3556,14 @@ public struct StringLit <: AstNode<SyntaxKind, StringLit> & Equatable<StringLit>
         astToken(node, SyntaxKind.StringEnd)
     }
 
-    public operator func ==(other: StringLit): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: StringLit): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Interpolation <: AstNode<SyntaxKind, Interpolation> & Equatable<Interpolation> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Interpolation <: AstNode<SyntaxKind, Interpolation> & ToString {
+    Interpolation(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Interpolation
@@ -4531,29 +3599,14 @@ public struct Interpolation <: AstNode<SyntaxKind, Interpolation> & Equatable<In
         astToken(node, SyntaxKind.InterpolationEnd)
     }
 
-    public operator func ==(other: Interpolation): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Interpolation): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct RefExpr <: AstNode<SyntaxKind, RefExpr> & Equatable<RefExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct RefExpr <: AstNode<SyntaxKind, RefExpr> & ToString {
+    RefExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.RefExpr
@@ -4581,29 +3634,14 @@ public struct RefExpr <: AstNode<SyntaxKind, RefExpr> & Equatable<RefExpr> & Has
         astChild<SyntaxKind, TypeArgList>(node)
     }
 
-    public operator func ==(other: RefExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: RefExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MemberAccessExpr <: AstNode<SyntaxKind, MemberAccessExpr> & Equatable<MemberAccessExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MemberAccessExpr <: AstNode<SyntaxKind, MemberAccessExpr> & ToString {
+    MemberAccessExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MemberAccessExpr
@@ -4639,29 +3677,14 @@ public struct MemberAccessExpr <: AstNode<SyntaxKind, MemberAccessExpr> & Equata
         astChild<SyntaxKind, TypeArgList>(node)
     }
 
-    public operator func ==(other: MemberAccessExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MemberAccessExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct CallExpr <: AstNode<SyntaxKind, CallExpr> & Equatable<CallExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct CallExpr <: AstNode<SyntaxKind, CallExpr> & ToString {
+    CallExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.CallExpr
@@ -4689,29 +3712,14 @@ public struct CallExpr <: AstNode<SyntaxKind, CallExpr> & Equatable<CallExpr> & 
         astChild<SyntaxKind, ArgList>(node)
     }
 
-    public operator func ==(other: CallExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: CallExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ArgList <: AstNode<SyntaxKind, ArgList> & Equatable<ArgList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ArgList <: AstNode<SyntaxKind, ArgList> & ToString {
+    ArgList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ArgList
@@ -4747,29 +3755,14 @@ public struct ArgList <: AstNode<SyntaxKind, ArgList> & Equatable<ArgList> & Has
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: ArgList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ArgList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct Arg <: AstNode<SyntaxKind, Arg> & Equatable<Arg> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Arg <: AstNode<SyntaxKind, Arg> & ToString {
+    Arg(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Arg
@@ -4805,29 +3798,14 @@ public struct Arg <: AstNode<SyntaxKind, Arg> & Equatable<Arg> & Hashable & ToSt
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: Arg): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Arg): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TrailingLambdaExpr <: AstNode<SyntaxKind, TrailingLambdaExpr> & Equatable<TrailingLambdaExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TrailingLambdaExpr <: AstNode<SyntaxKind, TrailingLambdaExpr> & ToString {
+    TrailingLambdaExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TrailingLambdaExpr
@@ -4855,29 +3833,14 @@ public struct TrailingLambdaExpr <: AstNode<SyntaxKind, TrailingLambdaExpr> & Eq
         astNthChild<SyntaxKind, LambdaExpr>(node, 1, TRAILING_LAMBDA_EXPR_LAMBDA)
     }
 
-    public operator func ==(other: TrailingLambdaExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TrailingLambdaExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & Equatable<IndexExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & ToString {
+    IndexExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.IndexExpr
@@ -4917,18 +3880,6 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & Equatable<IndexExpr>
         astToken(node, SyntaxKind.RBracket)
     }
 
-    public operator func ==(other: IndexExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: IndexExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -4937,12 +3888,9 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & Equatable<IndexExpr>
 /**
  * `a?` before `.`, `(`, `[` or `{`
  */
-public struct OptionalExpr <: AstNode<SyntaxKind, OptionalExpr> & Equatable<OptionalExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct OptionalExpr <: AstNode<SyntaxKind, OptionalExpr> & ToString {
+    OptionalExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.OptionalExpr
@@ -4970,29 +3918,14 @@ public struct OptionalExpr <: AstNode<SyntaxKind, OptionalExpr> & Equatable<Opti
         astToken(node, SyntaxKind.Question)
     }
 
-    public operator func ==(other: OptionalExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: OptionalExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct UnaryExpr <: AstNode<SyntaxKind, UnaryExpr> & Equatable<UnaryExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct UnaryExpr <: AstNode<SyntaxKind, UnaryExpr> & ToString {
+    UnaryExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.UnaryExpr
@@ -5020,18 +3953,6 @@ public struct UnaryExpr <: AstNode<SyntaxKind, UnaryExpr> & Equatable<UnaryExpr>
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: UnaryExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: UnaryExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5040,12 +3961,9 @@ public struct UnaryExpr <: AstNode<SyntaxKind, UnaryExpr> & Equatable<UnaryExpr>
 /**
  * assignments included
  */
-public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & Equatable<BinExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & ToString {
+    BinExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.BinExpr
@@ -5077,29 +3995,14 @@ public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & Equatable<BinExpr> & Has
         astNthChild<SyntaxKind, Expr>(node, 1, BIN_EXPR_RHS)
     }
 
-    public operator func ==(other: BinExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: BinExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct IsExpr <: AstNode<SyntaxKind, IsExpr> & Equatable<IsExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct IsExpr <: AstNode<SyntaxKind, IsExpr> & ToString {
+    IsExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.IsExpr
@@ -5131,29 +4034,14 @@ public struct IsExpr <: AstNode<SyntaxKind, IsExpr> & Equatable<IsExpr> & Hashab
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: IsExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: IsExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & Equatable<AsExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & ToString {
+    AsExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.AsExpr
@@ -5185,18 +4073,6 @@ public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & Equatable<AsExpr> & Hashab
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: AsExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: AsExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5207,12 +4083,9 @@ public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & Equatable<AsExpr> & Hashab
  *
  * Written by hand, as the grammar cannot tell them by position: `start`, `end`, `step`.
  */
-public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & Equatable<RangeExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & ToString {
+    RangeExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.RangeExpr
@@ -5240,18 +4113,6 @@ public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & Equatable<RangeExpr>
         astToken(node, SyntaxKind.Colon)
     }
 
-    public operator func ==(other: RangeExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: RangeExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5260,12 +4121,9 @@ public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & Equatable<RangeExpr>
 /**
  * `++` and `--`
  */
-public struct PostfixExpr <: AstNode<SyntaxKind, PostfixExpr> & Equatable<PostfixExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PostfixExpr <: AstNode<SyntaxKind, PostfixExpr> & ToString {
+    PostfixExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PostfixExpr
@@ -5293,29 +4151,14 @@ public struct PostfixExpr <: AstNode<SyntaxKind, PostfixExpr> & Equatable<Postfi
         astToken(node, POSTFIX_EXPR_OP)
     }
 
-    public operator func ==(other: PostfixExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PostfixExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ParenExpr <: AstNode<SyntaxKind, ParenExpr> & Equatable<ParenExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ParenExpr <: AstNode<SyntaxKind, ParenExpr> & ToString {
+    ParenExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ParenExpr
@@ -5347,29 +4190,14 @@ public struct ParenExpr <: AstNode<SyntaxKind, ParenExpr> & Equatable<ParenExpr>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: ParenExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ParenExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TupleExpr <: AstNode<SyntaxKind, TupleExpr> & Equatable<TupleExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TupleExpr <: AstNode<SyntaxKind, TupleExpr> & ToString {
+    TupleExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TupleExpr
@@ -5405,29 +4233,14 @@ public struct TupleExpr <: AstNode<SyntaxKind, TupleExpr> & Equatable<TupleExpr>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: TupleExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TupleExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ArrayExpr <: AstNode<SyntaxKind, ArrayExpr> & Equatable<ArrayExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ArrayExpr <: AstNode<SyntaxKind, ArrayExpr> & ToString {
+    ArrayExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ArrayExpr
@@ -5463,29 +4276,14 @@ public struct ArrayExpr <: AstNode<SyntaxKind, ArrayExpr> & Equatable<ArrayExpr>
         astToken(node, SyntaxKind.RBracket)
     }
 
-    public operator func ==(other: ArrayExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ArrayExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct UnitExpr <: AstNode<SyntaxKind, UnitExpr> & Equatable<UnitExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct UnitExpr <: AstNode<SyntaxKind, UnitExpr> & ToString {
+    UnitExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.UnitExpr
@@ -5513,29 +4311,14 @@ public struct UnitExpr <: AstNode<SyntaxKind, UnitExpr> & Equatable<UnitExpr> & 
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: UnitExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: UnitExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & Equatable<IfExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & ToString {
+    IfExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.IfExpr
@@ -5587,18 +4370,6 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & Equatable<IfExpr> & Hashab
         astNthChild<SyntaxKind, IfExpr>(node, 1, IF_EXPR_ELSE_IF)
     }
 
-    public operator func ==(other: IfExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: IfExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5607,12 +4378,9 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & Equatable<IfExpr> & Hashab
 /**
  * `let pattern <- expr` in a condition
  */
-public struct LetExpr <: AstNode<SyntaxKind, LetExpr> & Equatable<LetExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct LetExpr <: AstNode<SyntaxKind, LetExpr> & ToString {
+    LetExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.LetExpr
@@ -5652,29 +4420,14 @@ public struct LetExpr <: AstNode<SyntaxKind, LetExpr> & Equatable<LetExpr> & Has
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: LetExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: LetExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MatchExpr <: AstNode<SyntaxKind, MatchExpr> & Equatable<MatchExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MatchExpr <: AstNode<SyntaxKind, MatchExpr> & ToString {
+    MatchExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MatchExpr
@@ -5714,29 +4467,14 @@ public struct MatchExpr <: AstNode<SyntaxKind, MatchExpr> & Equatable<MatchExpr>
         astChild<SyntaxKind, MatchBody>(node)
     }
 
-    public operator func ==(other: MatchExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MatchExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & Equatable<MatchBody> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & ToString {
+    MatchBody(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MatchBody
@@ -5772,18 +4510,6 @@ public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & Equatable<MatchBody>
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: MatchBody): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MatchBody): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5792,12 +4518,9 @@ public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & Equatable<MatchBody>
 /**
  * Written by hand, as the grammar cannot tell them by position: `condition`, `stmts`.
  */
-public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & Equatable<MatchCase> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
+    MatchCase(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MatchCase
@@ -5841,18 +4564,6 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & Equatable<MatchCase>
         astToken(node, SyntaxKind.Semicolon)
     }
 
-    public operator func ==(other: MatchCase): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MatchCase): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -5861,12 +4572,9 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & Equatable<MatchCase>
 /**
  * `where expr`
  */
-public struct Guard <: AstNode<SyntaxKind, Guard> & Equatable<Guard> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct Guard <: AstNode<SyntaxKind, Guard> & ToString {
+    Guard(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.Guard
@@ -5894,29 +4602,14 @@ public struct Guard <: AstNode<SyntaxKind, Guard> & Equatable<Guard> & Hashable 
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: Guard): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: Guard): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TryExpr <: AstNode<SyntaxKind, TryExpr> & Equatable<TryExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TryExpr <: AstNode<SyntaxKind, TryExpr> & ToString {
+    TryExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TryExpr
@@ -5956,29 +4649,14 @@ public struct TryExpr <: AstNode<SyntaxKind, TryExpr> & Equatable<TryExpr> & Has
         astChild<SyntaxKind, FinallyClause>(node)
     }
 
-    public operator func ==(other: TryExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TryExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & Equatable<ResourceList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & ToString {
+    ResourceList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ResourceList
@@ -6014,18 +4692,6 @@ public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & Equatable<Reso
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: ResourceList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ResourceList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -6034,12 +4700,9 @@ public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & Equatable<Reso
 /**
  * `name: T = expr` in a try-with-resources
  */
-public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & Equatable<ResourceDecl> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & ToString {
+    ResourceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ResourceDecl
@@ -6079,29 +4742,14 @@ public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & Equatable<Reso
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: ResourceDecl): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ResourceDecl): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct CatchClause <: AstNode<SyntaxKind, CatchClause> & Equatable<CatchClause> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct CatchClause <: AstNode<SyntaxKind, CatchClause> & ToString {
+    CatchClause(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.CatchClause
@@ -6141,29 +4789,14 @@ public struct CatchClause <: AstNode<SyntaxKind, CatchClause> & Equatable<CatchC
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: CatchClause): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: CatchClause): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct FinallyClause <: AstNode<SyntaxKind, FinallyClause> & Equatable<FinallyClause> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct FinallyClause <: AstNode<SyntaxKind, FinallyClause> & ToString {
+    FinallyClause(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.FinallyClause
@@ -6191,29 +4824,14 @@ public struct FinallyClause <: AstNode<SyntaxKind, FinallyClause> & Equatable<Fi
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: FinallyClause): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: FinallyClause): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ForInExpr <: AstNode<SyntaxKind, ForInExpr> & Equatable<ForInExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ForInExpr <: AstNode<SyntaxKind, ForInExpr> & ToString {
+    ForInExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ForInExpr
@@ -6265,29 +4883,14 @@ public struct ForInExpr <: AstNode<SyntaxKind, ForInExpr> & Equatable<ForInExpr>
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: ForInExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ForInExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct WhileExpr <: AstNode<SyntaxKind, WhileExpr> & Equatable<WhileExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct WhileExpr <: AstNode<SyntaxKind, WhileExpr> & ToString {
+    WhileExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.WhileExpr
@@ -6327,29 +4930,14 @@ public struct WhileExpr <: AstNode<SyntaxKind, WhileExpr> & Equatable<WhileExpr>
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: WhileExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: WhileExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct DoWhileExpr <: AstNode<SyntaxKind, DoWhileExpr> & Equatable<DoWhileExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct DoWhileExpr <: AstNode<SyntaxKind, DoWhileExpr> & ToString {
+    DoWhileExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.DoWhileExpr
@@ -6393,29 +4981,14 @@ public struct DoWhileExpr <: AstNode<SyntaxKind, DoWhileExpr> & Equatable<DoWhil
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: DoWhileExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: DoWhileExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ThrowExpr <: AstNode<SyntaxKind, ThrowExpr> & Equatable<ThrowExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ThrowExpr <: AstNode<SyntaxKind, ThrowExpr> & ToString {
+    ThrowExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ThrowExpr
@@ -6443,29 +5016,14 @@ public struct ThrowExpr <: AstNode<SyntaxKind, ThrowExpr> & Equatable<ThrowExpr>
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: ThrowExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ThrowExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ReturnExpr <: AstNode<SyntaxKind, ReturnExpr> & Equatable<ReturnExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ReturnExpr <: AstNode<SyntaxKind, ReturnExpr> & ToString {
+    ReturnExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ReturnExpr
@@ -6493,29 +5051,14 @@ public struct ReturnExpr <: AstNode<SyntaxKind, ReturnExpr> & Equatable<ReturnEx
         astChild<SyntaxKind, Expr>(node)
     }
 
-    public operator func ==(other: ReturnExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ReturnExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct BreakExpr <: AstNode<SyntaxKind, BreakExpr> & Equatable<BreakExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct BreakExpr <: AstNode<SyntaxKind, BreakExpr> & ToString {
+    BreakExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.BreakExpr
@@ -6539,29 +5082,14 @@ public struct BreakExpr <: AstNode<SyntaxKind, BreakExpr> & Equatable<BreakExpr>
         astToken(node, SyntaxKind.BreakKw)
     }
 
-    public operator func ==(other: BreakExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: BreakExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & Equatable<ContinueExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & ToString {
+    ContinueExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ContinueExpr
@@ -6585,18 +5113,6 @@ public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & Equatable<Cont
         astToken(node, SyntaxKind.ContinueKw)
     }
 
-    public operator func ==(other: ContinueExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ContinueExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -6605,12 +5121,9 @@ public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & Equatable<Cont
 /**
  * Written by hand, as the grammar cannot tell them by position: `context`, `lambda`.
  */
-public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & Equatable<SpawnExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & ToString {
+    SpawnExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.SpawnExpr
@@ -6642,29 +5155,14 @@ public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & Equatable<SpawnExpr>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: SpawnExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: SpawnExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct SynchronizedExpr <: AstNode<SyntaxKind, SynchronizedExpr> & Equatable<SynchronizedExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct SynchronizedExpr <: AstNode<SyntaxKind, SynchronizedExpr> & ToString {
+    SynchronizedExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.SynchronizedExpr
@@ -6704,29 +5202,14 @@ public struct SynchronizedExpr <: AstNode<SyntaxKind, SynchronizedExpr> & Equata
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: SynchronizedExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: SynchronizedExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct UnsafeExpr <: AstNode<SyntaxKind, UnsafeExpr> & Equatable<UnsafeExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct UnsafeExpr <: AstNode<SyntaxKind, UnsafeExpr> & ToString {
+    UnsafeExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.UnsafeExpr
@@ -6754,29 +5237,14 @@ public struct UnsafeExpr <: AstNode<SyntaxKind, UnsafeExpr> & Equatable<UnsafeEx
         astChild<SyntaxKind, Block>(node)
     }
 
-    public operator func ==(other: UnsafeExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: UnsafeExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & Equatable<LambdaExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & ToString {
+    LambdaExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.LambdaExpr
@@ -6824,29 +5292,14 @@ public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & Equatable<LambdaEx
         astToken(node, SyntaxKind.RBrace)
     }
 
-    public operator func ==(other: LambdaExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: LambdaExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct LambdaParamList <: AstNode<SyntaxKind, LambdaParamList> & Equatable<LambdaParamList> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct LambdaParamList <: AstNode<SyntaxKind, LambdaParamList> & ToString {
+    LambdaParamList(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.LambdaParamList
@@ -6874,29 +5327,14 @@ public struct LambdaParamList <: AstNode<SyntaxKind, LambdaParamList> & Equatabl
         astToken(node, SyntaxKind.Comma)
     }
 
-    public operator func ==(other: LambdaParamList): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: LambdaParamList): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & Equatable<LambdaParam> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & ToString {
+    LambdaParam(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.LambdaParam
@@ -6932,29 +5370,14 @@ public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & Equatable<Lambda
         astChild<SyntaxKind, Type>(node)
     }
 
-    public operator func ==(other: LambdaParam): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: LambdaParam): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct ThisExpr <: AstNode<SyntaxKind, ThisExpr> & Equatable<ThisExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct ThisExpr <: AstNode<SyntaxKind, ThisExpr> & ToString {
+    ThisExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.ThisExpr
@@ -6978,29 +5401,14 @@ public struct ThisExpr <: AstNode<SyntaxKind, ThisExpr> & Equatable<ThisExpr> & 
         astToken(node, SyntaxKind.ThisKw)
     }
 
-    public operator func ==(other: ThisExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: ThisExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct SuperExpr <: AstNode<SyntaxKind, SuperExpr> & Equatable<SuperExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct SuperExpr <: AstNode<SyntaxKind, SuperExpr> & ToString {
+    SuperExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.SuperExpr
@@ -7024,29 +5432,14 @@ public struct SuperExpr <: AstNode<SyntaxKind, SuperExpr> & Equatable<SuperExpr>
         astToken(node, SyntaxKind.SuperKw)
     }
 
-    public operator func ==(other: SuperExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: SuperExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct WildcardExpr <: AstNode<SyntaxKind, WildcardExpr> & Equatable<WildcardExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct WildcardExpr <: AstNode<SyntaxKind, WildcardExpr> & ToString {
+    WildcardExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.WildcardExpr
@@ -7070,29 +5463,14 @@ public struct WildcardExpr <: AstNode<SyntaxKind, WildcardExpr> & Equatable<Wild
         astToken(node, SyntaxKind.Underscore)
     }
 
-    public operator func ==(other: WildcardExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: WildcardExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct TypeConvExpr <: AstNode<SyntaxKind, TypeConvExpr> & Equatable<TypeConvExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct TypeConvExpr <: AstNode<SyntaxKind, TypeConvExpr> & ToString {
+    TypeConvExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.TypeConvExpr
@@ -7128,18 +5506,6 @@ public struct TypeConvExpr <: AstNode<SyntaxKind, TypeConvExpr> & Equatable<Type
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: TypeConvExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: TypeConvExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -7148,12 +5514,9 @@ public struct TypeConvExpr <: AstNode<SyntaxKind, TypeConvExpr> & Equatable<Type
 /**
  * `Int64` before `.`
  */
-public struct PrimTypeExpr <: AstNode<SyntaxKind, PrimTypeExpr> & Equatable<PrimTypeExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct PrimTypeExpr <: AstNode<SyntaxKind, PrimTypeExpr> & ToString {
+    PrimTypeExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.PrimTypeExpr
@@ -7177,29 +5540,14 @@ public struct PrimTypeExpr <: AstNode<SyntaxKind, PrimTypeExpr> & Equatable<Prim
         astToken(node, PRIM_TYPE_EXPR_KEYWORD)
     }
 
-    public operator func ==(other: PrimTypeExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: PrimTypeExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct VArrayExpr <: AstNode<SyntaxKind, VArrayExpr> & Equatable<VArrayExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct VArrayExpr <: AstNode<SyntaxKind, VArrayExpr> & ToString {
+    VArrayExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.VArrayExpr
@@ -7227,29 +5575,14 @@ public struct VArrayExpr <: AstNode<SyntaxKind, VArrayExpr> & Equatable<VArrayEx
         astChild<SyntaxKind, ArgList>(node)
     }
 
-    public operator func ==(other: VArrayExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: VArrayExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & Equatable<QuoteExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & ToString {
+    QuoteExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.QuoteExpr
@@ -7285,18 +5618,6 @@ public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & Equatable<QuoteExpr>
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: QuoteExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: QuoteExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -7305,12 +5626,9 @@ public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & Equatable<QuoteExpr>
 /**
  * `$(expr)` in a quote
  */
-public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & Equatable<QuoteInterpolation> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & ToString {
+    QuoteInterpolation(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.QuoteInterpolation
@@ -7346,29 +5664,14 @@ public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & Eq
         astToken(node, SyntaxKind.RParen)
     }
 
-    public operator func ==(other: QuoteInterpolation): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: QuoteInterpolation): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
 }
 
-public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & Equatable<MacroExpandExpr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & ToString {
+    MacroExpandExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MacroExpandExpr
@@ -7416,18 +5719,6 @@ public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & Equatabl
         astChild<SyntaxKind, MacroExpandExpr>(node)
     }
 
-    public operator func ==(other: MacroExpandExpr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MacroExpandExpr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -7436,12 +5727,9 @@ public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & Equatabl
 /**
  * `[...]` after a macro name
  */
-public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & Equatable<MacroAttr> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & ToString {
+    MacroAttr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MacroAttr
@@ -7469,18 +5757,6 @@ public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & Equatable<MacroAttr>
         astToken(node, SyntaxKind.RBracket)
     }
 
-    public operator func ==(other: MacroAttr): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MacroAttr): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
-    }
-
     public func toString(): String {
         node.text()
     }
@@ -7489,12 +5765,9 @@ public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & Equatable<MacroAttr>
 /**
  * `(...)` after a macro name
  */
-public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & Equatable<MacroArgs> & Hashable & ToString {
-    let node: SyntaxNode<SyntaxKind>
-
-    init(node: SyntaxNode<SyntaxKind>) {
-        this.node = node
-    }
+@Derive[Equatable, Hashable]
+public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & ToString {
+    MacroArgs(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         kind == SyntaxKind.MacroArgs
@@ -7520,18 +5793,6 @@ public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & Equatable<MacroArgs>
 
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
-    }
-
-    public operator func ==(other: MacroArgs): Bool {
-        node == other.node
-    }
-
-    public operator func !=(other: MacroArgs): Bool {
-        node != other.node
-    }
-
-    public func hashCode(): Int64 {
-        node.hashCode()
     }
 
     public func toString(): String {
