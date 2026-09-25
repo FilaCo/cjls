@@ -48,29 +48,7 @@ public macro CalcaInterned(input: Tokens): Tokens {
         )
     }
 
-    let visibility = modifiersOf(decl.modifiers)
-    let nameLiteral = Token(TokenKind.STRING_LITERAL, stripBackquotes(name.value))
-    let superTypes = identitySuperTypes(decl)
-    let identity = identityMembers(name)
-    let keyStruct = fieldsStruct(key, fields)
-
-    quote(
-        $visibility struct $name <: $superTypes {
-            private static let CALCA_INGREDIENT = InternedIngredient<$key>($nameLiteral)
-
-            private let calcaId: Id
-
-            $visibility $name(db: Database, $params) {
-                calcaId = CALCA_INGREDIENT.intern(db, $key($args))
-            }
-
-            $accessors
-
-            $identity
-
-            $kept
-        }
-
-        $keyStruct
-    )
+    let ingredient = quote(InternedIngredient<$key>($(nameLiteral(name))))
+    let create = quote(CALCA_INGREDIENT.intern(db, $key($args)))
+    identityStruct(decl, ingredient, params, create, accessors, kept) + fieldsStruct(key, fields)
 }

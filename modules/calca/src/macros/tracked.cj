@@ -61,7 +61,6 @@ private func tracked(input: Tokens, equal: Tokens): Tokens {
 
     let name = decl.identifier
     let holder = Token(TokenKind.IDENTIFIER, "CalcaTracked_" + stripBackquotes(name.value))
-    let nameLiteral = Token(TokenKind.STRING_LITERAL, stripBackquotes(name.value))
     let db = params[0].identifier
     let dbType = params[0].paramType.toTokens()
     let (keyType, keyParam, keyArg, signature) = if (params.size == 2) {
@@ -80,7 +79,7 @@ private func tracked(input: Tokens, equal: Tokens): Tokens {
         }
 
         private struct $holder {
-            static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($nameLiteral, $equal)
+            static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($(nameLiteral(name)), $equal)
 
             static func execute($db: $dbType, $keyParam): $returnType $body
         }

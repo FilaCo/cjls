@@ -40,7 +40,7 @@ public macro CalcaInput(input: Tokens): Tokens {
         let fieldType = field.declType.toTokens()
         let visibility = modifiersOf(field.modifiers)
         let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
-        fieldNames += Token(TokenKind.STRING_LITERAL, stripBackquotes(ident.value))
+        fieldNames += nameLiteral(ident)
         fieldNames += Token(TokenKind.COMMA)
         params += quote($ident: $fieldType, )
         puts += quote(row.put<$fieldType>($index, $ident)
@@ -60,28 +60,10 @@ public macro CalcaInput(input: Tokens): Tokens {
         }
     }
 
-    let visibility = modifiersOf(decl.modifiers)
-    let nameLiteral = Token(TokenKind.STRING_LITERAL, stripBackquotes(name.value))
-    let superTypes = identitySuperTypes(decl)
-    let identity = identityMembers(name)
-
-    quote(
-        $visibility struct $name <: $superTypes {
-            private static let CALCA_INGREDIENT = InputIngredient($nameLiteral, [$fieldNames])
-
-            private let calcaId: Id
-
-            $visibility $name(db: Database, $params durability!: Durability = Durability.Low) {
-                calcaId = CALCA_INGREDIENT.create(db, durability) {
-                    row => $puts
-                }
-            }
-
-            $accessors
-
-            $identity
-
-            $kept
-        }
-    )
+    let ingredient = quote(InputIngredient($(nameLiteral(name)), [$fieldNames]))
+    params += quote(durability!: Durability = Durability.Low)
+    let create = quote(CALCA_INGREDIENT.create(db, durability) {
+        row => $puts
+    })
+    identityStruct(decl, ingredient, params, create, accessors, kept)
 }
