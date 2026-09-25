@@ -56,6 +56,10 @@ class FakeTransport <: JsonRpcTransport {
         written.remove()
     }
 
+    func nextResponse(): ResponseBody {
+        nextWritten().getResponseBodyOrThrow()
+    }
+
     public func isClosed(): Bool {
         closed.load()
     }
@@ -141,9 +145,13 @@ class AnswerThenThrowHandler <: Handler {
     public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
 }
 
-func serving(handler: Handler): (Connection, FakeTransport) {
+func unserved(handler: Handler): (Connection, FakeTransport) {
     let transport = FakeTransport()
-    let connection = Connection(transport, handler, getGlobalLogger())
+    (Connection(transport, handler, getGlobalLogger()), transport)
+}
+
+func serving(handler: Handler): (Connection, FakeTransport) {
+    let (connection, transport) = unserved(handler)
     spawn {connection.serve()}
     (connection, transport)
 }
@@ -162,7 +170,7 @@ class ConnectionServeRequestTest {
 
         // act
         transport.feed(RequestBody(Integer(1), "m", params: params).enveloped())
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
+        let resp = transport.nextResponse()
 
         // assert
         @Expect(Integer(1), resp.id.getOrThrow())
@@ -186,9 +194,9 @@ class ConnectionServeRequestTest {
 
         // act
         transport.feed(RequestBody(Integer(1), "rpc").enveloped())
-        let rpc = transport.nextWritten().getResponseBodyOrThrow()
+        let rpc = transport.nextResponse()
         transport.feed(RequestBody(Integer(2), "bug").enveloped())
-        let bug = transport.nextWritten().getResponseBodyOrThrow()
+        let bug = transport.nextResponse()
 
         // assert
         @Expect(Integer(1), rpc.id.getOrThrow())
@@ -216,9 +224,9 @@ class ConnectionServeRequestTest {
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
         started.remove()
         transport.feed(RequestBody(Integer(1), "slow").enveloped())
-        let rejected = transport.nextWritten().getResponseBodyOrThrow()
+        let rejected = transport.nextResponse()
         release.add(true)
-        let completed = transport.nextWritten().getResponseBodyOrThrow()
+        let completed = transport.nextResponse()
 
         // assert - rather than the two sharing one cancellation token
         @Expect(ErrorCode.INVALID_REQUEST, rejected.resultOrError.getErrorOrThrow().code)
@@ -234,9 +242,9 @@ class ConnectionServeRequestTest {
 
         // act
         transport.feed(RequestBody(Integer(1), "m").enveloped())
-        let first = transport.nextWritten().getResponseBodyOrThrow()
+        let first = transport.nextResponse()
         transport.feed(RequestBody(Integer(1), "m").enveloped())
-        let second = transport.nextWritten().getResponseBodyOrThrow()
+        let second = transport.nextResponse()
 
         // assert
         @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
@@ -246,37 +254,23 @@ class ConnectionServeRequestTest {
 
 @Test
 class ConnectionServeNotificationTest {
-    @TestCase
-    func aNotificationReachesTheHandlerAndIsNeverAnswered() {
+    @TestCase[failing in [ false, true ]]
+    func aNotificationReachesTheHandlerAndIsNeverAnsweredEvenIfItFails(failing: Bool) {
         // arrange
         let handler = FakeHandler()
+        handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
+        if (failing) {
+            handler.onNotificationFn = {_, _ => throw IllegalStateException("handler blew up")}
+        }
         let (_, transport) = serving(handler)
 
         // act - the request's answer is the first frame out only if the notification wrote none
         transport.feed(NotificationBody("note").enveloped())
         @Expect("note", handler.notified.remove())
         transport.feed(RequestBody(Integer(1), "m").enveloped())
-        let written = transport.nextWritten().getResponseBodyOrThrow()
+        let written = transport.nextResponse()
 
-        // assert
-        @Expect(Integer(1), written.id.getOrThrow())
-    }
-
-    @TestCase
-    func aFailingNotificationHandlerNeitherAnswersNorStopsTheLoop() {
-        // arrange
-        let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
-        handler.onNotificationFn = {_, _ => throw IllegalStateException("handler blew up")}
-        let (_, transport) = serving(handler)
-
-        // act
-        transport.feed(NotificationBody("boom").enveloped())
-        @Expect("boom", handler.notified.remove())
-        transport.feed(RequestBody(Integer(1), "m").enveloped())
-        let written = transport.nextWritten().getResponseBodyOrThrow()
-
-        // assert
+        // assert - and the loop is still reading
         @Expect(Integer(1), written.id.getOrThrow())
         @Expect(42, written.resultOrError.getResultOrThrow().asIntOrThrow())
     }
@@ -314,30 +308,13 @@ class ConnectionDeliveryOrderTest {
     }
 
     @TestCase
-    func aRequestCanBeAnsweredAfterItsHandlerReturned() {
-        // arrange
-        let handler = KeepingHandler()
-        let (_, transport) = serving(handler)
-        transport.feed(RequestBody(Integer(1), "slow").enveloped())
-        let request = handler.received.remove()
-
-        // act
-        @Assert(!request.isAnswered)
-        request.respond(Result(DataModelInt(42)))
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
-
-        // assert
-        @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect(42, resp.resultOrError.getResultOrThrow().asIntOrThrow())
-    }
-
-    @TestCase
-    func onlyTheFirstAnswerReachesThePeer() {
-        // arrange
+    func aRequestIsAnsweredAfterItsHandlerReturnedAndOnlyOnce() {
+        // arrange - the handler has returned by the time the test holds the request
         let handler = KeepingHandler()
         let (_, transport) = serving(handler)
         transport.feed(RequestBody(Integer(1), "twice").enveloped())
         let request = handler.received.remove()
+        @Assert(!request.isAnswered)
 
         // act
         let first = request.respond(Result(DataModelInt(1)))
@@ -348,8 +325,10 @@ class ConnectionDeliveryOrderTest {
         // assert - the frame after the first answer is the next request's
         @Assert(first)
         @Assert(!second)
-        @Expect(1, transport.nextWritten().getResponseBodyOrThrow().resultOrError.getResultOrThrow().asIntOrThrow())
-        @Expect(Integer(2), transport.nextWritten().getResponseBodyOrThrow().id.getOrThrow())
+        let answered = transport.nextResponse()
+        @Expect(Integer(1), answered.id.getOrThrow())
+        @Expect(1, answered.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(Integer(2), transport.nextResponse().id.getOrThrow())
     }
 
     @TestCase
@@ -360,8 +339,8 @@ class ConnectionDeliveryOrderTest {
         // act
         transport.feed(RequestBody(Integer(1), "m").enveloped())
         transport.feed(RequestBody(Integer(2), "m").enveloped())
-        let first = transport.nextWritten().getResponseBodyOrThrow()
-        let second = transport.nextWritten().getResponseBodyOrThrow()
+        let first = transport.nextResponse()
+        let second = transport.nextResponse()
 
         // assert - no fallback error followed the first answer out
         @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
@@ -395,7 +374,7 @@ class ConnectionServeRecoveryTest {
 
         // act
         transport.feedUndecodable(RpcException(ErrorCode.PARSE_ERROR, "not valid JSON"))
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
+        let resp = transport.nextResponse()
         transport.feed(NotificationBody("next").enveloped())
 
         // assert
@@ -407,8 +386,7 @@ class ConnectionServeRecoveryTest {
     @TestCase
     func serveReturnsOnCleanEof() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
 
         // act & assert - on the test's own thread: it returns, or the test hangs
         transport.hangUp()
@@ -451,7 +429,7 @@ class ConnectionCancelTest {
         started.remove()
         connection.cancel(Integer(7))
         release.add(true)
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
+        let resp = transport.nextResponse()
 
         // assert
         @Assert(resp.resultOrError.getResultOrThrow().asBoolOrThrow())
@@ -467,7 +445,7 @@ class ConnectionCancelTest {
         // act
         connection.cancel(Integer(404))
         transport.feed(RequestBody(Integer(404), "m").enveloped())
-        let resp = transport.nextWritten().getResponseBodyOrThrow()
+        let resp = transport.nextResponse()
 
         // assert
         @Assert(!resp.resultOrError.getResultOrThrow().asBoolOrThrow())
@@ -479,8 +457,7 @@ class ConnectionOutboundTest {
     @TestCase
     func requestWritesTheFrameAndSequencesIds() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
 
         // act
         let first = connection.request<ArrayOrObject, ArrayOrObject>("ask", emptyParams())
@@ -563,8 +540,7 @@ class ConnectionOutboundTest {
     @TestCase
     func notifyWritesTheFrameWithItsParams() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
         let params = ArrayOrObject.Object(DataModelStruct().add(field("message", "hi")))
 
         // act
@@ -579,8 +555,7 @@ class ConnectionOutboundTest {
     @TestCase
     func paramsThatSerializeToNullAreLeftOut() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
 
         // act
         connection.notify("tell", Nullable<Int32>.Null)
@@ -593,8 +568,7 @@ class ConnectionOutboundTest {
     @TestCase
     func paramsThatAreNeitherArrayNorObjectAreRefused() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
 
         // act
         let e = @AssertThrows[RpcException](connection.notify("tell", 42i32))
@@ -609,8 +583,7 @@ class ConnectionCloseTest {
     @TestCase
     func closeEndsAServeLoopBlockedOnARead() {
         // arrange
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
         let returned = LinkedBlockingQueue<Bool>()
         spawn {
             =>
@@ -626,30 +599,19 @@ class ConnectionCloseTest {
         @Assert(connection.isClosed())
     }
 
-    @TestCase
-    func closeWakesACallerWaitingForAnAnswer() {
+    @TestCase[byPeer in [ false, true ]]
+    func closeOrAPeerHangUpWakesACallerWaitingForAnAnswer(byPeer: Bool) {
         // arrange
         let (connection, transport) = serving(FakeHandler())
         let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
         transport.nextWritten()
 
         // act
-        connection.close()
-
-        // assert
-        let e = @AssertThrows[RpcException](pending.await())
-        @Expect(ErrorCode.INTERNAL_ERROR, e.code)
-    }
-
-    @TestCase
-    func aPeerHangUpWakesACallerWaitingForAnAnswer() {
-        // arrange
-        let (connection, transport) = serving(FakeHandler())
-        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
-        transport.nextWritten()
-
-        // act
-        transport.hangUp()
+        if (byPeer) {
+            transport.hangUp()
+        } else {
+            connection.close()
+        }
 
         // assert
         let e = @AssertThrows[RpcException](pending.await())
@@ -683,8 +645,7 @@ class ConnectionCloseTest {
     @TestCase
     func aClosedConnectionIsClosedForGoodAndWritesNothing() {
         // arrange - `serve` unwinding and an explicit close can both land
-        let transport = FakeTransport()
-        let connection = Connection(transport, FakeHandler(), getGlobalLogger())
+        let (connection, transport) = unserved(FakeHandler())
 
         // act
         connection.close()
