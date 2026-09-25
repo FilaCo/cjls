@@ -376,6 +376,20 @@ class CalcaTest {
     }
 
     @TestCase
+    func durabilitiesAreOrderedAsDeclaredAndByRank(): Unit {
+        // arrange
+        let durabilities = [Durability.Low, Durability.Medium, Durability.High]
+
+        // act, assert
+        @Expect(durabilities.map {d => d.toString()}, ["Low", "Medium", "High"])
+        for (i in 1..durabilities.size) {
+            @Expect(durabilities[i - 1] < durabilities[i])
+            @Expect(durabilities[i - 1].rank < durabilities[i].rank)
+        }
+        @Expect(durabilities[DURABILITIES - 1].rank, DURABILITIES - 1)
+    }
+
+    @TestCase
     func aFunctionNeedingItsOwnValueIsACycle(): Unit {
         // arrange
         let db = TestDatabase()

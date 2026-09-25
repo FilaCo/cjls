@@ -132,7 +132,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
             storage.pop()
         }
         let changedAt = match (old) {
-            case Some(memo) where frame.durability.rank >= memo.durability.rank && (function.equal)(memo.value, value) =>
+            case Some(memo) where frame.durability >= memo.durability && (function.equal)(memo.value, value) =>
                 memo.changedAt
             case _ => frame.changedAt
         }

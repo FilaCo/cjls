@@ -109,7 +109,7 @@ public class Setter<T> {
         storage.write {
             revision =>
             let old = column.replace(id, value, durability, revision)
-            storage.runtime.changed(old.durability.max(durability ?? old.durability), revision)
+            storage.runtime.changed(max(old.durability, durability ?? old.durability), revision)
             old.value
         }
     }

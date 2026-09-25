@@ -197,7 +197,7 @@ class ActiveQuery {
         if (seen.add(key)) {
             dependencies.add(key)
         }
-        this.durability = this.durability.min(durability)
+        this.durability = min(this.durability, durability)
         this.changedAt = max(this.changedAt, changedAt)
     }
 }

@@ -1,12 +1,15 @@
 package calca
 
+import std.deriving.*
+
 /**
  * How rarely an input is expected to change. A memo remembers the lowest durability among what it
  * read, so a revision that changed only inputs more durable than that one lets it be reused without
  * walking its dependencies: the sources of a project's dependencies are `High`, the file being
  * typed in is `Low`.
  */
-public enum Durability <: Equatable<Durability> & ToString {
+@Derive[Equatable, Comparable]
+public enum Durability <: ToString {
     | Low
     | Medium
     | High
@@ -21,22 +24,9 @@ public enum Durability <: Equatable<Durability> & ToString {
         }
     }
 
-    func min(other: Durability): Durability {
-        if (other.rank < rank) { other } else { this }
-    }
-
-    func max(other: Durability): Durability {
-        if (other.rank > rank) { other } else { this }
-    }
-
-    public operator func ==(other: Durability): Bool {
-        rank == other.rank
-    }
-
-    public operator func !=(other: Durability): Bool {
-        rank != other.rank
-    }
-
+    /**
+     * The bare name: a derived `toString` would qualify it with the type.
+     */
     public func toString(): String {
         match (this) {
             case Low => "Low"
