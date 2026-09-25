@@ -69,7 +69,7 @@ public class Parser<K> where K <: Kind<K> {
     }
 
     public func at(kind: K): Bool {
-        nth(0) == kind
+        nthAt(0, kind)
     }
 
     public func nthAt(n: Int64, kind: K): Bool {
@@ -77,17 +77,15 @@ public class Parser<K> where K <: Kind<K> {
     }
 
     public func atAny(kinds: Array<K>): Bool {
-        let k = nth(0)
-        kinds.any {candidate => candidate == k}
+        nthAtAny(0, kinds)
     }
 
     public func nthAtAny(n: Int64, kinds: Array<K>): Bool {
-        let k = nth(n)
-        kinds.any {candidate => candidate == k}
+        kinds.contains(nth(n))
     }
 
     public func atAny(kinds: TokenSet<K>): Bool {
-        kinds.contains(nth(0))
+        nthAtAny(0, kinds)
     }
 
     public func nthAtAny(n: Int64, kinds: TokenSet<K>): Bool {
