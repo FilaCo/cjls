@@ -1,6 +1,7 @@
 macro package cjls.macros
 
 import std.ast.*
+import std.collection.{any, filter, first, fold}
 
 /**
  * Makes a function of what it takes from the server, params last, routable, by adding an overload
@@ -43,23 +44,16 @@ private func withContextOverload(input: Tokens, context: Tokens): Tokens {
         diagReport(DiagReportLevel.ERROR, input, "a handler is not generic, and takes at least its params", "")
         return input
     }
-    for (param in params where isNamed(param)) {
-        diagReport(DiagReportLevel.ERROR, param.toTokens(), "a handler's parameters are positional", "")
+    if (let Some(named) <- (params |> filter {param: FuncParam => isNamed(param)} |> first)) {
+        diagReport(DiagReportLevel.ERROR, named.toTokens(), "a handler's parameters are positional", "")
         return input
     }
 
     let name = handler.identifier
-    var args = Tokens()
-    for (i in 0..params.size - 1) {
-        let extracted = params[i].paramType.toTokens()
-        args += quote($extracted.from(context), )
+    let args = params[..params.size - 1] |> fold(Tokens()) {
+        acc: Tokens, param: FuncParam => acc + quote($(param.paramType.toTokens()).from(context), )
     }
-    args += quote(context.params)
-
-    var modifiers = Tokens()
-    for (modifier in handler.modifiers) {
-        modifiers += modifier.toTokens()
-    }
+    let modifiers = handler.modifiers |> fold(Tokens()) {acc: Tokens, modifier: Modifier => acc + modifier.toTokens()}
     let paramsType = params[params.size - 1].paramType.toTokens()
     let returnType = try {
         let declared = handler.declType.toTokens()
@@ -70,14 +64,11 @@ private func withContextOverload(input: Tokens, context: Tokens): Tokens {
 
     input + quote(
         $modifiers func $name(context: $context<$paramsType>) $returnType {
-            $name($args)
+            $name($args context.params)
         }
     )
 }
 
 private func isNamed(param: FuncParam): Bool {
-    for (token in param.toTokens() where token.kind == TokenKind.NOT) {
-        return true
-    }
-    false
+    param.toTokens() |> any {token: Token => token.kind == TokenKind.NOT}
 }
