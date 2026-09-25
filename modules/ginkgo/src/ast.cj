@@ -20,12 +20,7 @@ public interface AstNode<K, T> where K <: Kind<K> {
  * The first child of `parent` that is a `T`. What generated accessors are made of, like rowan's `support`.
  */
 public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: AstNode<K, T> {
-    for (c in parent.children()) {
-        if (T.canCast(c.kind)) {
-            return T.cast(c)
-        }
-    }
-    None
+    astChildren<K, T>(parent).next()
 }
 
 /**
@@ -42,16 +37,7 @@ public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kin
  */
 public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): ?T where K <: Kind<K>,
     T <: AstNode<K, T> {
-    var i = 0
-    for (c in parent.children()) {
-        if (counted.contains(c.kind)) {
-            if (i == n) {
-                return T.cast(c)
-            }
-            i++
-        }
-    }
-    None
+    parent.children().filter {c => counted.contains(c.kind)}.skip(n).next().flatMap {c => T.cast(c)}
 }
 
 /**
@@ -82,14 +68,7 @@ class SkipCounted<K> <: Iterator<SyntaxNode<K>> where K <: Kind<K> {
  * The first token of `parent`, not counting those inside its children, whose kind is `kind`.
  */
 public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K <: Kind<K> {
-    for (el in parent.childrenWithTokens()) {
-        if (let SyntaxElement.Token(t) <- el) {
-            if (t.kind == kind) {
-                return t
-            }
-        }
-    }
-    None
+    ownTokens(parent).filter {t => t.kind == kind}.next()
 }
 
 /**
@@ -97,12 +76,9 @@ public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K
  * of a binary expression.
  */
 public func astToken<K>(parent: SyntaxNode<K>, kinds: TokenSet<K>): ?SyntaxToken<K> where K <: Kind<K> {
-    for (el in parent.childrenWithTokens()) {
-        if (let SyntaxElement.Token(t) <- el) {
-            if (kinds.contains(t.kind)) {
-                return t
-            }
-        }
-    }
-    None
+    ownTokens(parent).filter {t => kinds.contains(t.kind)}.next()
+}
+
+func ownTokens<K>(parent: SyntaxNode<K>): Iterator<SyntaxToken<K>> where K <: Kind<K> {
+    parent.childrenWithTokens().filterMap {el => el.asToken()}
 }
