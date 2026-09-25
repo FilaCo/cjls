@@ -80,10 +80,8 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
                     }
                     events[at] = Tombstone
                 }
-                var j = kinds.size - 1
-                while (j >= 0) {
+                for (j in kinds.size - 1..=0 : -1) {
                     sink.enter(kinds[j])
-                    j--
                 }
             case FinishNode => sink.exit()
             case AddToken(kind, n) => sink.token(kind, n)
@@ -127,7 +125,7 @@ class TreeSink<K> where K <: Kind<K> {
             }
             let trivia = Array<(K, String)>(n) {i => (lexed.kind(pos + i), lexed.tokenText(pos + i))}
             let attached = rules.attachedTrivia(kind, trivia)
-            let outside = n - (if (attached < 0) { 0 } else if (attached > n) { n } else { attached })
+            let outside = n - min(max(attached, 0), n)
             for (_ in 0..outside) {
                 emit(pos)
             }
@@ -161,7 +159,7 @@ class TreeSink<K> where K <: Kind<K> {
         if (pos >= lexed.size) {
             return
         }
-        let last = if (pos + n <= lexed.size) { pos + n - 1 } else { lexed.size - 1 }
+        let last = min(pos + n, lexed.size) - 1
         let start = lexed.range(pos).start
         let end = lexed.range(last).end
         builder.token(kind, lexed.text[start..end])

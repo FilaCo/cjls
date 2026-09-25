@@ -7,7 +7,11 @@ package ginkgo
  * node are equal. A tree never changes: editing one builds new green nodes up to a new root.
  */
 public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString where K <: Kind<K> {
-    SyntaxNode(let greenNode: GreenNode<K>, let parentNode: ?SyntaxNode<K>, let index: Int64, let offset: Int64) {}
+    /**
+     * @param indexInParent - among the parent's children, tokens included
+     */
+    SyntaxNode(public let green: GreenNode<K>, public let parent: ?SyntaxNode<K>, public let indexInParent: Int64,
+        let offset: Int64) {}
 
     public static func newRoot(green: GreenNode<K>): SyntaxNode<K> {
         SyntaxNode(green, None, 0, 0)
@@ -15,59 +19,38 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
 
     public prop kind: K {
         get() {
-            greenNode.kind
-        }
-    }
-
-    public prop green: GreenNode<K> {
-        get() {
-            greenNode
-        }
-    }
-
-    public prop parent: ?SyntaxNode<K> {
-        get() {
-            parentNode
-        }
-    }
-
-    /**
-     * Among the parent's children, tokens included.
-     */
-    public prop indexInParent: Int64 {
-        get() {
-            index
+            green.kind
         }
     }
 
     public prop textRange: TextRange {
         get() {
-            TextRange(offset, offset + greenNode.textLen)
+            TextRange(offset, offset + green.textLen)
         }
     }
 
     public func text(): String {
-        greenNode.toString()
+        green.toString()
     }
 
     public func root(): SyntaxNode<K> {
         var node = this
-        while (let Some(p) <- node.parentNode) {
+        while (let Some(p) <- node.parent) {
             node = p
         }
         node
     }
 
     func element(i: Int64): SyntaxElement<K> {
-        let at = offset + greenNode.childOffset(i)
-        match (greenNode.child(i)) {
+        let at = offset + green.childOffset(i)
+        match (green.child(i)) {
             case GreenElement.Node(n) => SyntaxElement.Node(SyntaxNode(n, this, i, at))
             case GreenElement.Token(t) => SyntaxElement.Token(SyntaxToken(t, this, i, at))
         }
     }
 
     func elementAt(i: Int64): ?SyntaxElement<K> {
-        if (0 <= i && i < greenNode.childCount) {
+        if (0 <= i && i < green.childCount) {
             element(i)
         } else {
             None
@@ -78,14 +61,11 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
      * The first child node at `from` or after it (before it for `Prev`).
      */
     func nodeFrom(from: Int64, direction: Direction): ?SyntaxNode<K> {
-        let step = match (direction) {
-            case Next => 1
-            case Prev => -1
-        }
+        let step = direction.step()
         var i = from
-        while (0 <= i && i < greenNode.childCount) {
-            if (let GreenElement.Node(n) <- greenNode.child(i)) {
-                return SyntaxNode(n, this, i, offset + greenNode.childOffset(i))
+        while (0 <= i && i < green.childCount) {
+            if (let GreenElement.Node(n) <- green.child(i)) {
+                return SyntaxNode(n, this, i, offset + green.childOffset(i))
             }
             i += step
         }
@@ -93,7 +73,18 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     }
 
     public func childrenWithTokens(): Iterator<SyntaxElement<K>> {
-        Successors<SyntaxElement<K>>(elementAt(0), {el => el.nextSiblingOrToken()})
+        childrenWithTokens(Next)
+    }
+
+    /**
+     * The children, tokens included, from the first for `Next`, from the last for `Prev`.
+     */
+    func childrenWithTokens(direction: Direction): Iterator<SyntaxElement<K>> {
+        let first = match (direction) {
+            case Next => firstChildOrToken()
+            case Prev => lastChildOrToken()
+        }
+        Successors<SyntaxElement<K>>(first, {el => el.siblingOrToken(direction)})
     }
 
     public func children(): Iterator<SyntaxNode<K>> {
@@ -105,7 +96,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     }
 
     public func lastChild(): ?SyntaxNode<K> {
-        nodeFrom(greenNode.childCount - 1, Prev)
+        nodeFrom(green.childCount - 1, Prev)
     }
 
     public func firstChildOrToken(): ?SyntaxElement<K> {
@@ -113,62 +104,48 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     }
 
     public func lastChildOrToken(): ?SyntaxElement<K> {
-        elementAt(greenNode.childCount - 1)
+        elementAt(green.childCount - 1)
     }
 
     public func nextSibling(): ?SyntaxNode<K> {
-        match (parentNode) {
-            case Some(p) => p.nodeFrom(index + 1, Next)
-            case None => None
-        }
+        sibling(Next)
     }
 
     public func prevSibling(): ?SyntaxNode<K> {
-        match (parentNode) {
-            case Some(p) => p.nodeFrom(index - 1, Prev)
-            case None => None
-        }
+        sibling(Prev)
+    }
+
+    func sibling(direction: Direction): ?SyntaxNode<K> {
+        parent.flatMap {p => p.nodeFrom(indexInParent + direction.step(), direction)}
     }
 
     public func nextSiblingOrToken(): ?SyntaxElement<K> {
-        match (parentNode) {
-            case Some(p) => p.elementAt(index + 1)
-            case None => None
-        }
+        parent.flatMap {p => p.elementAt(indexInParent + 1)}
     }
 
     public func prevSiblingOrToken(): ?SyntaxElement<K> {
-        match (parentNode) {
-            case Some(p) => p.elementAt(index - 1)
-            case None => None
-        }
+        parent.flatMap {p => p.elementAt(indexInParent - 1)}
     }
 
     /**
      * This node, then its sibling nodes in `direction`.
      */
     public func siblings(direction: Direction): Iterator<SyntaxNode<K>> {
-        Successors<SyntaxNode<K>>(this, {n => match (direction) {
-            case Next => n.nextSibling()
-            case Prev => n.prevSibling()
-        }})
+        Successors<SyntaxNode<K>>(this, {n => n.sibling(direction)})
     }
 
     /**
      * This node, then its siblings in `direction`, tokens included.
      */
     public func siblingsWithTokens(direction: Direction): Iterator<SyntaxElement<K>> {
-        Successors<SyntaxElement<K>>(SyntaxElement.Node(this), {el => match (direction) {
-            case Next => el.nextSiblingOrToken()
-            case Prev => el.prevSiblingOrToken()
-        }})
+        SyntaxElement.Node(this).siblingsWithTokens(direction)
     }
 
     /**
      * This node, then its parent, and so on up to the root.
      */
     public func ancestors(): Iterator<SyntaxNode<K>> {
-        Successors<SyntaxNode<K>>(this, {n => n.parentNode})
+        Successors<SyntaxNode<K>>(this, {n => n.parent})
     }
 
     public func preorder(): Iterator<WalkEvent<SyntaxNode<K>>> {
@@ -183,46 +160,40 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
      * This node and every node under it, in preorder.
      */
     public func descendants(): Iterator<SyntaxNode<K>> {
-        Entered(preorder())
+        entered(preorder())
     }
 
     /**
      * This node and every node and token under it, in preorder.
      */
     public func descendantsWithTokens(): Iterator<SyntaxElement<K>> {
-        Entered(preorderWithTokens())
+        entered(preorderWithTokens())
     }
 
     /**
      * The first token under this node, skipping nodes that have none.
      */
     public func firstToken(): ?SyntaxToken<K> {
-        for (i in 0..greenNode.childCount) {
-            match (element(i)) {
-                case SyntaxElement.Token(t) => return t
-                case SyntaxElement.Node(n) => if (let Some(t) <- n.firstToken()) {
-                    return t
-                }
-            }
-        }
-        None
+        edgeToken(Next)
     }
 
     /**
      * The last token under this node, skipping nodes that have none.
      */
     public func lastToken(): ?SyntaxToken<K> {
-        var i = greenNode.childCount - 1
-        while (i >= 0) {
-            match (element(i)) {
-                case SyntaxElement.Token(t) => return t
-                case SyntaxElement.Node(n) => if (let Some(t) <- n.lastToken()) {
-                    return t
-                }
+        edgeToken(Prev)
+    }
+
+    /**
+     * The first token under this node for `Next`, the last for `Prev`.
+     */
+    func edgeToken(direction: Direction): ?SyntaxToken<K> {
+        childrenWithTokens(direction).filterMap {
+            el => match (el) {
+                case SyntaxElement.Token(t) => t
+                case SyntaxElement.Node(n) => n.edgeToken(direction)
             }
-            i--
-        }
-        None
+        }.next()
     }
 
     /**
@@ -233,7 +204,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
             return NoToken
         }
         var left = None<TokenAtOffset<SyntaxToken<K>>>
-        for (i in 0..greenNode.childCount) {
+        for (i in 0..green.childCount) {
             let child = element(i)
             let range = child.textRange
             if (range.isEmpty() || !range.containsInclusive(offset)) {
@@ -258,8 +229,8 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
      * The child, node or token, whose range contains `range`.
      */
     public func childOrTokenAtRange(range: TextRange): ?SyntaxElement<K> {
-        for (i in 0..greenNode.childCount) {
-            let childRange = TextRange.at(offset + greenNode.childOffset(i), greenNode.child(i).textLen)
+        for (i in 0..green.childCount) {
+            let childRange = TextRange.at(offset + green.childOffset(i), green.child(i).textLen)
             if (childRange.containsRange(range)) {
                 return element(i)
             }
@@ -290,9 +261,9 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
      * The root of a new tree, the same as this one but for this node, which `replacement` takes the place of.
      */
     public func replaceWith(replacement: GreenNode<K>): GreenNode<K> {
-        match (parentNode) {
+        match (parent) {
             case None => replacement
-            case Some(p) => p.replaceWith(p.greenNode.replaceChild(index, GreenElement.Node(replacement)))
+            case Some(p) => p.replaceWith(p.green.replaceChild(indexInParent, GreenElement.Node(replacement)))
         }
     }
 
@@ -319,7 +290,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     }
 
     public operator func ==(other: SyntaxNode<K>): Bool {
-        refEq(this, other) || (refEq(greenNode, other.greenNode) && offset == other.offset && index == other.index)
+        refEq(this, other) || (refEq(green, other.green) && offset == other.offset && indexInParent == other.indexInParent)
     }
 
     public operator func !=(other: SyntaxNode<K>): Bool {
@@ -329,8 +300,8 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
         hasher.write(offset)
-        hasher.write(index)
-        hasher.write(greenNode.hashCode())
+        hasher.write(indexInParent)
+        hasher.write(green.hashCode())
         hasher.finish()
     }
 
@@ -346,97 +317,67 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
  * A token of a tree in place: its green token, plus where it is. See `SyntaxNode`.
  */
 public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString where K <: Kind<K> {
-    SyntaxToken(let greenToken: GreenToken<K>, let parentNode: SyntaxNode<K>, let index: Int64, let offset: Int64) {}
+    SyntaxToken(public let green: GreenToken<K>, public let parent: SyntaxNode<K>, public let indexInParent: Int64,
+        let offset: Int64) {}
 
     public prop kind: K {
         get() {
-            greenToken.kind
-        }
-    }
-
-    public prop green: GreenToken<K> {
-        get() {
-            greenToken
-        }
-    }
-
-    public prop parent: SyntaxNode<K> {
-        get() {
-            parentNode
-        }
-    }
-
-    public prop indexInParent: Int64 {
-        get() {
-            index
+            green.kind
         }
     }
 
     public prop textRange: TextRange {
         get() {
-            TextRange(offset, offset + greenToken.textLen)
+            TextRange(offset, offset + green.textLen)
         }
     }
 
     public func text(): String {
-        greenToken.text
+        green.text
     }
 
     public func nextSiblingOrToken(): ?SyntaxElement<K> {
-        parentNode.elementAt(index + 1)
+        parent.elementAt(indexInParent + 1)
     }
 
     public func prevSiblingOrToken(): ?SyntaxElement<K> {
-        parentNode.elementAt(index - 1)
+        parent.elementAt(indexInParent - 1)
     }
 
     /**
      * This token, then its siblings in `direction`, nodes included.
      */
     public func siblingsWithTokens(direction: Direction): Iterator<SyntaxElement<K>> {
-        Successors<SyntaxElement<K>>(SyntaxElement.Token(this), {el => match (direction) {
-            case Next => el.nextSiblingOrToken()
-            case Prev => el.prevSiblingOrToken()
-        }})
+        SyntaxElement.Token(this).siblingsWithTokens(direction)
     }
 
     /**
      * The parent, then its parent, and so on up to the root.
      */
     public func ancestors(): Iterator<SyntaxNode<K>> {
-        parentNode.ancestors()
+        parent.ancestors()
     }
 
     /**
      * The token after this one in the text, wherever in the tree it is.
      */
     public func nextToken(): ?SyntaxToken<K> {
-        var current = SyntaxElement.Token(this)
-        while (true) {
-            match (current.nextSiblingOrToken()) {
-                case Some(SyntaxElement.Token(t)) => return t
-                case Some(SyntaxElement.Node(n)) => match (n.firstToken()) {
-                    case Some(t) => return t
-                    case None => current = SyntaxElement.Node(n)
-                }
-                case None => match (current.parent) {
-                    case Some(p) => current = SyntaxElement.Node(p)
-                    case None => return None
-                }
-            }
-        }
-        None
+        adjacentToken(Next)
     }
 
     /**
      * The token before this one in the text, wherever in the tree it is.
      */
     public func prevToken(): ?SyntaxToken<K> {
+        adjacentToken(Prev)
+    }
+
+    func adjacentToken(direction: Direction): ?SyntaxToken<K> {
         var current = SyntaxElement.Token(this)
         while (true) {
-            match (current.prevSiblingOrToken()) {
+            match (current.siblingOrToken(direction)) {
                 case Some(SyntaxElement.Token(t)) => return t
-                case Some(SyntaxElement.Node(n)) => match (n.lastToken()) {
+                case Some(SyntaxElement.Node(n)) => match (n.edgeToken(direction)) {
                     case Some(t) => return t
                     case None => current = SyntaxElement.Node(n)
                 }
@@ -453,12 +394,12 @@ public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString w
      * The root of a new tree, the same as this one but for this token, which `replacement` takes the place of.
      */
     public func replaceWith(replacement: GreenToken<K>): GreenNode<K> {
-        parentNode.replaceWith(parentNode.greenNode.replaceChild(index, GreenElement.Token(replacement)))
+        parent.replaceWith(parent.green.replaceChild(indexInParent, GreenElement.Token(replacement)))
     }
 
     public operator func ==(other: SyntaxToken<K>): Bool {
-        refEq(this, other) || (refEq(greenToken, other.greenToken) && offset == other.offset && index == other.index &&
-            parentNode == other.parentNode)
+        refEq(this, other) || (refEq(green, other.green) && offset == other.offset && indexInParent == other.indexInParent &&
+            parent == other.parent)
     }
 
     public operator func !=(other: SyntaxToken<K>): Bool {
@@ -468,13 +409,13 @@ public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString w
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
         hasher.write(offset)
-        hasher.write(index)
-        hasher.write(greenToken.hashCode())
+        hasher.write(indexInParent)
+        hasher.write(green.hashCode())
         hasher.finish()
     }
 
     public func toString(): String {
-        greenToken.text
+        green.text
     }
 }
 
@@ -538,6 +479,20 @@ public enum SyntaxElement<K> <: Equatable<SyntaxElement<K>> & Hashable & ToStrin
             case SyntaxElement.Node(n) => n.prevSiblingOrToken()
             case SyntaxElement.Token(t) => t.prevSiblingOrToken()
         }
+    }
+
+    func siblingOrToken(direction: Direction): ?SyntaxElement<K> {
+        match (direction) {
+            case Next => nextSiblingOrToken()
+            case Prev => prevSiblingOrToken()
+        }
+    }
+
+    /**
+     * This element, then its siblings in `direction`, tokens included.
+     */
+    func siblingsWithTokens(direction: Direction): Iterator<SyntaxElement<K>> {
+        Successors<SyntaxElement<K>>(this, {el => el.siblingOrToken(direction)})
     }
 
     public operator func ==(other: SyntaxElement<K>): Bool {
@@ -622,16 +577,12 @@ class PreorderWithTokens<K> <: Iterator<WalkEvent<SyntaxElement<K>>> where K <: 
     }
 }
 
-class Entered<T> <: Iterator<T> {
-    Entered(let events: Iterator<WalkEvent<T>>) {}
-
-    public func next(): ?T {
-        while (let Some(event) <- events.next()) {
-            if (let Enter(v) <- event) {
-                return v
-            }
+func entered<T>(events: Iterator<WalkEvent<T>>): Iterator<T> {
+    events.filterMap {
+        event => match (event) {
+            case Enter(v) => v
+            case Leave(_) => None
         }
-        None
     }
 }
 

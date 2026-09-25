@@ -1,6 +1,7 @@
 package loupe.vfs
 
 import std.collection.*
+import std.deriving.*
 import std.sync.*
 import index_map.{IndexMap, IndexSet}
 import rope.Rope
@@ -9,20 +10,9 @@ import rope.Rope
  * A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and
  * the one handle the layers above know a file by; `Vfs` says which path it stands for.
  */
-public struct FileId <: Hashable & Equatable<FileId> & ToString {
+@Derive[Hashable, Equatable]
+public struct FileId <: ToString {
     public FileId(public let index: Int64) {}
-
-    public func hashCode(): Int64 {
-        index
-    }
-
-    public operator func ==(other: FileId): Bool {
-        index == other.index
-    }
-
-    public operator func !=(other: FileId): Bool {
-        index != other.index
-    }
 
     public func toString(): String {
         "FileId(${index})"
@@ -72,21 +62,11 @@ public class PathInterner {
     }
 }
 
-public enum ChangeKind <: Equatable<ChangeKind> & ToString {
+@Derive[Equatable]
+public enum ChangeKind <: ToString {
     | Create
     | Modify
     | Delete
-
-    public operator func ==(other: ChangeKind): Bool {
-        match ((this, other)) {
-            case (Create, Create) | (Modify, Modify) | (Delete, Delete) => true
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: ChangeKind): Bool {
-        !(this == other)
-    }
 
     public func toString(): String {
         match (this) {
@@ -126,10 +106,7 @@ public class Vfs {
      */
     public func fileId(path: VfsPath): ?FileId {
         let id = paths.lookup(path) ?? return None
-        match (fileContents(id)) {
-            case Some(_) => id
-            case None => None
-        }
+        fileContents(id).map {_ => id}
     }
 
     /**

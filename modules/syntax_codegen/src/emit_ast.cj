@@ -24,6 +24,7 @@ func emitAst(model: Model, header: String, packageName: String): String {
     w.blank()
     w.line("package ${packageName}")
     w.blank()
+    w.line("import std.deriving.*")
     w.line("import ginkgo.*")
     w.line("import cjsyntax.SyntaxKind")
     for ((name, kinds) in sets) {
@@ -50,11 +51,10 @@ func emitNode(w: CodeWriter, n: NodeIr, sets: ArrayList<(String, Array<String>)>
         doc.add("Written by hand, as the grammar cannot tell them by position: ${String.join(names, delimiter: ", ")}.")
     }
     w.doc(doc.toArray())
-    w.block("public struct ${n.name} <: AstNode<SyntaxKind, ${n.name}> & Equatable<${n.name}> & Hashable & ToString") {
+    w.line("@Derive[Equatable, Hashable]")
+    w.block("public struct ${n.name} <: AstNode<SyntaxKind, ${n.name}> & ToString") {
         =>
-        w.line("let node: ${NODE_TYPE}")
-        w.blank()
-        w.block("init(node: ${NODE_TYPE})") {=> w.line("this.node = node")}
+        w.line("${n.name}(let node: ${NODE_TYPE}) {}")
         w.blank()
         w.block("public static func canCast(kind: SyntaxKind): Bool") {=> w.line("kind == SyntaxKind.${n.name}")}
         w.blank()
@@ -67,13 +67,14 @@ func emitNode(w: CodeWriter, n: NodeIr, sets: ArrayList<(String, Array<String>)>
             w.line("}")
         }
         w.blank()
-        syntaxProp(w, "node")
+        w.block("public prop syntax: ${NODE_TYPE}") {=> w.block("get()") {=> w.line("node")}}
         for (f in n.fields) {
             w.blank()
             emitField(w, n.name, f, sets)
         }
         w.blank()
-        equality(w, n.name, "node")
+        // a view prints as the text of its node; two are equal when they view one node, which is all it holds
+        w.block("public func toString(): String") {=> w.line("node.text()")}
     }
 }
 
@@ -158,23 +159,13 @@ func emitEnum(w: CodeWriter, model: Model, e: EnumIr): Unit {
             }
         }
         w.blank()
-        equality(w, e.name, "syntax")
+        // not derived: two variants may view one node (a macro call on a declaration is a `Decl` and an `Expr`)
+        w.block("public operator func ==(other: ${e.name}): Bool") {=> w.line("syntax == other.syntax")}
+        w.blank()
+        w.block("public operator func !=(other: ${e.name}): Bool") {=> w.line("syntax != other.syntax")}
+        w.blank()
+        w.block("public func hashCode(): Int64") {=> w.line("syntax.hashCode()")}
+        w.blank()
+        w.block("public func toString(): String") {=> w.line("syntax.text()")}
     }
-}
-
-func syntaxProp(w: CodeWriter, field: String): Unit {
-    w.block("public prop syntax: ${NODE_TYPE}") {=> w.block("get()") {=> w.line(field)}}
-}
-
-/**
- * Two views are equal when they view one node; one prints as the text of its node.
- */
-func equality(w: CodeWriter, typeName: String, node: String): Unit {
-    w.block("public operator func ==(other: ${typeName}): Bool") {=> w.line("${node} == other.${node}")}
-    w.blank()
-    w.block("public operator func !=(other: ${typeName}): Bool") {=> w.line("${node} != other.${node}")}
-    w.blank()
-    w.block("public func hashCode(): Int64") {=> w.line("${node}.hashCode()")}
-    w.blank()
-    w.block("public func toString(): String") {=> w.line("${node}.text()")}
 }

@@ -207,9 +207,7 @@ func postfix(p: P, r: Restrictions, first: CompletedMarker<SyntaxKind>): Complet
                 lhs = m.complete(p, TrailingLambdaExpr)
             case At where atBuiltinAnnotation(p) && p.nthAt(2, LBrace) =>
                 let m = lhs.precede(p)
-                let l = p.start()
-                annotations(p)
-                lambdaInner(p, l, true)
+                lambdaExpr(p, true)
                 lhs = m.complete(p, TrailingLambdaExpr)
             case _ => break
         }
@@ -306,15 +304,7 @@ func atom(p: P, r: Restrictions): ?CompletedMarker<SyntaxKind> {
         case SynchronizedKw => synchronizedExpr(p)
         case StringStart => stringLit(p)
         case Underscore => single(p, WildcardExpr)
-        case At where atBuiltinAnnotation(p) =>
-            let m = p.start()
-            annotations(p)
-            if (p.at(LBrace)) {
-                lambdaInner(p, m, false)
-            } else {
-                p.error("expected a lambda")
-                m.complete(p, LambdaExpr)
-            }
+        case At where atBuiltinAnnotation(p) => lambdaExpr(p, false)
         case At | AtBang where atMacroCall(p) => macroExpand(p)
         case _ where p.atAny(LITERALS) => single(p, Literal)
         case _ where p.atAny(PRIM_TYPES) && p.nthAt(1, LParen) =>
@@ -392,14 +382,17 @@ func arrayExpr(p: P): CompletedMarker<SyntaxKind> {
     m.complete(p, ArrayExpr)
 }
 
-func lambdaExpr(p: P, trailing: Bool): CompletedMarker<SyntaxKind> {
-    lambdaInner(p, p.start(), trailing)
-}
-
 /**
- * `{ a, b: T => stmts }`, `{ => stmts }`, and for a trailing lambda only, `{ stmts }`.
+ * `{ a, b: T => stmts }`, `{ => stmts }`, and for a trailing lambda only, `{ stmts }`; annotations may come
+ * first, as in `@OverflowWrapping { => a + b }`.
  */
-func lambdaInner(p: P, m: Marker, trailing: Bool): CompletedMarker<SyntaxKind> {
+func lambdaExpr(p: P, trailing: Bool): CompletedMarker<SyntaxKind> {
+    let m = p.start()
+    annotations(p)
+    if (!p.at(LBrace)) {
+        p.error("expected a lambda")
+        return m.complete(p, LambdaExpr)
+    }
     p.bump(LBrace)
     if (p.at(FatArrow)) {
         p.bump(FatArrow)
@@ -721,16 +714,7 @@ func spawnExpr(p: P): CompletedMarker<SyntaxKind> {
         exprOrError(p, Restrictions.NONE)
         p.expect(RParen)
     }
-    if (atBuiltinAnnotation(p)) {
-        let l = p.start()
-        annotations(p)
-        if (p.at(LBrace)) {
-            lambdaInner(p, l, true)
-        } else {
-            l.complete(p, LambdaExpr)
-            p.error("expected a lambda")
-        }
-    } else if (p.at(LBrace)) {
+    if (atBuiltinAnnotation(p) || p.at(LBrace)) {
         lambdaExpr(p, true)
     } else {
         p.error("expected a lambda")

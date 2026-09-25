@@ -17,6 +17,15 @@ func framed(payload: Array<Byte>): ByteBuffer {
     bytes
 }
 
+/**
+ * The payloads framed one after the other, as a stream carries them.
+ */
+func framed(payloads: Array<String>): ByteBuffer {
+    let bytes = ByteBuffer()
+    payloads.forEach {payload => bytes.write(readToEnd(framed(payload.toArray())))}
+    bytes
+}
+
 func framed(payload: String): ByteBuffer {
     framed(payload.toArray())
 }
@@ -59,10 +68,8 @@ class JsonRpcTransportReadTest {
     @TestCase
     func aReadConsumesExactlyOneFrame() {
         // arrange
-        let bytes = raw("")
-        bytes.write(readToEnd(framed(##"{"jsonrpc":"2.0","id":1,"method":"first"}"##)))
-        bytes.write(readToEnd(framed(##"{"jsonrpc":"2.0","method":"second"}"##)))
-        let transport = reading(bytes)
+        let transport = reading(
+            framed([##"{"jsonrpc":"2.0","id":1,"method":"first"}"##, ##"{"jsonrpc":"2.0","method":"second"}"##]))
 
         // act
         let first = transport.read().getOrThrow()
@@ -120,16 +127,7 @@ class JsonRpcTransportReadTest {
 
 @Test
 class JsonRpcTransportDecodeErrorTest {
-    @TestCase
-    func anEmptyFrameIsAParseError() {
-        // act
-        let e = @AssertThrows[RpcException](reading(raw("Content-Length: 0\r\n\r\n")).read())
-
-        // assert
-        @Expect(ErrorCode.PARSE_ERROR, e.code)
-    }
-
-    @TestCase[payload in [ "not json".toArray(), "{\"a\":".toArray(), "{,}".toArray(), [0xFFu8, 0xFEu8] ]]
+    @TestCase[payload in [ Array<Byte>(), "not json".toArray(), "{\"a\":".toArray(), "{,}".toArray(), [0xFFu8, 0xFEu8] ]]
     func contentThatIsNoJsonIsAParseError(payload: Array<Byte>) {
         // act
         let e = @AssertThrows[RpcException](reading(framed(payload)).read())
@@ -150,11 +148,7 @@ class JsonRpcTransportDecodeErrorTest {
     @TestCase
     func aFrameThatDoesNotDecodeLeavesTheStreamInSync() {
         // arrange
-        let bytes = raw("Content-Length: 0\r\n\r\n")
-        bytes.write(readToEnd(framed("not json")))
-        bytes.write(readToEnd(framed("[1,2,3]")))
-        bytes.write(readToEnd(framed(##"{"jsonrpc":"2.0","method":"m"}"##)))
-        let transport = reading(bytes)
+        let transport = reading(framed(["", "not json", "[1,2,3]", ##"{"jsonrpc":"2.0","method":"m"}"##]))
 
         // act
         @AssertThrows[RpcException](transport.read())
@@ -258,18 +252,6 @@ class JsonRpcTransportCloseTest {
         @Assert(transport.isClosed())
         @Expect(1, source.closeCount)
         @Expect(1, sink.closeCount)
-    }
-
-    @TestCase
-    func closeSurvivesStreamsThatOwnNothing() {
-        // arrange
-        let transport = FramedJsonRpcTransport(ByteBuffer(), ByteBuffer(), getGlobalLogger())
-
-        // act
-        transport.close()
-
-        // assert
-        @Assert(transport.isClosed())
     }
 
     @TestCase

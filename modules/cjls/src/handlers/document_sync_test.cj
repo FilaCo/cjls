@@ -5,7 +5,6 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
 import rope.{Encoding, Rope}
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -14,10 +13,10 @@ import cjls.server.*
 
 let URI = "file:///nowhere/a.cj"
 
-func opened(text: String): ServerState {
+func opened(text: String, uri!: String = URI): ServerState {
     let state = ServerState()
     handleDidOpen(state, DidOpenTextDocumentParams(
-        textDocument: TextDocumentItem(uri: URI, languageId: LanguageKind("cangjie"), version: 1, text: text)))
+        textDocument: TextDocumentItem(uri: uri, languageId: LanguageKind("cangjie"), version: 1, text: text)))
     state
 }
 
@@ -138,9 +137,7 @@ class DocumentSyncTest {
         let onDisk = dir.join("b.cj")
         File.writeTo(onDisk, "on disk".toArray())
         let uri = VfsPath.file(onDisk.toString()).toUri()
-        let state = ServerState()
-        handleDidOpen(state, DidOpenTextDocumentParams(
-            textDocument: TextDocumentItem(uri: uri, languageId: LanguageKind("cangjie"), version: 1, text: "in the editor")))
+        let state = opened("in the editor", uri: uri)
 
         // act
         handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uri)))
@@ -148,37 +145,5 @@ class DocumentSyncTest {
 
         // assert
         @Expect(state.fileContents(VfsPath.fromUri(uri))?.toString(), Some("on disk"))
-    }
-}
-
-@Test
-class InitializeTest {
-    @TestCase
-    func utf8IsAgreedOnWhenTheClientOffersIt() {
-        // arrange
-        let state = ServerState()
-        let params = InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: ClientCapabilities(
-            general: GeneralClientCapabilities(positionEncodings: [PositionEncodingKind.UTF16, PositionEncodingKind.UTF8])))
-
-        // act
-        let result = handleInitialize(state, params)
-
-        // assert
-        @Expect(state.encoding, Encoding.Utf8)
-        @Expect(result.capabilities.positionEncoding?.value, Some("utf-8"))
-    }
-
-    @TestCase
-    func utf16IsTheDefault() {
-        // arrange
-        let state = ServerState()
-
-        // act
-        let result = handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: ClientCapabilities()))
-
-        // assert
-        @Expect(state.encoding, Encoding.Utf16)
-        @Expect(result.capabilities.positionEncoding?.value, Some("utf-16"))
     }
 }

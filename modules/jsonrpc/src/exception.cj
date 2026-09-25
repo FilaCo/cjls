@@ -34,12 +34,6 @@ public class RpcException <: Exception {
         }
     }
 
-    public prop message: String {
-        get() {
-            responseError.message
-        }
-    }
-
     public prop data: ?DataModel {
         get() {
             responseError.data

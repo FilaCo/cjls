@@ -1,23 +1,9 @@
 package lsp_codegen
 
 import std.collection.HashMap
-import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdxx.IntegerOrString
-
-private func metaModelOf(
-    structures!: Array<Structure> = [],
-    typeAliases!: Array<TypeAlias> = [],
-    enumerations!: Array<Enumeration> = []
-): MetaModel {
-    MetaModel(metaData: MetaData(version: "3.18.0"), requests: [], notifications: [], structures: structures,
-        enumerations: enumerations, typeAliases: typeAliases)
-}
-
-private func configOf(typeMap!: TypeMap = TypeMap()): Config {
-    Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap)
-}
 
 private func resolverOf(mm: MetaModel, typeMap!: TypeMap = TypeMap()): TypeResolver {
     TypeResolver(mm, configOf(typeMap: typeMap))

@@ -65,13 +65,7 @@ extend DataModelStruct <: DataModelFields<DataModelStruct> {
      * explicit `null` (`Some(DataModelNull)`). A repeated key reads as its last value.
      */
     public func getOrNone(name: String): ?DataModel {
-        getFields().filterMap {
-            field: Field => if (field.getName() == name) {
-                Some(field.getData())
-            } else {
-                None<DataModel>
-            }
-        }.last
+        getFields().filter {field => field.getName() == name}.last.map {field => field.getData()}
     }
 
     /**
@@ -85,10 +79,7 @@ extend DataModelStruct <: DataModelFields<DataModelStruct> {
      * `None` for an absent key and for an explicit `null` alike - to a plain optional they mean the same.
      */
     public func getDeserializedOrNoneOnNull<FieldT>(name: String): ?FieldT where FieldT <: Serializable<FieldT> {
-        match (getOrNone(name)) {
-            case Some(dm) => Option<FieldT>.deserialize(dm)
-            case None => None
-        }
+        getOrNone(name).flatMap {dm => Option<FieldT>.deserialize(dm)}
     }
 
     /**

@@ -96,10 +96,9 @@ class ParserTest {
     func newlinesBeforeTokensAreSeen() {
         // arrange
         let lexed = toyLex("1 #c\n+2")
-        let trivia = ToyTrivia()
 
         // act
-        let input = lexed.toInput({k => trivia.isTrivia(k)}, {k => k == Newline})
+        let input = toyInput(lexed)
 
         // assert
         @Expect(input.size, 3)
@@ -114,7 +113,7 @@ class ParserTest {
     func rewindForgetsWhatWasParsedSince() {
         // arrange
         let lexed = toyLex("1+2")
-        let p = Parser<Toy>(lexed.toInput({k => k == Ws}, {_ => false}), Eof, ErrorNode)
+        let p = toyParser(lexed)
         let root = p.start()
         let snapshot = p.snapshot()
         toyExpr(p, 0)
@@ -139,7 +138,7 @@ class ParserTest {
     func whatTheParserLeavesGoesInAnErrorNodeAtTheEnd() {
         // arrange
         let lexed = toyLex("1 2")
-        let p = Parser<Toy>(lexed.toInput({k => k == Ws}, {_ => false}), Eof, ErrorNode)
+        let p = toyParser(lexed)
         let root = p.start()
         p.bump(Num)
         root.complete(p, Root)
@@ -156,7 +155,7 @@ class ParserTest {
     @TestCase
     func aParserThatMakesNoProgressThrows() {
         // arrange
-        let p = Parser<Toy>(toyLex("1").toInput({_ => false}, {_ => false}), Eof, ErrorNode)
+        let p = toyParser(toyLex("1"))
 
         // act & assert
         @AssertThrows[IllegalStateException]({

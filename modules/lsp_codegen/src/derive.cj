@@ -104,6 +104,6 @@ extend CjEmitter {
     }
 }
 
-private func joined(parts: Iterable<Tokens>): ?Tokens {
+func joined(parts: Iterable<Tokens>): ?Tokens {
     parts |> reduce {acc: Tokens, it: Tokens => quote($acc, $it)}
 }

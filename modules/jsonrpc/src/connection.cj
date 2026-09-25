@@ -199,7 +199,7 @@ public class Connection <: Resource {
     private func serializeParams<P>(params: P): ?ArrayOrObject where P <: Serializable<P> {
         match (params.serialize()) {
             case _: DataModelNull => None
-            case dmStr: DataModelSeq => ArrayOrObject.Array(dmStr)
+            case dmSeq: DataModelSeq => ArrayOrObject.Array(dmSeq)
             case dmStruct: DataModelStruct => ArrayOrObject.Object(dmStruct)
             case dm => throw RpcException(ErrorCode.INVALID_PARAMS, "invalid params type", data: dm)
         }

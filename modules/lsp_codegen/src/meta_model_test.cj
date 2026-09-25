@@ -9,6 +9,20 @@ import stdx.serialization.serialization.*
 import stdxx.IntegerOrString
 import stdxx.serialization.*
 
+/**
+ * A meta model of these declarations alone.
+ */
+func metaModelOf(
+    requests!: Array<Request> = [],
+    notifications!: Array<Notification> = [],
+    structures!: Array<Structure> = [],
+    typeAliases!: Array<TypeAlias> = [],
+    enumerations!: Array<Enumeration> = []
+): MetaModel {
+    MetaModel(metaData: MetaData(version: "3.18.0"), requests: requests, notifications: notifications,
+        structures: structures, enumerations: enumerations, typeAliases: typeAliases)
+}
+
 private func dmOf(json: String): DataModel {
     DataModel.fromJson(JsonValue.fromStr(json))
 }

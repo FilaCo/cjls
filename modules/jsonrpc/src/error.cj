@@ -1,5 +1,6 @@
 package jsonrpc
 
+import std.deriving.*
 import stdx.serialization.serialization.*
 import stdxx.serialization.*
 
@@ -24,7 +25,8 @@ public struct ResponseError <: Serializable<ResponseError> {
 /**
  * Open rather than an enum, so a code this side does not know survives a round trip.
  */
-public struct ErrorCode <: Equatable<ErrorCode> & ToString & Serializable<ErrorCode> {
+@Derive[Equatable]
+public struct ErrorCode <: ToString & Serializable<ErrorCode> {
     public const ErrorCode(public let value: Int32) {}
 
     public static const PARSE_ERROR: ErrorCode = ErrorCode(-32700)
@@ -32,10 +34,6 @@ public struct ErrorCode <: Equatable<ErrorCode> & ToString & Serializable<ErrorC
     public static const METHOD_NOT_FOUND: ErrorCode = ErrorCode(-32601)
     public static const INVALID_PARAMS: ErrorCode = ErrorCode(-32602)
     public static const INTERNAL_ERROR: ErrorCode = ErrorCode(-32603)
-
-    public operator func ==(other: ErrorCode): Bool {
-        value == other.value
-    }
 
     public func toString(): String {
         value.toString()

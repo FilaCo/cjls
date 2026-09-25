@@ -66,24 +66,12 @@ func storedFields(decl: StructDecl, macroName: String): ?(ArrayList<VarDecl>, To
 }
 
 private func isFieldValid(field: VarDecl, macroName: String): Bool {
-    let hasInitializer = try {
-        field.expr
-        true
-    } catch (_: ASTException) {
-        false
-    }
-    if (hasInitializer) {
+    if (isPresent {=> field.expr}) {
         diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` field has no initializer",
             "its value is given to the constructor")
         return false
     }
-    let hasType = try {
-        field.declType
-        true
-    } catch (_: ASTException) {
-        false
-    }
-    if (!hasType) {
+    if (!isPresent {=> field.declType}) {
         diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` field declares its type", "")
         return false
     }
@@ -95,39 +83,69 @@ private func isFieldValid(field: VarDecl, macroName: String): Bool {
 }
 
 /**
- * The supertypes of a type that is its `calcaId`: its identity ones, then those the user wrote.
+ * Whether the optional part of a node `read` gets is there: `std.ast` throws for one that is not.
  */
-func identitySuperTypes(decl: StructDecl): Tokens {
+private func isPresent<T>(read: () -> T): Bool {
+    try {
+        read()
+        true
+    } catch (_: ASTException) {
+        false
+    }
+}
+
+/**
+ * A type that is its `calcaId`, in the database `ingredient` keeps: a constructor of the database
+ * and `params` setting it to what `create` gives, the `accessors`, then the identity members,
+ * described by that ingredient, and the members the user wrote, `kept`. Its supertypes are the
+ * identity ones, then those the user wrote.
+ */
+func identityStruct(decl: StructDecl, ingredient: Tokens, params: Tokens, create: Tokens, accessors: Tokens,
+    kept: Tokens): Tokens {
+    let visibility = modifiersOf(decl.modifiers)
     let name = decl.identifier
     var superTypes = quote(Hashable & Equatable<$name> & ToString)
     for (superType in decl.superTypes) {
         superTypes += quote(& $(superType.toTokens()))
     }
-    superTypes
+    quote(
+        $visibility struct $name <: $superTypes {
+            private static let CALCA_INGREDIENT = $ingredient
+
+            private let calcaId: Id
+
+            $visibility $name(db: Database, $params) {
+                calcaId = $create
+            }
+
+            $accessors
+
+            public func hashCode(): Int64 {
+                calcaId.hashCode()
+            }
+
+            public operator func ==(other: $name): Bool {
+                calcaId == other.calcaId
+            }
+
+            public operator func !=(other: $name): Bool {
+                calcaId != other.calcaId
+            }
+
+            public func toString(): String {
+                CALCA_INGREDIENT.describe(calcaId)
+            }
+
+            $kept
+        }
+    )
 }
 
 /**
- * `hashCode`, `==`, `!=` and `toString` of a type that is its `calcaId`, described by its
- * `CALCA_INGREDIENT`.
+ * A declared name as a string literal, the way calca names it in what it reports.
  */
-func identityMembers(name: Token): Tokens {
-    quote(
-        public func hashCode(): Int64 {
-            calcaId.hashCode()
-        }
-
-        public operator func ==(other: $name): Bool {
-            calcaId == other.calcaId
-        }
-
-        public operator func !=(other: $name): Bool {
-            calcaId != other.calcaId
-        }
-
-        public func toString(): String {
-            CALCA_INGREDIENT.describe(calcaId)
-        }
-    )
+func nameLiteral(name: Token): Token {
+    Token(TokenKind.STRING_LITERAL, stripBackquotes(name.value))
 }
 
 /**

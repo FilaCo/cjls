@@ -18,15 +18,7 @@ func bodyDeclsOf(decl: Decl): ?ArrayList<Decl> {
 }
 
 func primaryCtorOf(decl: Decl): ?PrimaryCtorDecl {
-    let decls = bodyDeclsOf(decl) ?? return None
-
-    for (member in decls) {
-        if (let primaryCtor: PrimaryCtorDecl <- member) {
-            return primaryCtor
-        }
-    }
-
-    None
+    (bodyDeclsOf(decl) ?? return None).filterMap {member => member as PrimaryCtorDecl}.first
 }
 
 /**
@@ -44,13 +36,7 @@ func typeArgsOf(decl: Decl): Tokens {
  * The first identifier of a token sequence - the name of whatever it declares.
  */
 func identOf(tokens: Tokens): ?Token {
-    for (token in tokens) {
-        if (token.kind == TokenKind.IDENTIFIER) {
-            return token
-        }
-    }
-
-    None
+    tokens |> filter {token: Token => token.kind == TokenKind.IDENTIFIER} |> first
 }
 
 /**
@@ -65,16 +51,33 @@ func stripBackquotes(ident: String): String {
     }
 }
 
-func joined(parts: ArrayList<String>, separator: String): String {
-    let sb = StringBuilder()
+/**
+ * The pieces with a comma between each two, as in an argument list or a pattern.
+ */
+func commaSeparated(parts: Array<Tokens>): Tokens {
+    var joined = Tokens()
     for ((i, part) in parts |> enumerate) {
         if (i > 0) {
-            sb.append(separator)
+            joined += Tokens(Token(TokenKind.COMMA))
         }
-        sb.append(part)
+        joined += part
     }
 
-    sb.toString()
+    joined
+}
+
+/**
+ * The first entry whose key an earlier one already took.
+ */
+func firstDuplicate(entries: Array<(String, Token)>): ?(String, Token) {
+    let taken = HashSet<String>()
+    for ((key, token) in entries) {
+        if (!taken.add(key)) {
+            return (key, token)
+        }
+    }
+
+    None
 }
 
 /**
@@ -82,13 +85,7 @@ func joined(parts: ArrayList<String>, separator: String): String {
  * `let` just as `let x!: T` does.
  */
 func headTokenOf(tokens: Tokens): ?Token {
-    for (token in tokens) {
-        if (!isModifier(token)) {
-            return token
-        }
-    }
-
-    None
+    tokens |> filter {token: Token => !isModifier(token)} |> first
 }
 
 private func isModifier(token: Token): Bool {
@@ -97,4 +94,14 @@ private func isModifier(token: Token): Bool {
             | "redef" | "mut" | "unsafe" | "foreign" | "const" | "operator" | "common" | "specific" => true
         case _ => false
     }
+}
+
+func report(ident: Token, message: String, hint: String): Tokens {
+    diagReport(DiagReportLevel.ERROR, ident.toTokens(), message, hint)
+
+    Tokens()
+}
+
+func report(decl: Decl, message: String, hint: String): Tokens {
+    report(decl.identifier, message, hint)
 }

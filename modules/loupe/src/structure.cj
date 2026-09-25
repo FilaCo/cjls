@@ -1,6 +1,7 @@
 package loupe
 
 import std.collection.*
+import std.deriving.*
 import ginkgo.TextRange
 import cjsyntax.CjSyntaxToken
 import cjsyntax.ast.{Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl}
@@ -8,7 +9,8 @@ import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 
-public enum StructureKind <: Equatable<StructureKind> & ToString {
+@Derive[Equatable]
+public enum StructureKind <: ToString {
     | Class
     | Interface
     | Struct
@@ -26,14 +28,6 @@ public enum StructureKind <: Equatable<StructureKind> & ToString {
     | Field
     | Constant
     | TypeAlias
-
-    public operator func ==(other: StructureKind): Bool {
-        toString() == other.toString()
-    }
-
-    public operator func !=(other: StructureKind): Bool {
-        !(this == other)
-    }
 
     public func toString(): String {
         match (this) {
@@ -86,11 +80,7 @@ public func fileStructure(db: AnalysisDatabase, fileId: FileId): Array<Structure
  * The outline of `decls`; `inType` when they are a type's members.
  */
 private func structureOf(decls: Iterator<Decl>, inType: Bool): Array<StructureNode> {
-    let nodes = ArrayList<StructureNode>()
-    for (decl in decls) {
-        nodes.add(all: declarationsOf(decl, inType))
-    }
-    nodes.toArray()
+    decls |> flatMap {decl: Decl => declarationsOf(decl, inType)} |> collectArray
 }
 
 private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
@@ -155,10 +145,7 @@ private func extension(decl: ExtendDecl): Array<StructureNode> {
  * One per name a `let`, `var` or `const` binds: `let (a, b) = t` declares two.
  */
 private func variables(decl: VarDecl, inType: Bool): Array<StructureNode> {
-    let isConst = match (decl.modifiers()) {
-        case Some(modifiers) => modifiers.constToken().isSome()
-        case None => false
-    }
+    let isConst = decl.modifiers()?.constToken().isSome() ?? false
     let kind = if (isConst) {
         StructureKind.Constant
     } else if (inType) {

@@ -46,7 +46,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     }
 
     public func iterator(): Iterator<T> {
-        map.entries.iterator().map {entry => entry[0]}
+        map.keys().iterator()
     }
 
     public func contains(element: T): Bool {
@@ -61,7 +61,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
      * Whether every element of this set is in `other`, whatever the order.
      */
     public func subsetOf(other: ReadOnlySet<T>): Bool {
-        size <= other.size && map.entries.iterator().all {entry => other.contains(entry[0])}
+        size <= other.size && iterator().all {element => other.contains(element)}
     }
 
     /**
@@ -160,7 +160,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     }
 
     public func toArray(): Array<T> {
-        map.entries.map {entry => entry[0]}.toArray()
+        map.keys().toArray()
     }
 }
 
@@ -169,7 +169,6 @@ extend<T> IndexSet<T> <: ToString where T <: Hashable & Equatable<T> & ToString 
      * As `HashSet` renders: `[a, b]`, in order.
      */
     public func toString(): String {
-        let rendered = map.entries.map {entry => entry[0].toString()}
-        "[${String.join(rendered.toArray(), delimiter: ", ")}]"
+        "[${iterator() |> collectString(delimiter: ", ")}]"
     }
 }

@@ -376,12 +376,14 @@ enum DerivedTaggedPayload {
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedScalarOrList {
     | Single(String)
     | Many(Array<String>)
 }
 
 @DeriveExt[Serializable]
+@Derive[Equatable]
 enum DerivedOneOrMany<T> {
     | One(T)
     | Several(Array<T>)
@@ -480,14 +482,8 @@ class DeriveUntaggedEnumTest {
             DataModelSeq(ArrayList<DataModel>([DataModelString("a"), DataModelString("b")])))
 
         // assert
-        @Expect(match (single) {
-            case Single(s) => s == "one"
-            case _ => false
-        })
-        @Expect(match (many) {
-            case Many(items) => items == ["a", "b"]
-            case _ => false
-        })
+        @Expect(DerivedScalarOrList.Single("one"), single)
+        @Expect(DerivedScalarOrList.Many(["a", "b"]), many)
     }
 
     @TestCase
@@ -520,14 +516,8 @@ class DeriveUntaggedEnumTest {
         let several = DerivedOneOrMany<String>.deserialize(DerivedOneOrMany.Several(["x", "y"]).serialize())
 
         // assert
-        @Expect(match (one) {
-            case One(s) => s == "x"
-            case _ => false
-        })
-        @Expect(match (several) {
-            case Several(items) => items == ["x", "y"]
-            case _ => false
-        })
+        @Expect(DerivedOneOrMany.One("x"), one)
+        @Expect(DerivedOneOrMany.Several(["x", "y"]), several)
     }
 }
 

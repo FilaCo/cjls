@@ -10,7 +10,7 @@ import stdx.serialization.serialization.*
  * Runs `body` with the path of `cfg` written as `lsp_codegen.toml` into a throwaway directory, and
  * that directory - `manifest`, when given, is its `cjpm.toml`.
  */
-private func withConfigDir(cfg: String, manifest!: ?String = None, body!: (Path, Path) -> Unit): Unit {
+func withConfigDir<T>(cfg: String, manifest!: ?String = None, body!: (Path, Path) -> T): T {
     let dir = Directory.createTemp(getTempDirectory())
     try {
         if (let Some(m) <- manifest) {
@@ -23,6 +23,13 @@ private func withConfigDir(cfg: String, manifest!: ?String = None, body!: (Path,
     } finally {
         remove(dir, recursive: true)
     }
+}
+
+/**
+ * A config as `Config.load` would make it, for `demo.lsp_types` under `src`.
+ */
+func configOf(typeMap!: TypeMap = TypeMap()): Config {
+    Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap)
 }
 
 private let DEMO_MANIFEST = "[package]\nname = \"demo\"\n"

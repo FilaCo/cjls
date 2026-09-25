@@ -172,9 +172,7 @@ public class Storage {
      * Records a read on the query running, if any.
      */
     func reportRead(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
-        if (!stack.isEmpty()) {
-            stack[stack.size - 1].read(key, durability, changedAt)
-        }
+        stack.last?.read(key, durability, changedAt)
     }
 
     private func describe(key: DatabaseKey): String {
@@ -197,7 +195,7 @@ class ActiveQuery {
         if (seen.add(key)) {
             dependencies.add(key)
         }
-        this.durability = this.durability.min(durability)
+        this.durability = min(this.durability, durability)
         this.changedAt = max(this.changedAt, changedAt)
     }
 }

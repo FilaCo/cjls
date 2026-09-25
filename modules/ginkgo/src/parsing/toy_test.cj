@@ -143,8 +143,7 @@ func toyLex(text: String): Lexed<Toy> {
  */
 func toyParse(text: String): Parse<Toy> {
     let lexed = toyLex(text)
-    let trivia = ToyTrivia()
-    let p = Parser<Toy>(lexed.toInput({k => trivia.isTrivia(k)}, {k => k == Newline}), Eof, ErrorNode)
+    let p = toyParser(lexed)
     let root = p.start()
     while (!p.atEof()) {
         let line = p.start()
@@ -155,7 +154,16 @@ func toyParse(text: String): Parse<Toy> {
         line.complete(p, Line)
     }
     root.complete(p, Root)
-    buildTree(lexed, p, trivia)
+    buildTree(lexed, p, ToyTrivia())
+}
+
+func toyInput(lexed: Lexed<Toy>): Input<Toy> {
+    let trivia = ToyTrivia()
+    lexed.toInput({k => trivia.isTrivia(k)}, {k => k == Newline})
+}
+
+func toyParser(lexed: Lexed<Toy>): Parser<Toy> {
+    Parser<Toy>(toyInput(lexed), Eof, ErrorNode)
 }
 
 func toyExpr(p: Parser<Toy>, minPower: Int64): Unit {

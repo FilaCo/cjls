@@ -57,7 +57,7 @@ public class InputIngredient {
     }
 
     func table(runtime: Runtime): InputTable {
-        runtime.ingredient(base) {=> InputTable(name)}
+        runtime.ingredient(base) {=> InputTable(this)}
     }
 
     func column<T>(runtime: Runtime, field: Int64): InputColumn<T> {
@@ -109,7 +109,7 @@ public class Setter<T> {
         storage.write {
             revision =>
             let old = column.replace(id, value, durability, revision)
-            storage.runtime.changed(old.durability.max(durability ?? old.durability), revision)
+            storage.runtime.changed(max(old.durability, durability ?? old.durability), revision)
             old.value
         }
     }
@@ -122,14 +122,14 @@ class InputTable <: Ingredient {
     let lock = Mutex()
     var rows: Int64 = 0
 
-    InputTable(let name: String) {}
+    InputTable(let ingredient: InputIngredient) {}
 
     public func maybeChangedAfter(_: Database, _: Id, _: Int64): Bool {
         false
     }
 
     public func describe(id: Id): String {
-        "${name}(${id})"
+        ingredient.describe(id)
     }
 }
 
@@ -158,7 +158,7 @@ class InputColumn<T> <: Ingredient {
      */
     func push(id: Id, stamp: Stamp<T>): Unit {
         if (id.index != stamps.size) {
-            throw IllegalStateException("${table.name}.${field} is given row ${id} where row ${stamps.size} is due")
+            throw IllegalStateException("${table.ingredient.name}.${field} is given row ${id} where row ${stamps.size} is due")
         }
         stamps.add(stamp)
     }
@@ -181,6 +181,6 @@ class InputColumn<T> <: Ingredient {
     }
 
     public func describe(id: Id): String {
-        "${table.name}(${id}).${field}"
+        "${table.describe(id)}.${field}"
     }
 }

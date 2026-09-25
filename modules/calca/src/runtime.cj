@@ -90,10 +90,7 @@ class Runtime {
                 }
             }
         }
-        match (found as I) {
-            case Some(ingredient) => ingredient
-            case None => throw IllegalStateException("ingredient ${index} is ${found.describe(Id(0))}'s, of another type")
-        }
+        (found as I).getOrThrow {=> IllegalStateException("ingredient ${index} is ${found.describe(Id(0))}'s, of another type")}
     }
 
     func ingredientAt(index: Int64): Ingredient {
@@ -101,17 +98,12 @@ class Runtime {
     }
 
     private func lookup(index: Int64): ?Ingredient {
-        let entries = table.load().entries
-        if (index < entries.size) {
-            entries[index]
-        } else {
-            None
-        }
+        table.load().entries.get(index) ?? None
     }
 
     private func register(index: Int64, ingredient: Ingredient): Unit {
         let entries = table.load().entries
-        let grown = Array<?Ingredient>(max(entries.size, index + 1), {i => if (i < entries.size) { entries[i] } else { None }})
+        let grown = Array<?Ingredient>(max(entries.size, index + 1), {i => entries.get(i) ?? None})
         grown[index] = ingredient
         table.store(IngredientTable(grown))
     }

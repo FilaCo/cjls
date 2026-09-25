@@ -11,23 +11,14 @@ import std.unittest.testmacro.*
 let PIECES: Array<String> = ["a", "bc", " ", "\n", "\r\n", "й", "中", "😀", "xyz", "\t"]
 
 func randomText(random: Random, pieces: Int64): String {
-    let text = StringBuilder()
-    for (_ in 0..pieces) {
-        text.append(PIECES[random.nextInt64(PIECES.size)])
-    }
-    text.toString()
+    String.join(Array(pieces) {_ => PIECES[random.nextInt64(PIECES.size)]})
 }
 
 /**
  * The offsets of `text` between characters, both ends included.
  */
 func boundaries(text: String): Array<Int64> {
-    let offsets = ArrayList<Int64>()
-    for (i in 0..text.size where !isContinuation(text[i])) {
-        offsets.add(i)
-    }
-    offsets.add(text.size)
-    offsets.toArray()
+    (0..=text.size) |> filter {i: Int64 => i == text.size || !isContinuation(text[i])} |> collectArray
 }
 
 /**

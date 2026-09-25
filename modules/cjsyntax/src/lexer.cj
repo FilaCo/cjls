@@ -237,15 +237,7 @@ class Lexer {
     }
 
     func matches(text: Array<Byte>): Bool {
-        if (pos + text.size > bytes.size) {
-            return false
-        }
-        for (i in 0..text.size) {
-            if (bytes[pos + i] != text[i]) {
-                return false
-            }
-        }
-        true
+        pos + text.size <= bytes.size && bytes[pos..pos + text.size] == text
     }
 
     func blockComment(start: Int64): Unit {
@@ -371,7 +363,7 @@ class Lexer {
     func isIdentStart(n: Int64): Bool {
         let b = peek(n)
         if (b < 0x80) {
-            return (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_'
+            return isAsciiIdentStart(b)
         }
         let (r, _) = Rune.fromUtf8(bytes, pos + n)
         isIdentLike(r)
@@ -382,7 +374,7 @@ class Lexer {
         while (pos < bytes.size) {
             let b = bytes[pos]
             if (b < 0x80) {
-                if ((b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_' || isAsciiDigit(b)) {
+                if (isAsciiIdentStart(b) || isAsciiDigit(b)) {
                     pos++
                     continue
                 }
@@ -492,7 +484,7 @@ func isName(text: String): Bool {
     for (r in text.runes()) {
         let ok = if (UInt32(r) < 0x80) {
             let b = UInt8(UInt32(r))
-            (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_' || (!first && isAsciiDigit(b))
+            isAsciiIdentStart(b) || (!first && isAsciiDigit(b))
         } else {
             isIdentLike(r)
         }
@@ -502,6 +494,10 @@ func isName(text: String): Bool {
         first = false
     }
     true
+}
+
+func isAsciiIdentStart(b: Byte): Bool {
+    (b >= b'a' && b <= b'z') || (b >= b'A' && b <= b'Z') || b == b'_'
 }
 
 func isAsciiDigit(b: Byte): Bool {

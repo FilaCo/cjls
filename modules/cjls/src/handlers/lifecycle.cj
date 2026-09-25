@@ -16,10 +16,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
  * otherwise, which every client can.
  */
 func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
-    let offered: Array<PositionEncodingKind> = match (capabilities.general) {
-        case Some(general) => general.positionEncodings ?? []
-        case _ => []
-    }
+    let offered = capabilities.general.flatMap {general => general.positionEncodings} ?? []
     if (offered.any {kind => kind.value == PositionEncodingKind.UTF8.value}) {
         Encoding.Utf8
     } else {

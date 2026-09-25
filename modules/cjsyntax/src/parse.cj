@@ -62,7 +62,7 @@ class CangjieTrivia <: TriviaRules<SyntaxKind> {
             let (k, text) = trivia[i]
             match (k) {
                 case LineComment | BlockComment => attached = trivia.size - i
-                case Newline where lineBreaks(text) > 1 => break
+                case Newline where text.count("\n") > 1 => break
                 case _ => ()
             }
             i--
@@ -78,16 +78,6 @@ func isDocumentable(kind: SyntaxKind): Bool {
             MacroExpandDecl | PackageHeader => true
         case _ => false
     }
-}
-
-func lineBreaks(text: String): Int64 {
-    var n = 0
-    for (b in text) {
-        if (b == b'\n') {
-            n++
-        }
-    }
-    n
 }
 
 /**

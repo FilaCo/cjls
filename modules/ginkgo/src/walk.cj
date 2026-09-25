@@ -3,6 +3,13 @@ package ginkgo
 public enum Direction {
     | Next
     | Prev
+
+    func step(): Int64 {
+        match (this) {
+            case Next => 1
+            case Prev => -1
+        }
+    }
 }
 
 /**

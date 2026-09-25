@@ -1,7 +1,6 @@
 package lsp_codegen
 
 import std.collection.HashMap
-import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdxx.IntegerOrString
@@ -17,20 +16,17 @@ private func enumerationOf(name: String, base: EnumerationBaseType, entries: Arr
 }
 
 private func resolved(enumeration: Enumeration, typeMap!: TypeMap = TypeMap()): ?EnumIr {
-    resolveEnum(Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap), enumeration)
+    resolveEnum(configOf(typeMap: typeMap), enumeration)
 }
 
 private func isTransparent(ir: EnumIr): Bool {
-    for (derive in ir.derives) {
-        if (let Serializable(options) <- derive) {
-            return options.transparent
+    ir.derives.any {
+        derive => match (derive) {
+            case Serializable(options) => options.transparent
+            case _ => false
         }
     }
-
-    false
 }
-
-private let EXTERN_ERROR_CODES = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))]))
 
 @Test
 class ResolveEnumTest {
@@ -130,9 +126,10 @@ class ResolveEnumTest {
         // arrange
         let sut = enumerationOf("LSPErrorCodes", EnumerationBaseType.Integer,
             [("RequestFailed", IntegerOrString.Integer(-32803))])
+        let typeMap = TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))]))
 
         // act
-        let ir = resolved(sut, typeMap: EXTERN_ERROR_CODES).getOrThrow()
+        let ir = resolved(sut, typeMap: typeMap).getOrThrow()
 
         // assert
         @Expect("LSPErrorCodes", ir.ident)
