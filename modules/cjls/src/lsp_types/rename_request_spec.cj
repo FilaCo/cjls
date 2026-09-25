@@ -27,8 +27,6 @@ public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<Work
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

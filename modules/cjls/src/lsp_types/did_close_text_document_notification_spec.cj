@@ -33,8 +33,6 @@ public struct DidCloseTextDocumentNotificationSpec <: LspInboundNotification<Did
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

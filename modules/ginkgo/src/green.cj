@@ -57,10 +57,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      */
     public let textLen: Int64
 
-    public let kind: K
-
-    public init(kind: K, children: Array<GreenElement<K>>) {
-        this.kind = kind
+    public GreenNode(children: Array<GreenElement<K>>, public let kind: K) {
         elements = children.clone()
         offsets = Array<Int64>(children.size, repeat: 0)
         var hasher = DefaultHasher()
@@ -107,7 +104,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     public func replaceChild(index: Int64, element: GreenElement<K>): GreenNode<K> {
         let newChildren = elements.clone()
         newChildren[index] = element
-        GreenNode(kind, newChildren)
+        GreenNode(newChildren, kind)
     }
 
     /**
@@ -140,7 +137,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
                 elements[i - replacement.size + (end - start)]
             }
         }
-        GreenNode(kind, newChildren)
+        GreenNode(newChildren, kind)
     }
 
     func writeTo(sb: StringBuilder): Unit {

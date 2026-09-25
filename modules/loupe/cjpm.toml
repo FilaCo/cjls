@@ -1,0 +1,20 @@
+[package]
+cjc-version = "1.3.0"
+name = "loupe"
+organization = ""
+description = "The analysis of Cangjie code as queries on calca: what an editor asks, with no LSP in it"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = ""
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]
+calca = { path = "../calca" }
+cjsyntax = { path = "../cjsyntax" }
+ginkgo = { path = "../ginkgo" }
+index_map = { path = "../index_map" }
+rope = { path = "../rope" }

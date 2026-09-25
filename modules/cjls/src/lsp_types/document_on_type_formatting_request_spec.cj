@@ -27,8 +27,6 @@ public struct DocumentOnTypeFormattingRequestSpec <: LspInboundRequest<DocumentO
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

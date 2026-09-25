@@ -163,4 +163,12 @@ class ParserTest {
             while (!p.at(Plus)) {}
         })
     }
+
+    @TestCase
+    func parsesOfOneTextAreEqual() {
+        // act, assert
+        @Expect(toyParse("1 + 2") == toyParse("1 + 2"))
+        @Expect(toyParse("1 + 2") != toyParse("1 + 3"))
+        @Expect(toyParse("1 +") != toyParse("1 + 2"))
+    }
 }

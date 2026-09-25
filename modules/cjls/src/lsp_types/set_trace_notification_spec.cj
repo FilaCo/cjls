@@ -24,8 +24,6 @@ public struct SetTraceNotificationSpec <: LspInboundNotification<SetTraceParams>
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

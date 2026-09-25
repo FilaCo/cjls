@@ -156,7 +156,7 @@ class SyntaxTest {
     @TestCase
     func replacingANodeBuildsANewRootAndLeavesTheOldOne() {
         // arrange
-        let replacement = GreenNode(Leaf, [GreenElement.Token(GreenToken(Word, "xyz"))])
+        let replacement = GreenNode([GreenElement.Token(GreenToken(Word, "xyz"))], Leaf)
         let d = root.lastToken().getOrThrow()
 
         // act

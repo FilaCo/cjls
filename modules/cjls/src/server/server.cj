@@ -3,6 +3,7 @@ package cjls.server
 import std.time.MonoTime
 import stdx.log.*
 import stdx.serialization.serialization.DataModel
+import calca.Cancelled
 import jsonrpc.*
 import cjls.lsp_types.*
 
@@ -59,13 +60,15 @@ class Server <: Handler {
                 request.respond(
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
-                let parts = Parts(router.db, client, request.cancellation, logger)
+                let parts = Parts(router.state, client, request.cancellation, logger)
                 if (answer(request, logger) {handler(parts, request.params)}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
-                let parts = ReadOnlyParts(router.db.snapshot(), client, request.cancellation, logger)
+                let cancellation = request.cancellation
+                let snapshot = router.state.snapshot(cancelledBy: {=> cancellation.isCancelled})
+                let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
                 spawn {
                     answer(request, logger) {handler(parts, request.params)}
                 }
@@ -91,9 +94,9 @@ class Server <: Handler {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                run(logger) {handler(Parts(router.db, client, cancellation, logger), params)}
+                run(logger) {handler(Parts(router.state, client, cancellation, logger), params)}
             case Some(ReadOnly(handler)) =>
-                let parts = ReadOnlyParts(router.db.snapshot(), client, cancellation, logger)
+                let parts = ReadOnlyParts(router.state.snapshot(), client, cancellation, logger)
                 spawn {
                     run(logger) {handler(parts, params)}
                 }
@@ -133,7 +136,22 @@ class Server <: Handler {
 }
 
 /**
- * Answers `request` with what `handler` gives. Never throws, so it is a safe body for a `spawn`:
+ * Why a query of `request` was `Cancelled`: the client cancelled the request, or the files changed
+ * under it, which the client may ask again for.
+ */
+private func cancelledError(request: InboundRequest, logger: Logger): ResponseError {
+    if (request.cancellation.isCancelled) {
+        logger.debug("cancelled", [("reason", "the client cancelled it")])
+        ResponseError(ErrorCode.REQUEST_CANCELLED, "the request was cancelled")
+    } else {
+        logger.debug("cancelled", [("reason", "the content was modified")])
+        ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")
+    }
+}
+
+/**
+ * Answers `request` with what `handler` gives; a query cancelled midway is answered
+ * `RequestCancelled` or `ContentModified`, see `cancelledError`. Never throws, so it is a safe body for a `spawn`:
  * a thread that throws dumps its stack even when nobody reads its future.
  *
  * @return whether the handler succeeded
@@ -142,6 +160,8 @@ private func answer(request: InboundRequest, logger: Logger, handler: () -> Data
     let start = MonoTime.now()
     let answer = try {
         ResultOrError.Result(handler())
+    } catch (_: Cancelled) {
+        ResultOrError.Error(cancelledError(request, logger))
     } catch (e: Exception) {
         logFailure(logger, e)
         ResultOrError.Error(responseErrorOf(e))
@@ -159,6 +179,8 @@ private func run(logger: Logger, handler: () -> Unit): Unit {
     try {
         handler()
         logger.debug("handled", [("took", MonoTime.now() - start)])
+    } catch (_: Cancelled) {
+        logger.debug("cancelled", [("reason", "the content was modified")])
     } catch (e: Exception) {
         logFailure(logger, e)
     }

@@ -30,8 +30,6 @@ public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, N
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

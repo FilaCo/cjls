@@ -28,8 +28,6 @@ public struct ShowMessageRequestSpec <: LspOutboundRequest<ShowMessageRequestPar
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

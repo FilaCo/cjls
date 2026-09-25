@@ -8,6 +8,8 @@ members = [
     "modules/index_map",
     "modules/jsonrpc",
     "modules/lsp_codegen",
+    "modules/loupe",
+    "modules/rope",
     "modules/stdxx",
 ]
 build-members = []

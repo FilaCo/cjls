@@ -24,8 +24,6 @@ public struct ProgressNotificationSpec <: LspInboundNotification<ProgressParams>
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

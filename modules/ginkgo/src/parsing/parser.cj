@@ -36,22 +36,15 @@ enum Event<K> {
 public class Parser<K> where K <: Kind<K> {
     static const STEP_LIMIT = 1_000_000
 
-    let input: Input<K>
-    let eof: K
-    let errorKind: K
-    var pos = 0
-    var steps = 0
-    let events = ArrayList<Event<K>>()
-
     /**
      * @param eof - the kind read past the end
      * @param errorKind - the node that `errAndBump` wraps an unexpected token in
      */
-    public init(input: Input<K>, eof: K, errorKind: K) {
-        this.input = input
-        this.eof = eof
-        this.errorKind = errorKind
-    }
+    public Parser(let input: Input<K>, let eof: K, let errorKind: K) {}
+
+    var pos = 0
+    var steps = 0
+    let events = ArrayList<Event<K>>()
 
     /**
      * The kind `n` tokens ahead.

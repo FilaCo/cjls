@@ -28,8 +28,6 @@ public struct RegistrationRequestSpec <: LspOutboundRequest<RegistrationParams, 
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

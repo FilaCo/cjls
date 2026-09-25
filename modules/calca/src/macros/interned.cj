@@ -13,7 +13,7 @@ import std.collection.*
  *     public let text: String
  * }
  * // gives
- * public init(db: Database, text: String)   // Name(db, "x") == Name(db, "x")
+ * public Name(db: Database, text: String)   // Name(db, "x") == Name(db, "x")
  * public func text(db: Database): String
  * ```
  *
@@ -60,7 +60,7 @@ public macro CalcaInterned(input: Tokens): Tokens {
 
             private let calcaId: Id
 
-            $visibility init(db: Database, $params) {
+            $visibility $name(db: Database, $params) {
                 calcaId = CALCA_INGREDIENT.intern(db, $key($args))
             }
 

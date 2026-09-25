@@ -10,6 +10,8 @@ import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import jsonrpc.*
+import rope.Rope
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 
@@ -21,7 +23,7 @@ class Asked {
     let answers = LinkedBlockingQueue<ResultOrError>()
     let request: InboundRequest
 
-    init(method: String, params!: ?ArrayOrObject = Option<ArrayOrObject>.None) {
+    Asked(method: String, params!: ?ArrayOrObject = Option<ArrayOrObject>.None) {
         let answers = this.answers
         request = InboundRequest(Integer(1), method, params, CancellationToken(), {answer => answers.add(answer)})
     }
@@ -229,6 +231,54 @@ class ServerDispatchTest {
 
         // assert
         @Expect(asked.answer().getResultOrThrow() is DataModelNull)
+    }
+
+    @TestCase
+    func aQueryTheFilesChangedUnderIsAnsweredContentModified() {
+        // arrange - the handler parks with its snapshot until the files have changed
+        let release = LinkedBlockingQueue<Bool>()
+        let path = VfsPath.file("/a.cj")
+        let state = ServerState()
+        state.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                release.remove()
+                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
+                Nullable<Hover>.Null
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+        server.onRequest(asked.request)
+
+        // act
+        state.setFileContents(path, Rope("b"))
+        release.add(true)
+
+        // assert
+        @Expect(ErrorCode.CONTENT_MODIFIED, asked.answer().getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aQueryOfARequestTheClientCancelledStopsMidway() {
+        // arrange - the handler parks with its snapshot until the request is cancelled
+        let release = LinkedBlockingQueue<Bool>()
+        let path = VfsPath.file("/a.cj")
+        let state = ServerState()
+        state.setFileContents(path, Rope("a"))
+        let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                release.remove()
+                ctx.snapshot.sourceFile(path).getOrThrow().text(ctx.snapshot.analysis)
+                Nullable<Hover>.Null
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+        server.onRequest(asked.request)
+
+        // act
+        asked.request.cancellation.cancel()
+        release.add(true)
+
+        // assert
+        @Expect(ErrorCode.REQUEST_CANCELLED, asked.answer().getErrorOrThrow().code)
     }
 
     @TestCase

@@ -24,8 +24,6 @@ public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

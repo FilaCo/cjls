@@ -1,0 +1,39 @@
+# Layers
+
+## Modules and packages (D3)
+
+| | When |
+|---|---|
+| module | a library that knows nothing of the server: own dependencies, own `output-type`, reusable without `cjls` |
+| package of `cjls` | everything only the server has |
+
+- A package is Cangjie's unit of compilation: a module buys no build parallelism.
+- A module boundary is what the compiler checks: `loupe` cannot import `cjls.lsp_types`, because it does not depend on `cjls`.
+- Nothing can depend on an executable module (`cjls`).
+
+## Dependencies
+
+```
+cjls ──> jsonrpc ──> stdxx
+  │
+  └────> loupe ──> calca ──> index_map
+           ├─────> cjsyntax ──> ginkgo
+           └─────> rope
+```
+
+Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `loupe → syntax → db → vfs`.
+
+## Layers of a request
+
+| # | Layer | Where | Knows | Down the boundary |
+|---|---|---|---|---|
+| L0 | transport | `jsonrpc` | bytes, `Content-Length` | `Body` |
+| L1 | connection | `jsonrpc.Connection` | ids, `CancellationToken` per request | `InboundRequest`, `(method, params)` |
+| L2 | server | `cjls.server` | lifecycle, handler mode, error codes | `Parts` + raw params |
+| L3 | route | `Router`, `*Spec` | message types | `Context<P>` / `ReadOnlyContext<P>` |
+| L4 | handler | `cjls.handlers` | LSP ⇄ loupe translation only | `FileId`, byte offsets, loupe types |
+| L5 | API | `loupe` | what an editor asks, no LSP | query calls |
+| L6 | queries | `loupe.syntax`, later `loupe.hir` | `@CalcaTracked`, keyed by entities | input reads |
+| L7 | inputs | `loupe.db`, `loupe.vfs` | files, `SourceFile.text` | — |
+
+Above L4/L5: URIs, `Position`, encodings. Below: `FileId`, UTF-8 byte offsets, `TextRange` (D5).

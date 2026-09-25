@@ -31,8 +31,6 @@ public struct InlineValueRequestSpec <: LspInboundRequest<InlineValueParams, Nul
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

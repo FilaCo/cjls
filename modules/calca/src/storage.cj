@@ -42,12 +42,18 @@ public interface Database {
  * is nothing to close, and a snapshot forgotten holds up nothing.
  */
 public class Storage {
-    let runtime: Runtime
+    private Storage(
+        let runtime: Runtime,
+        /**
+         * The revision of a snapshot, `None` for the root handle.
+         */
+        private let pinned: ?Int64,
+        /**
+         * Whoever uses a snapshot asking it to stop: checked with every operation, as a write is.
+         */
+        private let cancelledBy: () -> Bool
+    ) {}
 
-    /**
-     * The revision of a snapshot, `None` for the root handle.
-     */
-    private let pinned: ?Int64
     private let stack = ArrayList<ActiveQuery>()
     private let active = HashSet<DatabaseKey>()
 
@@ -58,35 +64,35 @@ public class Storage {
     private var depth: Int64 = 0
 
     public init() {
-        this(Runtime(), None)
-    }
-
-    private init(runtime: Runtime, pinned: ?Int64) {
-        this.runtime = runtime
-        this.pinned = pinned
+        this(Runtime(), None, {=> false})
     }
 
     /**
      * Another handle of the same database, for another thread, pinned to the revision this one
-     * reads.
+     * reads. Its queries are `Cancelled` too once `cancelledBy` gives `true`: how whoever asked
+     * for the answer (an editor's `$/cancelRequest`) stops a computation of it midway.
      */
-    public func snapshot(): Storage {
-        Storage(runtime, pinned ?? runtime.revision)
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): Storage {
+        Storage(runtime, pinned ?? runtime.revision, cancelledBy)
     }
 
     /**
-     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
+     * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
+     * was asked to stop
      */
     public func unwindIfCancelled(): Unit {
+        checkAskedToStop()
         runtime.unwindIfCancelled(pinned)
     }
 
     /**
      * Runs one operation of this handle, which a write waits for if it is not inside another.
      *
-     * @throws Cancelled - if a write is pending, or this is a snapshot of a revision gone by
+     * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
+     * was asked to stop
      */
     func read<T>(operation: () -> T): T {
+        checkAskedToStop()
         let outermost = depth == 0
         if (outermost) {
             runtime.beginRead(pinned)
@@ -104,19 +110,35 @@ public class Storage {
         }
     }
 
+    private func checkAskedToStop(): Unit {
+        if (cancelledBy()) {
+            throw Cancelled()
+        }
+    }
+
     /**
      * Makes `change` in a new revision, once what is in flight on the snapshots has ended.
      *
      * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
      */
     func write<T>(change: (Int64) -> T): T {
+        checkWritable("change")
+        runtime.write(change)
+    }
+
+    /**
+     * Refuses to `action` an input from a snapshot, or inside an operation: only the root handle
+     * makes inputs, and what a query computes depends on nothing but what it reads.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
+     */
+    func checkWritable(action: String): Unit {
         if (pinned.isSome()) {
-            throw IllegalStateException("a snapshot cannot change an input")
+            throw IllegalStateException("a snapshot cannot ${action} an input")
         }
         if (depth > 0) {
-            throw IllegalStateException("an input cannot change while a query runs")
+            throw IllegalStateException("an input cannot ${action} while a query runs")
         }
-        runtime.write(change)
     }
 
     /**

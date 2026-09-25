@@ -68,8 +68,8 @@ class TestDatabase <: TestDb {
         parking.released.remove()
     }
 
-    func snapshot(): TestDatabase {
-        TestDatabase(storage_.snapshot(), events, parking)
+    func snapshot(cancelledBy!: () -> Bool = {=> false}): TestDatabase {
+        TestDatabase(storage_.snapshot(cancelledBy: cancelledBy), events, parking)
     }
 }
 
@@ -121,6 +121,19 @@ func parkedLength(db: TestDb, file: SourceFile): Int64 {
     text.size
 }
 
+/**
+ * `parkedLength` on a handle of its own, released as soon as it parks.
+ */
+func parkedLengthOf(db: TestDatabase, file: SourceFile): Int64 {
+    let released = spawn {
+        db.parking.parked.remove()
+        db.parking.released.add(())
+    }
+    let length = parkedLength(db.snapshot(), file)
+    released.get()
+    length
+}
+
 @CalcaTracked
 func length(db: TestDb, file: SourceFile): Int64 {
     db.log("length(${file})")
@@ -169,6 +182,12 @@ func second(db: TestDb, mode: Mode): Int64 {
     } else {
         0
     }
+}
+
+@CalcaTracked
+func createsAnInput(db: TestDb, file: SourceFile): Int64 {
+    SourceFile(db, "b.cj", file.text(db))
+    0
 }
 
 @CalcaTracked
@@ -445,6 +464,32 @@ class CalcaTest {
     }
 
     @TestCase
+    func aSnapshotAskedToStopIsCancelledMidway(): Unit {
+        // arrange - the query parks between two reads; the flag is raised while it is parked
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let stop = AtomicBool(false)
+        let snapshot = db.snapshot(cancelledBy: {=> stop.load()})
+        let reader = spawn {
+            try {
+                parkedLength(snapshot, file)
+                false
+            } catch (_: Cancelled) {
+                true
+            }
+        }
+        db.parking.parked.remove()
+
+        // act
+        stop.store(true)
+        db.parking.released.add(())
+
+        // assert - the rest of the database goes on as if nothing happened
+        @Expect(reader.get())
+        @Expect(parkedLengthOf(db, file), 5)
+    }
+
+    @TestCase
     func aSnapshotUsedAfterAWriteIsCancelled(): Unit {
         // arrange
         let db = TestDatabase()
@@ -458,7 +503,6 @@ class CalcaTest {
         // assert
         @AssertThrows[Cancelled](length(snapshot, file))
         @AssertThrows[Cancelled](file.text(snapshot))
-        @AssertThrows[Cancelled](SourceFile(snapshot, "b.cj", ""))
         @Expect(length(db.snapshot(), file), 3)
     }
 
@@ -476,6 +520,25 @@ class CalcaTest {
         // assert
         @Expect(old, "hello")
         @Expect(file.text(db), "bye")
+    }
+
+    @TestCase
+    func aSnapshotCannotCreateAnInput(): Unit {
+        // arrange
+        let db = TestDatabase()
+
+        // act, assert
+        @AssertThrows[IllegalStateException](SourceFile(db.snapshot(), "a.cj", "hello"))
+    }
+
+    @TestCase
+    func aQueryCannotCreateAnInput(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+
+        // act, assert
+        @AssertThrows[IllegalStateException](createsAnInput(db, file))
     }
 
     @TestCase

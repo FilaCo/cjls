@@ -30,8 +30,6 @@ public struct WillDeleteFilesRequestSpec <: LspInboundRequest<DeleteFilesParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

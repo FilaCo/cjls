@@ -61,7 +61,7 @@ class Runtime {
     private var inFlight: Int64 = 0
     private let writePending = AtomicBool(false)
 
-    init() {
+    Runtime() {
         gate.lock()
         drained = gate.condition()
         gate.unlock()

@@ -29,8 +29,6 @@ public struct DiagnosticRefreshRequestSpec <: LspOutboundRequest<Unit, Unit> {
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

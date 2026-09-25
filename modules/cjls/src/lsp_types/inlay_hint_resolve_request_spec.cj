@@ -31,8 +31,6 @@ public struct InlayHintResolveRequestSpec <: LspInboundRequest<InlayHint, InlayH
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

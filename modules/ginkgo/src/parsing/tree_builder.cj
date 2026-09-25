@@ -19,8 +19,16 @@ public interface TriviaRules<K> where K <: Kind<K> {
     }
 }
 
-public struct SyntaxError <: ToString {
+public struct SyntaxError <: Equatable<SyntaxError> & ToString {
     public SyntaxError(public let message: String, public let range: TextRange) {}
+
+    public operator func ==(other: SyntaxError): Bool {
+        range == other.range && message == other.message
+    }
+
+    public operator func !=(other: SyntaxError): Bool {
+        !(this == other)
+    }
 
     public func toString(): String {
         "${range}: ${message}"
@@ -28,13 +36,23 @@ public struct SyntaxError <: ToString {
 }
 
 /**
- * A parsed text: the tree, which always covers the whole text, and what was wrong with it.
+ * A parsed text: the tree, which always covers the whole text, and what was wrong with it. Two
+ * parses are equal when their trees and their errors are, which is what lets an incremental
+ * computation tell that an edit left the tree as it was.
  */
-public class Parse<K> where K <: Kind<K> {
+public class Parse<K> <: Equatable<Parse<K>> where K <: Kind<K> {
     public Parse(public let green: GreenNode<K>, public let errors: Array<SyntaxError>) {}
 
     public func syntaxNode(): SyntaxNode<K> {
         SyntaxNode.newRoot(green)
+    }
+
+    public operator func ==(other: Parse<K>): Bool {
+        green == other.green && errors == other.errors
+    }
+
+    public operator func !=(other: Parse<K>): Bool {
+        !(this == other)
     }
 }
 

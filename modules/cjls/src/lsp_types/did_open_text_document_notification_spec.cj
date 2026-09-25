@@ -34,8 +34,6 @@ public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidO
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

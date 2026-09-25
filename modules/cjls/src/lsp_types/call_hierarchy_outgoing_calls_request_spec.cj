@@ -29,8 +29,6 @@ public struct CallHierarchyOutgoingCallsRequestSpec <: LspInboundRequest<CallHie
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

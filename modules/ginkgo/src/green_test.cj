@@ -103,9 +103,9 @@ class GreenTest {
     @TestCase
     func equalityIsStructural() {
         // arrange
-        let one = GreenNode(Root, [GreenElement.Token(GreenToken(Word, "x"))])
-        let other = GreenNode(Root, [GreenElement.Token(GreenToken(Word, "x"))])
-        let different = GreenNode(Root, [GreenElement.Token(GreenToken(Word, "y"))])
+        let one = GreenNode([GreenElement.Token(GreenToken(Word, "x"))], Root)
+        let other = GreenNode([GreenElement.Token(GreenToken(Word, "x"))], Root)
+        let different = GreenNode([GreenElement.Token(GreenToken(Word, "y"))], Root)
 
         // act & assert
         @Expect(one == other)

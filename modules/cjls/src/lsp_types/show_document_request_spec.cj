@@ -32,8 +32,6 @@ public struct ShowDocumentRequestSpec <: LspOutboundRequest<ShowDocumentParams, 
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

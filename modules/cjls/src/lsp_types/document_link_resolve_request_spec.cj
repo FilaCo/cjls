@@ -29,8 +29,6 @@ public struct DocumentLinkResolveRequestSpec <: LspInboundRequest<DocumentLink, 
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

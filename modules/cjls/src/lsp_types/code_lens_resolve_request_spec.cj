@@ -27,8 +27,6 @@ public struct CodeLensResolveRequestSpec <: LspInboundRequest<CodeLens, CodeLens
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

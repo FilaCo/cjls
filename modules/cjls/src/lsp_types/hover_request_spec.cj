@@ -29,8 +29,6 @@ public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

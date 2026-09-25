@@ -32,8 +32,6 @@ public struct WillSaveTextDocumentWaitUntilRequestSpec <: LspInboundRequest<Will
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

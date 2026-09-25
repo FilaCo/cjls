@@ -27,8 +27,6 @@ public struct DocumentRangeFormattingRequestSpec <: LspInboundRequest<DocumentRa
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

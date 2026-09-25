@@ -1,0 +1,170 @@
+package loupe.vfs
+
+import std.collection.*
+
+/**
+ * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
+ * editor's `untitled:` buffer), the URI it was given, as is. Two URIs spelling one path apart (a
+ * `%`-escape the other does not use, a `/./`) give the one `VfsPath`.
+ */
+public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
+    private VfsPath(private let onDisk: Bool, private let value: String) {}
+
+    /**
+     * @throws IllegalArgumentException - if `path` is not absolute
+     */
+    public static func file(path: String): VfsPath {
+        if (!path.startsWith("/")) {
+            throw IllegalArgumentException("not an absolute path: ${path}")
+        }
+        VfsPath(true, normalize(path))
+    }
+
+    public static func virtual(name: String): VfsPath {
+        VfsPath(false, name)
+    }
+
+    /**
+     * The path a `file:` URI names, anything else a virtual path of the URI itself.
+     */
+    public static func fromUri(uri: String): VfsPath {
+        if (!uri.startsWith("file://")) {
+            return virtual(uri)
+        }
+        let rest = uri["file://".size..]
+        // the authority is empty, or `localhost`, for a file on this machine
+        let path = match (rest.indexOf("/")) {
+            case Some(slash) where slash == 0 || rest[..slash] == "localhost" => rest[slash..]
+            case _ => return virtual(uri)
+        }
+        match (percentDecoded(path)) {
+            case Some(decoded) => file(decoded)
+            case None => virtual(uri)
+        }
+    }
+
+    /**
+     * The path on disk, `None` for a virtual one.
+     */
+    public prop filePath: ?String {
+        get() {
+            if (onDisk) {
+                value
+            } else {
+                None
+            }
+        }
+    }
+
+    /**
+     * A `file:` URI for a path on disk, escaped the way VS Code does, the URI given for a virtual one.
+     */
+    public func toUri(): String {
+        if (onDisk) {
+            "file://" + percentEncoded(value)
+        } else {
+            value
+        }
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(onDisk)
+        hasher.write(value)
+        hasher.finish()
+    }
+
+    public operator func ==(other: VfsPath): Bool {
+        onDisk == other.onDisk && value == other.value
+    }
+
+    public operator func !=(other: VfsPath): Bool {
+        !(this == other)
+    }
+
+    public func toString(): String {
+        value
+    }
+}
+
+/**
+ * `path`, absolute, with no empty, `.` or `..` segments: `..` above the root stays at the root.
+ */
+func normalize(path: String): String {
+    let segments = ArrayList<String>()
+    for (segment in path.split("/")) {
+        match (segment) {
+            case "" | "." => ()
+            case ".." =>
+                if (!segments.isEmpty()) {
+                    segments.remove(at: segments.size - 1)
+                }
+            case _ => segments.add(segment)
+        }
+    }
+    "/" + String.join(segments.toArray(), delimiter: "/")
+}
+
+/**
+ * `None` if an escape is malformed, or what they spell is not UTF-8.
+ */
+func percentDecoded(text: String): ?String {
+    if (!text.contains("%")) {
+        return text
+    }
+    let bytes = ArrayList<Byte>()
+    var i = 0
+    while (i < text.size) {
+        let b = text[i]
+        if (b == b'%') {
+            if (i + 2 >= text.size) {
+                return None
+            }
+            let high = hexValue(text[i + 1]) ?? return None
+            let low = hexValue(text[i + 2]) ?? return None
+            bytes.add(high * 16 + low)
+            i += 3
+        } else {
+            bytes.add(b)
+            i++
+        }
+    }
+    try {
+        String.fromUtf8(bytes.toArray())
+    } catch (_: IllegalArgumentException) {
+        None
+    }
+}
+
+private func hexValue(b: Byte): ?Byte {
+    if (b >= b'0' && b <= b'9') {
+        b - b'0'
+    } else if (b >= b'a' && b <= b'f') {
+        b - b'a' + 10
+    } else if (b >= b'A' && b <= b'F') {
+        b - b'A' + 10
+    } else {
+        None
+    }
+}
+
+private let HEX_DIGITS = "0123456789ABCDEF"
+
+/**
+ * Every byte escaped but the unreserved ones and `/`.
+ */
+func percentEncoded(path: String): String {
+    let encoded = StringBuilder()
+    for (b in path) {
+        let unreserved = b >= b'a' && b <= b'z' || b >= b'A' && b <= b'Z' || b >= b'0' && b <= b'9' ||
+            b == b'-' || b == b'.' || b == b'_' || b == b'~' || b == b'/'
+        if (unreserved) {
+            encoded.append(Rune(b))
+        } else {
+            encoded.append("%")
+            encoded.append(Rune(HEX_DIGITS[Int64(b >> 4)]))
+            encoded.append(Rune(HEX_DIGITS[Int64(b & 0xF)]))
+        }
+    }
+    encoded.toString()
+}

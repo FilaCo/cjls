@@ -30,8 +30,6 @@ public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nulla
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

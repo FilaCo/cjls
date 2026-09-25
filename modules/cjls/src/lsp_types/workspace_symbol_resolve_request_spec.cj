@@ -30,8 +30,6 @@ public struct WorkspaceSymbolResolveRequestSpec <: LspInboundRequest<WorkspaceSy
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -28,8 +28,6 @@ public struct ExitNotificationSpec <: LspInboundNotification<Unit> {
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

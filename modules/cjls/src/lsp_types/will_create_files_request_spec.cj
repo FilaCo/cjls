@@ -34,8 +34,6 @@ public struct WillCreateFilesRequestSpec <: LspInboundRequest<CreateFilesParams,
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

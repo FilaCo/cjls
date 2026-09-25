@@ -7,17 +7,7 @@ package ginkgo
  * node are equal. A tree never changes: editing one builds new green nodes up to a new root.
  */
 public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString where K <: Kind<K> {
-    let greenNode: GreenNode<K>
-    let parentNode: ?SyntaxNode<K>
-    let index: Int64
-    let offset: Int64
-
-    init(green: GreenNode<K>, parent: ?SyntaxNode<K>, index: Int64, offset: Int64) {
-        this.greenNode = green
-        this.parentNode = parent
-        this.index = index
-        this.offset = offset
-    }
+    SyntaxNode(let greenNode: GreenNode<K>, let parentNode: ?SyntaxNode<K>, let index: Int64, let offset: Int64) {}
 
     public static func newRoot(green: GreenNode<K>): SyntaxNode<K> {
         SyntaxNode(green, None, 0, 0)
@@ -356,17 +346,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
  * A token of a tree in place: its green token, plus where it is. See `SyntaxNode`.
  */
 public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString where K <: Kind<K> {
-    let greenToken: GreenToken<K>
-    let parentNode: SyntaxNode<K>
-    let index: Int64
-    let offset: Int64
-
-    init(green: GreenToken<K>, parent: SyntaxNode<K>, index: Int64, offset: Int64) {
-        this.greenToken = green
-        this.parentNode = parent
-        this.index = index
-        this.offset = offset
-    }
+    SyntaxToken(let greenToken: GreenToken<K>, let parentNode: SyntaxNode<K>, let index: Int64, let offset: Int64) {}
 
     public prop kind: K {
         get() {

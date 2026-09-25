@@ -27,8 +27,6 @@ public struct ApplyWorkspaceEditRequestSpec <: LspOutboundRequest<ApplyWorkspace
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

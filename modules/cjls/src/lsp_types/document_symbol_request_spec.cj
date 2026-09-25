@@ -30,8 +30,6 @@ public struct DocumentSymbolRequestSpec <: LspInboundRequest<DocumentSymbolParam
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

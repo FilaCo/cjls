@@ -24,8 +24,6 @@ public struct LogTraceNotificationSpec <: LspOutboundNotification<LogTraceParams
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

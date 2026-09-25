@@ -13,5 +13,8 @@ link-option = ""
 package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
+calca = { path = "../calca" }
 jsonrpc = { path = "../jsonrpc" }
+loupe = { path = "../loupe" }
+rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }

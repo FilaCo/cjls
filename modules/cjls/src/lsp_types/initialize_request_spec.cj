@@ -31,8 +31,6 @@ public struct InitializeRequestSpec <: LspInboundRequest<InitializeParams, Initi
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

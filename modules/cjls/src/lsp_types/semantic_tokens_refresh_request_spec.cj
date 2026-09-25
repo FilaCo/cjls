@@ -27,8 +27,6 @@ public struct SemanticTokensRefreshRequestSpec <: LspOutboundRequest<Unit, Unit>
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

@@ -35,8 +35,6 @@ public struct CompletionRequestSpec <: LspInboundRequest<CompletionParams, Nulla
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

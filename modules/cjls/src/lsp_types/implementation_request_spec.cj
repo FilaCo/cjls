@@ -29,8 +29,6 @@ public struct ImplementationRequestSpec <: LspInboundRequest<ImplementationParam
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

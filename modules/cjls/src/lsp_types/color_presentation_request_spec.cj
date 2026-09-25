@@ -30,8 +30,6 @@ public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentatio
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

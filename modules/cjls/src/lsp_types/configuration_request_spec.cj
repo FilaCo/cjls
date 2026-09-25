@@ -33,8 +33,6 @@ public struct ConfigurationRequestSpec <: LspOutboundRequest<ConfigurationParams
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

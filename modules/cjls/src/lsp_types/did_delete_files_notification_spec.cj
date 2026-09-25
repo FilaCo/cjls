@@ -30,8 +30,6 @@ public struct DidDeleteFilesNotificationSpec <: LspInboundNotification<DeleteFil
         }
     }
 
-    public init() {}
-
     public prop method: String {
         get() {
             METHOD

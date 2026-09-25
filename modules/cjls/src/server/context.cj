@@ -5,13 +5,13 @@ import stdx.serialization.serialization.*
 import jsonrpc.*
 
 /**
- * What a handler that runs on the read loop gets: its params, and the `Database` itself, since
+ * What a handler that runs on the read loop gets: its params, and the `ServerState` itself, since
  * nothing else runs meanwhile.
  */
 public class Context<P> {
     Context(
         public let params: P,
-        public let db: Database,
+        public let state: ServerState,
         public let client: Client,
         public let cancellation: CancellationToken,
         public let logger: Logger
@@ -20,12 +20,12 @@ public class Context<P> {
 
 /**
  * What a handler that runs on a thread of its own gets: as `Context`, with a snapshot in place of
- * the database, so such a handler cannot change the inputs.
+ * the state, so such a handler cannot change the inputs.
  */
 public class ReadOnlyContext<P> {
     ReadOnlyContext(
         public let params: P,
-        public let db: DatabaseSnapshot,
+        public let snapshot: ServerSnapshot,
         public let client: Client,
         public let cancellation: CancellationToken,
         public let logger: Logger
@@ -50,41 +50,19 @@ public interface FromReadOnlyContext<T> {
  * A context but for its params, which the route decodes, knowing their type.
  */
 class Parts {
-    Parts(let db: Database, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
+    Parts(let state: ServerState, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
 
     func context<P>(params: P): Context<P> {
-        Context(params, db, client, cancellation, logger)
+        Context(params, state, client, cancellation, logger)
     }
 }
 
 class ReadOnlyParts {
-    ReadOnlyParts(let db: DatabaseSnapshot, let client: Client, let cancellation: CancellationToken,
+    ReadOnlyParts(let snapshot: ServerSnapshot, let client: Client, let cancellation: CancellationToken,
         let logger: Logger) {}
 
     func context<P>(params: P): ReadOnlyContext<P> {
-        ReadOnlyContext(params, db, client, cancellation, logger)
-    }
-}
-
-/**
- * Where the query database goes. It holds nothing yet, but is already split the way it will be: a
- * handler given a `Context` changes the database, one given a `ReadOnlyContext` reads a snapshot.
- */
-public class Database <: FromContext<Database> {
-    public init() {}
-
-    public static func from<P>(ctx: Context<P>): Database {
-        ctx.db
-    }
-
-    public func snapshot(): DatabaseSnapshot {
-        DatabaseSnapshot()
-    }
-}
-
-public class DatabaseSnapshot <: FromReadOnlyContext<DatabaseSnapshot> {
-    public static func from<P>(ctx: ReadOnlyContext<P>): DatabaseSnapshot {
-        ctx.db
+        ReadOnlyContext(params, snapshot, client, cancellation, logger)
     }
 }
 
