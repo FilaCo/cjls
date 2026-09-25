@@ -76,10 +76,8 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
 
     func intern(key: K): Id {
         synchronized(lock) {
-            match (entries.indexOf(key)) {
-                case Some(index) => Id(index)
-                case None => Id(entries.addWithIndex(key, None)[0])
-            }
+            // not `addWithIndex` alone: it would replace the memo of a key already there
+            Id(entries.indexOf(key) ?? entries.addWithIndex(key, None)[0])
         }
     }
 
@@ -113,12 +111,11 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         if (verifiedAt == now) {
             return true
         }
-        if (runtime.lastChangedAt(memo.durability) > verifiedAt) {
-            for (dependency in memo.dependencies) {
-                if (runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)) {
-                    return false
-                }
-            }
+        let changed = runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
+            dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
+        }
+        if (changed) {
+            return false
         }
         memo.verifiedAt.store(now)
         true
@@ -144,10 +141,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
     }
 
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
-        let typed = match (db as D) {
-            case Some(typed) => typed
-            case None => throw IllegalStateException("${function.name} is given a database of another type")
-        }
+        let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
         let key = synchronized(lock) {
             entry(id)[0]
         }
