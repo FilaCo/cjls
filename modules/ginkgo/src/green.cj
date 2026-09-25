@@ -102,9 +102,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      * A copy with child `index` replaced.
      */
     public func replaceChild(index: Int64, element: GreenElement<K>): GreenNode<K> {
-        let newChildren = elements.clone()
-        newChildren[index] = element
-        GreenNode(newChildren, kind)
+        spliceChildren(index, index + 1, [element])
     }
 
     /**
@@ -128,16 +126,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         if (start < 0 || end < start || end > elements.size) {
             throw IndexOutOfBoundsException("Invalid child range ${start}..${end} of ${elements.size} children")
         }
-        let newChildren = Array<GreenElement<K>>(elements.size - (end - start) + replacement.size) {
-            i => if (i < start) {
-                elements[i]
-            } else if (i < start + replacement.size) {
-                replacement[i - start]
-            } else {
-                elements[i - replacement.size + (end - start)]
-            }
-        }
-        GreenNode(newChildren, kind)
+        GreenNode(elements[..start].concat(replacement).concat(elements[end..]), kind)
     }
 
     func writeTo(sb: StringBuilder): Unit {
