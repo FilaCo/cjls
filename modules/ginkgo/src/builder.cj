@@ -14,17 +14,14 @@ public struct Checkpoint {
  * Builds a green tree top-down: nodes are started and finished around the tokens they contain, in text order.
  */
 public class GreenNodeBuilder<K> where K <: Kind<K> {
-    let cache: NodeCache<K>
+    public GreenNodeBuilder(let cache: NodeCache<K>) {}
+
     let parentKinds = ArrayList<K>()
     let parentStarts = ArrayList<Int64>()
     let children = ArrayList<GreenElement<K>>()
 
     public init() {
         this(NodeCache<K>())
-    }
-
-    public init(cache: NodeCache<K>) {
-        this.cache = cache
     }
 
     public func token(kind: K, text: String): Unit {

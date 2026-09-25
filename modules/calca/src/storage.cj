@@ -42,17 +42,18 @@ public interface Database {
  * is nothing to close, and a snapshot forgotten holds up nothing.
  */
 public class Storage {
-    let runtime: Runtime
+    private Storage(
+        let runtime: Runtime,
+        /**
+         * The revision of a snapshot, `None` for the root handle.
+         */
+        private let pinned: ?Int64,
+        /**
+         * Whoever uses a snapshot asking it to stop: checked with every operation, as a write is.
+         */
+        private let cancelledBy: () -> Bool
+    ) {}
 
-    /**
-     * The revision of a snapshot, `None` for the root handle.
-     */
-    private let pinned: ?Int64
-
-    /**
-     * Whoever uses a snapshot asking it to stop: checked with every operation, as a write is.
-     */
-    private let cancelledBy: () -> Bool
     private let stack = ArrayList<ActiveQuery>()
     private let active = HashSet<DatabaseKey>()
 
@@ -64,12 +65,6 @@ public class Storage {
 
     public init() {
         this(Runtime(), None, {=> false})
-    }
-
-    private init(runtime: Runtime, pinned: ?Int64, cancelledBy: () -> Bool) {
-        this.runtime = runtime
-        this.pinned = pinned
-        this.cancelledBy = cancelledBy
     }
 
     /**

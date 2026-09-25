@@ -12,18 +12,14 @@ import std.collection.*
  * for.
  */
 public struct Rope <: Equatable<Rope> & ToString {
-    private let root: Node
+    private Rope(private let root: Node) {}
 
     public init() {
-        root = Leaf("")
+        this(Leaf(""))
     }
 
     public init(text: String) {
-        root = rooted(chunked(text), 0)
-    }
-
-    private init(root: Node) {
-        this.root = root
+        this(rooted(chunked(text), 0))
     }
 
     /**

@@ -59,6 +59,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
 
     public let kind: K
 
+    // not a primary constructor: `kind` would have to come after `children`, a regular parameter
     public init(kind: K, children: Array<GreenElement<K>>) {
         this.kind = kind
         elements = children.clone()
