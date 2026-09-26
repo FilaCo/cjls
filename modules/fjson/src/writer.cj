@@ -1,5 +1,20 @@
 package fjson
 
+// 10^k for k in 0..20: how many digits a UInt64 has
+let POW10: Array<UInt64> = Array<UInt64>(20) {
+    k =>
+    var p: UInt64 = 1
+    for (_ in 0..k) {
+        p *= 10
+    }
+    p
+}
+
+// "00" to "99", two bytes each
+let DIGIT_PAIRS: Array<Byte> = Array<Byte>(200) {
+    i => if (i % 2 == 0) { UInt8(i / 20) + 0x30 } else { UInt8((i / 2) % 10) + 0x30 }
+}
+
 let HEX: Array<Byte> = [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66]
 
 /**
@@ -174,16 +189,24 @@ public class FjWriter {
             UInt64(value)
         }
         var count = 1
-        var probe = magnitude
-        while (probe >= 10) {
-            probe /= 10
+        while (count < 20 && magnitude >= POW10[count]) {
             count++
         }
-        var i = length + count - 1
-        while (i >= length) {
-            buf[i] = UInt8(magnitude % 10) + 0x30
-            magnitude /= 10
-            i--
+        // two digits a division, from the right
+        var i = length + count
+        while (magnitude >= 100) {
+            let pair = Int64(magnitude % 100) * 2
+            magnitude /= 100
+            i -= 2
+            buf[i] = DIGIT_PAIRS[pair]
+            buf[i + 1] = DIGIT_PAIRS[pair + 1]
+        }
+        if (magnitude >= 10) {
+            let pair = Int64(magnitude) * 2
+            buf[i - 2] = DIGIT_PAIRS[pair]
+            buf[i - 1] = DIGIT_PAIRS[pair + 1]
+        } else {
+            buf[i - 1] = UInt8(magnitude) + 0x30
         }
         length += count
     }
