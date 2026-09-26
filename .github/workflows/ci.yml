@@ -63,7 +63,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     # no SDK here: the binary has to run the way an editor starts it
     env:
-      CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
+      CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ matrix.os == 'windows-latest' && '.exe' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4

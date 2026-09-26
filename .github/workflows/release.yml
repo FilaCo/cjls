@@ -33,14 +33,14 @@ jobs:
           package() { # artifact, target, archive format
             dir="cjls-$2"
             mkdir "$dir"
-            cp artifacts/cjls-$1/* "$dir/"
+            cp "artifacts/cjls-$1"/* "$dir/"
             chmod +x "$dir"/cjls*
             if [ "$3" = zip ]; then zip -qr "dist/$dir.zip" "$dir"; else tar -czf "dist/$dir.tar.gz" "$dir"; fi
           }
           package macOS aarch64-apple-darwin tar
           package Linux x86_64-unknown-linux-gnu tar
           package Windows x86_64-pc-windows-gnu zip
-          (cd dist && sha256sum * > SHA256SUMS)
+          (cd dist && sha256sum -- * > SHA256SUMS)
           ls -l dist
       # installs cog; there is nothing to check between the tag and itself
       - uses: cocogitto/cocogitto-action@v4
