@@ -31,6 +31,12 @@ public class ServerState <: FromContext<ServerState> {
      */
     public var pushesDiagnostics = false
 
+    /**
+     * Whether the client takes a semantic token spanning lines, as agreed on at `initialize`; one
+     * that does not gets it cut at each line's end.
+     */
+    public var multilineTokens = false
+
     private var filesChanged = false
 
     public static func from<P>(ctx: Context<P>): ServerState {
@@ -70,7 +76,7 @@ public class ServerState <: FromContext<ServerState> {
      * `Cancelled`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
-        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, encoding)
+        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, encoding, multilineTokens)
     }
 }
 
@@ -81,7 +87,7 @@ public class ServerState <: FromContext<ServerState> {
  */
 public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
     ServerSnapshot(public let analysis: AnalysisDatabase, private let paths: PathInterner,
-        public let encoding: Encoding) {}
+        public let encoding: Encoding, public let multilineTokens: Bool) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot

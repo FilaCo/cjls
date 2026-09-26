@@ -14,6 +14,7 @@ const VERSION = "0.1.0"
 func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
+    state.multilineTokens = takesMultilineTokens(params.capabilities)
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }
 
@@ -36,6 +37,15 @@ func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
  */
 func pullsDiagnostics(capabilities: ClientCapabilities): Bool {
     capabilities.textDocument.flatMap {textDocument => textDocument.diagnostic}.isSome()
+}
+
+/**
+ * Whether the client takes a semantic token spanning lines; `false` unless it says so, as LSP has it.
+ */
+func takesMultilineTokens(capabilities: ClientCapabilities): Bool {
+    capabilities.textDocument.flatMap {textDocument => textDocument.semanticTokens}.flatMap {
+        semanticTokens => semanticTokens.multilineTokenSupport
+    } ?? false
 }
 
 func positionEncodingKind(encoding: Encoding): PositionEncodingKind {

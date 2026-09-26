@@ -20,6 +20,7 @@ The other read requests take the same path; only the `loupe` call and its transl
 |---|---|---|
 | `textDocument/documentSymbol` | `fileStructure` | `DocumentSymbol[]` |
 | `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q13) |
+| `textDocument/semanticTokens/full`, `/range` (D19) | `highlight` | `SemanticTokens`, relative, in a fixed legend of LSP's own types; no `resultId`, no `full/delta` yet (Q19) |
 
 ## Write notification (`textDocument/didChange`)
 

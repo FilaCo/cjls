@@ -18,4 +18,6 @@
 | Q14 | `workspace/diagnostic` | needs the files that are not open (Q1, #12) |
 | Q15 | Validation and semantic diagnostics | the compiler's checks after parsing (modifier conflicts, annotation targets), then name resolution and types (Q10); `interFileDependencies: true` then; kept in query results (A11) |
 | Q16 | LRU capacity at run time, and by memory | `lru` is fixed at compile time (D17), as in R1; `initializationOptions` / `workspace/configuration` as `rust-analyzer.lru.capacity`, or Pyright's emptying caches past 90% of the heap |
+| Q17 | Base grammars for VS Code and Zed | semantic tokens only refine a base highlighting: a TextMate grammar (VS Code) and a tree-sitter one (Zed) in the editors' own repositories (D16), each a second parser to keep in step with `cjsyntax` |
 | Q18 | GC of memo keys that are not interned values | the memo keys are a `Slab` already (D18); which keys to drop (inputs never go, A5) and when is open |
+| Q19 | Semantic tokens `full/delta` and `refresh` | delta needs the last result per `resultId`, kept by the server, as Q13; `refresh` once a file's tokens depend on others, with name resolution (Q10), which also brings names at their use (D19) |
