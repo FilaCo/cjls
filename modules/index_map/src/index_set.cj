@@ -35,12 +35,14 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
         add(all: elements)
     }
 
+    @Frozen
     public prop size: Int64 {
         get() {
             map.size
         }
     }
 
+    @Frozen
     public func isEmpty(): Bool {
         map.isEmpty()
     }
@@ -49,6 +51,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
         map.keys().iterator()
     }
 
+    @Frozen
     public func contains(element: T): Bool {
         map.contains(element)
     }
@@ -67,6 +70,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     /**
      * The position of `element`.
      */
+    @Frozen
     public func indexOf(element: T): ?Int64 {
         map.indexOf(element)
     }
@@ -74,8 +78,13 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     /**
      * The element at `index`, or `None` if there is none there.
      */
+    @Frozen
     public func getAt(index: Int64): ?T {
-        map.getAt(index).map {entry => entry[0]}
+        // a `match`, not `Option.map`, as in `IndexMap.get`
+        match (map.getAt(index)) {
+            case Some((element, _)) => element
+            case None => None
+        }
     }
 
     /**
@@ -83,6 +92,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
      *
      * @return whether it was new
      */
+    @Frozen
     public func add(element: T): Bool {
         addWithIndex(element)[1]
     }
@@ -92,6 +102,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
      *
      * @return the position of `element`, and whether it was new
      */
+    @Frozen
     public func addWithIndex(element: T): (Int64, Bool) {
         let (index, replaced) = map.addWithIndex(element, ())
         (index, replaced.isNone())

@@ -1,4 +1,4 @@
-# ADR-0016: A release every week from a green master; the first one by hand; versions of cjls's own
+# ADR-0020: A release every week from a green master; the first one by hand; versions of cjls's own
 
 Status: accepted, 2026-09-26
 

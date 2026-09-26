@@ -19,20 +19,51 @@ import std.collection.*
  * `Hashable` and `Equatable`, an `@CalcaInput` for one. A value computed again that equals the one
  * remembered does not make what read it run again, so the result is `Equatable` too, unless
  * `@CalcaTracked[noEq]` says to count every computation as a change.
+ *
+ * `@CalcaTracked[lru: 128]` keeps the values of the 128 keys fetched last from one revision to the
+ * next, and lets go of the others; what they read is kept, so they are verified without being
+ * computed, and computed again only when fetched. For values that are large and cheap to compute
+ * again (a file's tree). Options go together: `@CalcaTracked[noEq, lru: 128]`.
  */
 public macro CalcaTracked(input: Tokens): Tokens {
-    tracked(input, quote({old, new => old == new}))
+    tracked(input, quote({old, new => old == new}), quote())
 }
 
 public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
-    if (attrs.size != 1 || attrs[0].value != "noEq") {
-        diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked` takes no option but `noEq`", "")
-        return input
+    var equal = quote({old, new => old == new})
+    var lru = quote()
+    var i = 0
+    while (i < attrs.size) {
+        let option = attrs[i]
+        match (option.value) {
+            case "noEq" =>
+                equal = quote({_, _ => false})
+                i++
+            // a literal has no sign, `-` is a token of its own
+            case "lru" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON && attrs[i + 2].kind ==
+                TokenKind.INTEGER_LITERAL =>
+                let capacity = attrs[i + 2]
+                lru = quote(, lru: $capacity)
+                i += 3
+            case "lru" =>
+                diagReport(DiagReportLevel.ERROR, attrs, "`lru` takes how many values to keep: `lru: 128`", "")
+                return input
+            case _ =>
+                diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked` takes no option but `noEq` and `lru: N`", "")
+                return input
+        }
+        if (i < attrs.size) {
+            if (attrs[i].kind != TokenKind.COMMA) {
+                diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked`'s options are separated by commas", "")
+                return input
+            }
+            i++
+        }
     }
-    tracked(input, quote({_, _ => false}))
+    tracked(input, equal, lru)
 }
 
-private func tracked(input: Tokens, equal: Tokens): Tokens {
+private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
     let decl = match (parseDecl(input)) {
         case fd: FuncDecl => fd
         case _ =>
@@ -79,7 +110,7 @@ private func tracked(input: Tokens, equal: Tokens): Tokens {
         }
 
         private struct $holder {
-            static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($(nameLiteral(name)), $equal)
+            static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($(nameLiteral(name)), $equal $lru)
 
             static func execute($db: $dbType, $keyParam): $returnType $body
         }

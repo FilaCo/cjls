@@ -84,30 +84,72 @@ private func structureOf(decls: Iterator<Decl>, inType: Bool): Array<StructureNo
 }
 
 private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
+    let kind = declarationKind(decl, inType) ?? return declaredIn(decl, inType)
     match (decl) {
-        case Decl.AsClassDecl(it) => named(decl, it.name(), StructureKind.Class, members(it.declBody()?.decls()))
-        case Decl.AsInterfaceDecl(it) =>
-            named(decl, it.name(), StructureKind.Interface, members(it.declBody()?.decls()))
-        case Decl.AsStructDecl(it) => named(decl, it.name(), StructureKind.Struct, members(it.declBody()?.decls()))
-        case Decl.AsEnumDecl(it) => named(decl, it.name(), StructureKind.Enum, members(it.enumBody()?.decls()))
-        case Decl.AsEnumCtor(it) => named(decl, it.name(), StructureKind.EnumConstructor, [])
+        case Decl.AsClassDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
+        case Decl.AsInterfaceDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
+        case Decl.AsStructDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
+        case Decl.AsEnumDecl(it) => named(decl, it.name(), kind, members(it.enumBody()?.decls()))
+        case Decl.AsEnumCtor(it) => named(decl, it.name(), kind, [])
         case Decl.AsExtendDecl(it) => extension(it)
-        case Decl.AsFuncDecl(it) =>
-            named(decl, it.name(), if (inType) { StructureKind.Method } else { StructureKind.Function }, [])
-        case Decl.AsMacroDecl(it) => named(decl, it.name(), StructureKind.Macro, [])
-        case Decl.AsPrimaryInitDecl(it) => named(decl, it.name(), StructureKind.Constructor, [])
-        case Decl.AsPropDecl(it) => named(decl, it.name(), StructureKind.Property, [])
-        case Decl.AsTypeAliasDecl(it) => named(decl, it.name(), StructureKind.TypeAlias, [])
-        case Decl.AsMainDecl(it) => byKeyword(decl, "main", StructureKind.Main, it.mainToken())
-        case Decl.AsInitDecl(it) => byKeyword(decl, "init", StructureKind.Constructor, it.initToken())
-        case Decl.AsFinalizerDecl(it) => byKeyword(decl, "~init", StructureKind.Finalizer, it.initToken())
-        case Decl.AsVarDecl(it) => variables(it, inType)
-        // a macro call or a `foreign` block declares what is inside it
+        case Decl.AsFuncDecl(it) => named(decl, it.name(), kind, [])
+        case Decl.AsMacroDecl(it) => named(decl, it.name(), kind, [])
+        case Decl.AsPrimaryInitDecl(it) => named(decl, it.name(), kind, [])
+        case Decl.AsPropDecl(it) => named(decl, it.name(), kind, [])
+        case Decl.AsTypeAliasDecl(it) => named(decl, it.name(), kind, [])
+        case Decl.AsMainDecl(it) => byKeyword(decl, "main", kind, it.mainToken())
+        case Decl.AsInitDecl(it) => byKeyword(decl, "init", kind, it.initToken())
+        case Decl.AsFinalizerDecl(it) => byKeyword(decl, "~init", kind, it.initToken())
+        case Decl.AsVarDecl(it) => variables(it, kind)
+        case Decl.AsMacroExpandDecl(_) | Decl.AsForeignBlock(_) => []
+    }
+}
+
+/**
+ * What `decl` declares, `inType` when it is a type's member; `None` for what only holds
+ * declarations, a macro call or a `foreign` block. The outline and the highlighting agree on it.
+ */
+func declarationKind(decl: Decl, inType: Bool): ?StructureKind {
+    match (decl) {
+        case Decl.AsClassDecl(_) => StructureKind.Class
+        case Decl.AsInterfaceDecl(_) => StructureKind.Interface
+        case Decl.AsStructDecl(_) => StructureKind.Struct
+        case Decl.AsEnumDecl(_) => StructureKind.Enum
+        case Decl.AsEnumCtor(_) => StructureKind.EnumConstructor
+        case Decl.AsExtendDecl(_) => StructureKind.Extension
+        case Decl.AsFuncDecl(_) => if (inType) {
+            StructureKind.Method
+        } else {
+            StructureKind.Function
+        }
+        case Decl.AsMacroDecl(_) => StructureKind.Macro
+        case Decl.AsPrimaryInitDecl(_) | Decl.AsInitDecl(_) => StructureKind.Constructor
+        case Decl.AsPropDecl(_) => StructureKind.Property
+        case Decl.AsTypeAliasDecl(_) => StructureKind.TypeAlias
+        case Decl.AsMainDecl(_) => StructureKind.Main
+        case Decl.AsFinalizerDecl(_) => StructureKind.Finalizer
+        case Decl.AsVarDecl(it) => if (it.modifiers()?.constToken().isSome() ?? false) {
+            StructureKind.Constant
+        } else if (inType) {
+            StructureKind.Field
+        } else {
+            StructureKind.Variable
+        }
+        case Decl.AsMacroExpandDecl(_) | Decl.AsForeignBlock(_) => None
+    }
+}
+
+/**
+ * What a macro call or a `foreign` block declares, in its place.
+ */
+private func declaredIn(decl: Decl, inType: Bool): Array<StructureNode> {
+    match (decl) {
         case Decl.AsMacroExpandDecl(it) => match (it.decl()) {
             case Some(inner) => declarationsOf(inner, inType)
             case None => []
         }
         case Decl.AsForeignBlock(it) => structureOf(it.decls(), inType)
+        case _ => []
     }
 }
 
@@ -144,15 +186,7 @@ private func extension(decl: ExtendDecl): Array<StructureNode> {
 /**
  * One per name a `let`, `var` or `const` binds: `let (a, b) = t` declares two.
  */
-private func variables(decl: VarDecl, inType: Bool): Array<StructureNode> {
-    let isConst = decl.modifiers()?.constToken().isSome() ?? false
-    let kind = if (isConst) {
-        StructureKind.Constant
-    } else if (inType) {
-        StructureKind.Field
-    } else {
-        StructureKind.Variable
-    }
+private func variables(decl: VarDecl, kind: StructureKind): Array<StructureNode> {
     let names = ArrayList<Name>()
     match ((decl.name(), decl.pattern())) {
         case (Some(name), _) => names.add(name)

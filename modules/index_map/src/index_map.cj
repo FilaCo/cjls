@@ -34,12 +34,14 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
         add(all: elements)
     }
 
+    @Frozen
     public prop size: Int64 {
         get() {
             entries.size
         }
     }
 
+    @Frozen
     public func isEmpty(): Bool {
         entries.isEmpty()
     }
@@ -48,13 +50,19 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
         entries.iterator()
     }
 
+    @Frozen
     public func get(key: K): ?V {
-        indices.get(key).map {index => entries[index][1]}
+        // a `match`, not `Option.map`: a lambda is not inlined into another package
+        match (indices.get(key)) {
+            case Some(index) => entries[index][1]
+            case None => None
+        }
     }
 
     /**
      * The position of `key`'s entry.
      */
+    @Frozen
     public func indexOf(key: K): ?Int64 {
         indices.get(key)
     }
@@ -62,10 +70,12 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
     /**
      * The entry at `index`, or `None` if there is none there.
      */
+    @Frozen
     public func getAt(index: Int64): ?(K, V) {
         entries.get(index)
     }
 
+    @Frozen
     public func contains(key: K): Bool {
         indices.contains(key)
     }
@@ -91,6 +101,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
     /**
      * @throws NoneValueException - if there is no `key`
      */
+    @Frozen
     public operator func [](key: K): V {
         get(key).getOrThrow()
     }
@@ -104,6 +115,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
      *
      * @return the value replaced
      */
+    @Frozen
     public func add(key: K, value: V): ?V {
         addWithIndex(key, value)[1]
     }
@@ -113,6 +125,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
      *
      * @return the position of `key`'s entry, and the value replaced
      */
+    @Frozen
     public func addWithIndex(key: K, value: V): (Int64, ?V) {
         match (indices.get(key)) {
             case Some(index) =>

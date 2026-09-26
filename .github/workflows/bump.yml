@@ -1,6 +1,6 @@
 name: Bump
 
-# the weekly release train (D16): `cog bump --auto` on a green master, whose tag starts release.yml
+# the weekly release train (D20): `cog bump --auto` on a green master, whose tag starts release.yml
 on:
   schedule:
     - cron: "0 6 * * 1" # Mondays, 06:00 UTC
@@ -14,7 +14,7 @@ jobs:
     name: cog bump
     runs-on: ubuntu-latest
     steps:
-      # a tag pushed with GITHUB_TOKEN starts no workflow, so release.yml would never run
+      # GITHUB_TOKEN cannot push to master past the ruleset, and a tag it pushed would start no release.yml
       - uses: actions/checkout@v4
         with:
           ref: master
@@ -26,7 +26,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ! git describe --tags --match 'v*' --abbrev=0 >/dev/null 2>&1; then
-            echo "::notice::no release yet: the first one is made by hand (D16)"
+            echo "::notice::no release yet: the first one is made by hand (D20)"
             exit 0
           fi
           sha=$(git rev-parse HEAD)
