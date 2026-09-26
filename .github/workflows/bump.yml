@@ -1,0 +1,59 @@
+name: Bump
+
+# the weekly release train (D16): `cog bump --auto` on a green master, whose tag starts release.yml
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 06:00 UTC
+  workflow_dispatch: # a release off the train
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: cog bump
+    runs-on: ubuntu-latest
+    steps:
+      # a tag pushed with GITHUB_TOKEN starts no workflow, so release.yml would never run
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - name: Released before, green now
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git describe --tags --match 'v*' --abbrev=0 >/dev/null 2>&1; then
+            echo "::notice::no release yet: the first one is made by hand (D16)"
+            exit 0
+          fi
+          sha=$(git rev-parse HEAD)
+          green=$(gh run list --workflow ci.yml --branch master --commit "$sha" --status success --json databaseId --jq length)
+          if [ "$green" = 0 ]; then
+            echo "::notice::CI has not passed on $sha: no release this week"
+            exit 0
+          fi
+          echo "open=true" >> "$GITHUB_OUTPUT"
+      # installs cog; it fails without a tag, hence after the gate
+      - uses: cocogitto/cocogitto-action@v4
+        if: steps.gate.outputs.open == 'true'
+        with:
+          command: check
+          args: --from-latest-tag
+      - name: Anything to release
+        id: decide
+        if: steps.gate.outputs.open == 'true'
+        run: |
+          next=$(cog bump --auto --dry-run 2>/dev/null || true)
+          case "$next" in
+            v[0-9]*) echo "version=$next" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::notice::nothing to release since $(git describe --tags --match 'v*' --abbrev=0)" ;;
+          esac
+      - name: Bump
+        if: steps.decide.outputs.version != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cog bump --auto

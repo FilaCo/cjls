@@ -26,11 +26,11 @@ Then, from the repo root:
 
 `cjpm` leaves expansion artifacts (`*.cj.macrocall`, `lib-macro_*.dylib`) next to the sources in `src/`. They are untracked build output, not code — ignore them, never edit them.
 
-### Toolchain, CI and releases ([D11](docs/adr/0011-ci-and-releases.md))
+### Toolchain, CI and releases ([D11](docs/adr/0011-ci-and-releases.md), [D16](docs/adr/0016-weekly-releases.md))
 
 - **The toolchain is one nightly**, the tag in `.cangjie-version`. `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs that SDK and its stdx into `<dir>/cangjie` and prints the `export`s `envsetup` would make; CI runs the same script. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, as the nightly zips lay it out — the root `cjpm.toml` names it per target, so a local SDK needs that layout too.
 - **CI** (`.github/workflows/ci.yml`) runs on macOS arm64, Linux x64 and Windows x64: build, `cjpm test`, then the binary alone (no SDK) through `tests/e2e` and the Neovim smoke test. It also checks a PR's commits and its **title** with `cog`: PRs are squash-merged, so the title is the commit `cog bump` reads.
-- **A release** is `cog bump --auto` on master: it writes the version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, updates `CHANGELOG.md`, tags `vX.Y.Z` and pushes; `release.yml` then runs CI on the tag and attaches the binaries it tested to the GitHub release.
+- **A release** is `cog bump --auto` on master: it writes the version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, updates `CHANGELOG.md`, tags `vX.Y.Z` and pushes; `release.yml` then runs CI on the tag and attaches the binaries it tested to the GitHub release. `bump.yml` runs it every Monday on a green master when something since the last tag calls for a release ([D16](docs/adr/0016-weekly-releases.md)); the first, `v0.1.0`, is made by hand. Versions are cjls's own, not Cangjie's.
 
 ### Everything must be statically linked (important)
 
