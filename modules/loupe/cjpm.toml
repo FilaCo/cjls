@@ -7,7 +7,7 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "static"
-compile-option = ""
+compile-option = "-Woff unused -O2"
 override-compile-option = ""
 link-option = ""
 package-configuration = {}
@@ -18,3 +18,7 @@ cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 index_map = { path = "../index_map" }
 rope = { path = "../rope" }
+
+# `cjpm build --lto`, see cjls's manifest
+[profile.customized-option]
+lto = "--lto=full"

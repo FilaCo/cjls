@@ -1,11 +1,13 @@
 package cjls.server
 
+import std.collection.*
 import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
-import stdx.serialization.serialization.DataModel
+import stdx.serialization.serialization.*
 import calca.Cancelled
 import jsonrpc.*
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 
 @Derive[Equatable]
@@ -28,7 +30,11 @@ class Server <: Handler {
     private var lifecycle = Lifecycle.Uninitialized
     private var shutDownCleanly = false
 
-    Server(private let router: Router, private let client: Client, private let logger: Logger) {}
+    private let push: ?DiagnosticsPush
+
+    Server(private let router: Router, private let client: Client, private let logger: Logger) {
+        push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
+    }
 
     prop state: Lifecycle {
         get() {
@@ -63,7 +69,7 @@ class Server <: Handler {
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
                 let parts = Parts(router.state, client, request.cancellation, logger)
-                if (answer(request, logger) {handler(parts, request.params)}) {
+                if (writing {answer(request, logger) {handler(parts, request.params)}}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
@@ -96,13 +102,38 @@ class Server <: Handler {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                run(logger) {handler(Parts(router.state, client, cancellation, logger), params)}
+                writing {run(logger) {handler(Parts(router.state, client, cancellation, logger), params)}}
             case Some(ReadOnly(handler)) =>
                 let parts = ReadOnlyParts(router.state.snapshot(), client, cancellation, logger)
                 spawn {
                     run(logger) {handler(parts, params)}
                 }
         }
+    }
+
+    /**
+     * Runs a `Context` handler, then the work its changes call for (S7): a client that cannot pull
+     * is pushed nothing for the documents just closed, at once, and the diagnostics of every open
+     * document, from a snapshot taken here, once the files changed or a document opened.
+     */
+    private func writing<T>(handler: () -> T): T {
+        let state = router.state
+        let openBefore = HashSet<VfsPath>(state.openDocuments.keys())
+        let result = handler()
+        let filesChanged = state.takeFilesChanged()
+        let push = push ?? return result
+        if (!state.pushesDiagnostics) {
+            return result
+        }
+        for (path in openBefore where !state.openDocuments.contains(path)) {
+            push.clear(path)
+        }
+        let opened = state.openDocuments.keys().iterator().any {path => !openBefore.contains(path)}
+        if (filesChanged || opened) {
+            let documents = collectArray(state.openDocuments)
+            push.schedule(state.snapshot(), documents)
+        }
+        result
     }
 
     private func refusalOf(method: String): ?ResponseError {
@@ -136,12 +167,17 @@ class Server <: Handler {
 
 /**
  * Why a query of `request` was `Cancelled`: the client cancelled the request, or the files changed
- * under it, which the client may ask again for.
+ * under it, which the client may ask again for — and a diagnostic pull asks again at once, rather
+ * than keep the diagnostics it had (D14).
  */
 private func cancelledError(request: InboundRequest, logger: Logger): ResponseError {
     if (request.cancellation.isCancelled) {
         logger.debug("cancelled", [("reason", "the client cancelled it")])
         ResponseError(ErrorCode.REQUEST_CANCELLED, "the request was cancelled")
+    } else if (request.method == DocumentDiagnosticRequestSpec.METHOD) {
+        logger.debug("cancelled", [("reason", "the content was modified")])
+        ResponseError(ErrorCode.SERVER_CANCELLED, "the content was modified",
+            data: DiagnosticServerCancellationData(retriggerRequest: true).serialize())
     } else {
         logger.debug("cancelled", [("reason", "the content was modified")])
         ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")

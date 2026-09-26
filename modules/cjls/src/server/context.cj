@@ -3,6 +3,7 @@ package cjls.server
 import stdx.log.Logger
 import stdx.serialization.serialization.*
 import jsonrpc.*
+import cjls.lsp_types.LspOutboundNotification
 
 /**
  * What a handler that runs on the read loop gets: its params, and the `ServerState` itself, since
@@ -118,12 +119,15 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     }
 
     /**
+     * Sends the notification `spec` names, as `route` takes the ones the client sends: the method
+     * and the type of the params come with it.
+     *
      * @throws IllegalStateException - if the client is not connected yet
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func notify<P>(method: String, params: P): Unit where P <: Serializable<P> {
-        connected().notify(method, params)
+    public func notify<P>(spec: LspOutboundNotification<P>, params: P): Unit where P <: Serializable<P> {
+        connected().notify(spec.method, params)
     }
 
     /**
@@ -148,6 +152,13 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
 
     public func close(): Unit {
         connection?.close()
+    }
+
+    /**
+     * Whether the connection is closed: nothing sent now reaches the client. `false` before it connects.
+     */
+    public func isClosed(): Bool {
+        connection?.isClosed() ?? false
     }
 
     private func connected(): Connection {

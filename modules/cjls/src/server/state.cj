@@ -25,6 +25,14 @@ public class ServerState <: FromContext<ServerState> {
      */
     public var encoding = Encoding.Utf16
 
+    /**
+     * Whether the server pushes diagnostics, as agreed on at `initialize`: only to a client that
+     * cannot pull them, so no document has two sources (S8).
+     */
+    public var pushesDiagnostics = false
+
+    private var filesChanged = false
+
     public static func from<P>(ctx: Context<P>): ServerState {
         ctx.state
     }
@@ -43,7 +51,18 @@ public class ServerState <: FromContext<ServerState> {
     public func setFileContents(path: VfsPath, text: ?Rope): Unit {
         if (vfs.setFileContents(path, text)) {
             analysis.applyChanges(vfs, vfs.takeChanges())
+            filesChanged = true
         }
+    }
+
+    /**
+     * Whether the files changed since it was last asked; the server asks after every handler that
+     * could change them.
+     */
+    func takeFilesChanged(): Bool {
+        let changed = filesChanged
+        filesChanged = false
+        changed
     }
 
     /**

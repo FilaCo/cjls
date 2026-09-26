@@ -7,10 +7,10 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = ""
+compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = "-lc++"
-package-configuration = { syntax_codegen = { compile-option = "--static" } }
+package-configuration = {}
 
 [dependencies]
 cjtoml = { path = "../cjtoml" }
@@ -21,3 +21,7 @@ stdxx = { path = "../stdxx" }
 [test-dependencies]
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
+
+# `cjpm build --lto`, see cjls's manifest
+[profile.customized-option]
+lto = "--lto=full"

@@ -7,7 +7,7 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = ""
+compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = ""
 package-configuration = { cjls = { compile-option = "--static" } }
@@ -18,3 +18,9 @@ jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }
+
+# `cjpm build --lto`: the binary that ships from Linux, a third smaller (Darwin refuses LTO). Every module declares it,
+# as a library built without it is no bitcode to link with. Only CI builds with it, into a target dir of its own after
+# the tests, which need no LTO: `cjpm build` and `cjpm test` share theirs
+[profile.customized-option]
+lto = "--lto=full"

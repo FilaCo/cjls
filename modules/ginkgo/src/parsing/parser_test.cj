@@ -153,6 +153,23 @@ class ParserTest {
     }
 
     @TestCase
+    func expectReportsTheMissingKindAsData() {
+        // arrange
+        let lexed = toyLex("1")
+        let p = toyParser(lexed)
+        let root = p.start()
+        p.bump(Num)
+        p.expect(Plus)
+        root.complete(p, Root)
+
+        // act
+        let parse = buildTree(lexed, p, ToyTrivia())
+
+        // assert
+        @Expect(parse.errors, [SyntaxError(ParseError.Expected(Plus), TextRange.empty(1))])
+    }
+
+    @TestCase
     func aParserThatMakesNoProgressThrows() {
         // arrange
         let p = toyParser(toyLex("1"))

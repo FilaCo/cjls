@@ -13,6 +13,7 @@ const VERSION = "0.1.0"
 @LspHandler
 func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
+    state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }
 
@@ -27,6 +28,14 @@ func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
     } else {
         Encoding.Utf16
     }
+}
+
+/**
+ * Whether the client asks for diagnostics itself (`textDocument/diagnostic`); one that does not is
+ * pushed them (D14).
+ */
+func pullsDiagnostics(capabilities: ClientCapabilities): Bool {
+    capabilities.textDocument.flatMap {textDocument => textDocument.diagnostic}.isSome()
 }
 
 func positionEncodingKind(encoding: Encoding): PositionEncodingKind {

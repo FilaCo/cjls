@@ -12,7 +12,7 @@ func sexp(text: String): String {
     let sb = StringBuilder()
     writeSexp(sb, parse.syntaxNode())
     for (e in parse.errors) {
-        sb.append(" !${e}")
+        sb.append(" !${e.range}: ${message(e.error)}")
     }
     sb.toString()
 }
@@ -110,6 +110,8 @@ class StatementParseTest {
         ("class Local {}", "(ClassDecl class (Name Local) (DeclBody { })) !9..9: unexpected class declaration in a block"),
         ("f(,)", "(CallExpr (RefExpr (NameRef f)) (ArgList ( (Arg) , ))) !11..11: expected an expression"),
         ("let x = )", "(VarDecl let (Name x) =) (ErrorNode )) !16..16: expected an expression !16..16: expected a newline or ';' !17..17: expected an expression or a declaration"),
+        ("f(a", "(CallExpr (RefExpr (NameRef f)) (ArgList ( (Arg (RefExpr (NameRef a))))) !12..12: expected ')'"),
+        ("let v: VArray<Int64, $> = x", "(VarDecl let (Name v) : (VArrayType VArray < (PrimType Int64) , $ >) = (RefExpr (NameRef x))) !31..31: expected an integer"),
     ]
 
     @TestCase

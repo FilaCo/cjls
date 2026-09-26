@@ -18,6 +18,8 @@ public func router(): Router {
         .route(DidChangeTextDocumentNotificationSpec(), handleDidChange)
         .route(DidCloseTextDocumentNotificationSpec(), handleDidClose)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
+        .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
+        .publishDiagnostics(documentDiagnostics)
 }
 
 /**
@@ -28,6 +30,9 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         positionEncoding: positionEncodingKind(encoding),
         textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
-        documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true)
+        documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
+        // a file's diagnostics are its own, and nothing is reported for files not open (D14)
+        diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
+            DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false))
     )
 }

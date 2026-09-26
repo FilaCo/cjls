@@ -30,6 +30,20 @@ public func parse(text: String): Parse<SyntaxKind> {
     buildTree(lexed, p, rules)
 }
 
+/**
+ * What is wrong, in words for the one who wrote the code: a missing token by its text, as the compiler says it
+ * (`expected '}'`), or by what it is (`expected an identifier`).
+ */
+public func message(error: ParseError<SyntaxKind>): String {
+    match (error) {
+        case Expected(kind) => match (kind.fixedText()) {
+            case Some(text) => "expected '${text}'"
+            case None => "expected ${kind}"
+        }
+        case Message(message) => message
+    }
+}
+
 func contextualKind(kind: SyntaxKind, text: String): ?SyntaxKind {
     if (kind != Ident) {
         return None

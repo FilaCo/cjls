@@ -11,6 +11,7 @@
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked`, backdated (`Parse` is `Equatable`) |
 | `fileStructure` | `loupe` | API: the outline of a file |
+| `diagnostics` | `loupe` | API: a file's `Diagnostic`s (`range: TextRange`, `severity: Severity`, `message`), in the order of the text; for now the lexer's and parser's errors, read from `Parse.errors` and worded by `cjsyntax.message` (D14). Not a query: it collects what queries remember |
 
 ## Rules
 
@@ -26,3 +27,5 @@
 | A8 | `loupe` knows no LSP: no URIs, `Position`, encodings or LSP types (D5). |
 | A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`. |
 | A10 | A value a query returns is `Equatable`, so it backdates; `[noEq]` only with a reason. |
+| A11 | Diagnostics are part of the results of the queries that find them (`Parse.errors`), never accumulated on the side (D14). |
+| A12 | A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end of a file); widening it for a client is translation. |

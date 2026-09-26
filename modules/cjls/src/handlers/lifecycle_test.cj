@@ -95,4 +95,23 @@ class InitializeTest {
         @Expect(state.encoding, expected)
         @Expect(result.capabilities.positionEncoding?.value, Some(advertised))
     }
+
+    @TestCase[row in [
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities(
+            diagnostic: DiagnosticClientCapabilities())), false),
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities()), true),
+        (ClientCapabilities(), true)
+    ]]
+    func diagnosticsArePushedOnlyToAClientThatCannotPullThem(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, pushed) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: capabilities))
+
+        // assert
+        @Expect(state.pushesDiagnostics, pushed)
+    }
 }
