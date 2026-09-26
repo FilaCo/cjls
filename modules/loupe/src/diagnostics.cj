@@ -3,6 +3,7 @@ package loupe
 import std.deriving.*
 import std.sort.*
 import ginkgo.TextRange
+import cjsyntax.message
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -30,7 +31,7 @@ public struct Diagnostic {
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
-    let result = parse(db, file).errors.map {error => Diagnostic(error.range, Severity.Error, error.message)}
+    let result = parse(db, file).errors.map {error => Diagnostic(error.range, Severity.Error, message(error.error))}
     sort(result, stable: true, by: {a: Diagnostic, b: Diagnostic => a.range.start.compare(b.range.start)})
     result
 }

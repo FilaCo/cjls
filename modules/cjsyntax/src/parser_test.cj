@@ -12,7 +12,7 @@ func sexp(text: String): String {
     let sb = StringBuilder()
     writeSexp(sb, parse.syntaxNode())
     for (e in parse.errors) {
-        sb.append(" !${e}")
+        sb.append(" !${e.range}: ${message(e.error)}")
     }
     sb.toString()
 }

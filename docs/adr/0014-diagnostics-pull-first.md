@@ -15,6 +15,7 @@ Status: accepted, 2026-09-26
 - **Push only to a client that cannot pull.** `initialize` keeps whether the client declared `textDocument.diagnostic`; one that did is never pushed to, so one file never has two sources racing (S8).
 - **The server schedules the push, not a handler** (S7). After a `Context` handler returns having changed the files, `Server` takes a snapshot on the read loop and hands a `spawn` the open documents as they are then; the `spawn` publishes one notification per document. `Cancelled` there is dropped: the write that cancelled it scheduled its own. A generation per document, checked before `notify`, drops a publish overtaken by a newer one (S9). `didClose` publishes an empty list at once.
 - **`Client.notify` takes an `LspOutboundNotification<P>` spec**, as `route` takes an inbound one: no method strings.
+- **A parse error is data.** `ginkgo` records a `ParseError<K>` — `Expected(kind)` for what `Parser.expect` misses, `Message` for the rest — and `cjsyntax.message` words it (`expected '}'`): `ginkgo` spells no kind, and a fix (insert the missing token) or a diagnostic code reads the kind, not the text.
 - **No accumulators.** Diagnostics are part of the queries' results (`Parse.errors` now, validation and semantics later) (A11).
 
 ## Consequences
