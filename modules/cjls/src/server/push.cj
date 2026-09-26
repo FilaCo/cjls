@@ -48,7 +48,7 @@ class DiagnosticsPush {
             } catch (_: Cancelled) {
                 logger.debug("push cancelled", [("reason", "the content was modified")])
             } catch (e: Exception) {
-                logger.error("push failed", [("cause", e)])
+                failed(e)
             }
         }
     }
@@ -64,6 +64,17 @@ class DiagnosticsPush {
                 client.notify(PublishDiagnosticsNotificationSpec(), PublishDiagnosticsParams(uri: path.toUri(), diagnostics: []))
             }
         } catch (e: Exception) {
+            failed(e)
+        }
+    }
+
+    /**
+     * A publish that could not be sent: expected once the connection is closed, as a `spawn` may outlive it.
+     */
+    private func failed(e: Exception): Unit {
+        if (client.isClosed()) {
+            logger.debug("push dropped", [("reason", "the connection is closed")])
+        } else {
             logger.error("push failed", [("cause", e)])
         }
     }

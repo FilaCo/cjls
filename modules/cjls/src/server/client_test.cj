@@ -76,4 +76,28 @@ class ClientTest {
         @Expect(sent.method, "textDocument/publishDiagnostics")
         @Expect(publishedOf(sent).uri, "file:///a.cj")
     }
+
+    @TestCase
+    func aClientIsClosedOnceItsConnectionIs() {
+        // arrange
+        let transport = WrittenTransport()
+        let client = clientOn(transport)
+        let before = client.isClosed()
+
+        // act
+        client.close()
+
+        // assert
+        @Expect(!before)
+        @Expect(client.isClosed())
+    }
+
+    @TestCase
+    func aClientNotYetConnectedIsNotClosed() {
+        // act
+        let closed = Client().isClosed()
+
+        // assert
+        @Expect(!closed)
+    }
 }

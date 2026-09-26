@@ -8,7 +8,7 @@ import ginkgo.*
  * decide what a node is once it has seen past its start (`a` becomes the left side of `a + b` at the `+`), and
  * events let it go back and wrap what it has recorded.
  */
-enum Event<K> {
+enum Event<K> where K <: Kind<K> {
     /**
      * A node starts. A non-zero offset names the event, that far ahead, of a node that starts here too and
      * contains this one (see `CompletedMarker.precede`).
@@ -19,7 +19,7 @@ enum Event<K> {
      * A token, made of this many input tokens (more than one for a composite like `>>`).
      */
     | AddToken(K, Int64)
-    | AddError(String)
+    | AddError(ParseError<K>)
     /**
      * A start that was abandoned, or taken over by the node it forwarded to.
      */
@@ -192,17 +192,14 @@ public class Parser<K> where K <: Kind<K> {
     }
 
     /**
-     * Consumes the current token if it is `kind`, and reports it missing otherwise: by its text (`expected '}'`), or
-     * by its name when it has no one text.
+     * Consumes the current token if it is `kind`, and reports it missing otherwise, as `ParseError.Expected`: the
+     * language words the message.
      */
     public func expect(kind: K): Bool {
         if (eat(kind)) {
             return true
         }
-        match (kind.fixedText()) {
-            case Some(text) => error("expected '${text}'")
-            case None => error("expected ${kind}")
-        }
+        events.add(AddError(ParseError.Expected(kind)))
         false
     }
 
@@ -210,7 +207,7 @@ public class Parser<K> where K <: Kind<K> {
      * Reports an error at the current position, consuming nothing.
      */
     public func error(message: String): Unit {
-        events.add(AddError(message))
+        events.add(AddError(ParseError.Message(message)))
     }
 
     /**

@@ -47,13 +47,10 @@ jobs:
         shell: bash
       - run: cjpm test
         shell: bash
-      # the binary that ships: on Linux linked once more, with LTO (cjls's [profile.customized-option]), in a target
-      # dir of its own, as `cjpm build` and `cjpm test` share theirs
+      # the binary that ships, a third smaller; in a target dir of its own, as `cjpm build` and `cjpm test` share theirs
       - name: Link with LTO
         if: runner.os == 'Linux'
         run: cjpm build --lto --target-dir target/lto
-        shell: bash
-      - run: ls -l target/release/bin/cjls* target/lto/release/bin/cjls* 2>/dev/null || true
         shell: bash
       - uses: actions/upload-artifact@v4
         with:

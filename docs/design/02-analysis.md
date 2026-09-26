@@ -11,7 +11,7 @@
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked`, backdated (`Parse` is `Equatable`) |
 | `fileStructure` | `loupe` | API: the outline of a file |
-| `diagnostics` | `loupe` | API: a file's `Diagnostic`s (`range: TextRange`, `severity: Severity`, `message`), in the order of the text; for now the lexer's and parser's errors, read from `Parse.errors` (D14). Not a query: it collects what queries remember |
+| `diagnostics` | `loupe` | API: a file's `Diagnostic`s (`range: TextRange`, `severity: Severity`, `message`), in the order of the text; for now the lexer's and parser's errors, read from `Parse.errors` and worded by `cjsyntax.message` (D14). Not a query: it collects what queries remember |
 | `highlight` | `loupe` | API: a file's `HighlightedRange`s (`range: TextRange`, `tag: HighlightTag`, `modifiers`), a token each, in the order of the text, of a `range` if given; what the tree tells, names at their declaration only (D16). Not a query: a range would be a position in its key (A2) |
 
 ## Rules

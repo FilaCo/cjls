@@ -2,24 +2,26 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
-import loupe.*
-import cjls.lsp_types as lsp
+import loupe.{HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
+import loupe.Diagnostic as LoupeDiagnostic
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
 
 /**
  * `start..end`, byte offsets into `text`, as the client counts: lines and columns of `encoding`.
  * `text` has to be the one the offsets were computed on, the snapshot's.
  */
-func lspRange(text: Rope, start: Int64, end: Int64, encoding: Encoding): lsp.Range {
-    lsp.Range(start: lspPosition(text, start, encoding), end: lspPosition(text, end, encoding))
+func lspRange(text: Rope, start: Int64, end: Int64, encoding: Encoding): LspRange {
+    LspRange(start: lspPosition(text, start, encoding), end: lspPosition(text, end, encoding))
 }
 
-func lspPosition(text: Rope, offset: Int64, encoding: Encoding): lsp.Position {
+func lspPosition(text: Rope, offset: Int64, encoding: Encoding): Position {
     let position = text.positionOf(offset, encoding)
-    lsp.Position(line: UInt32(position.line), character: UInt32(position.column))
+    Position(line: UInt32(position.line), character: UInt32(position.column))
 }
 
-func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): lsp.DocumentSymbol {
-    lsp.DocumentSymbol(
+func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): DocumentSymbol {
+    DocumentSymbol(
         name: node.name,
         kind: symbolKind(node.kind),
         range: lspRange(text, node.range.start, node.range.end, encoding),
@@ -32,37 +34,37 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): lsp.Do
  * LSP has no kind for an extension, a macro or `main`: they go as rust-analyzer sends an `impl`,
  * a macro and a function.
  */
-func symbolKind(kind: StructureKind): lsp.SymbolKind {
+func symbolKind(kind: StructureKind): SymbolKind {
     match (kind) {
-        case StructureKind.Class => lsp.SymbolKind.Class
-        case StructureKind.Interface => lsp.SymbolKind.Interface
-        case StructureKind.Struct => lsp.SymbolKind.Struct
-        case StructureKind.Enum => lsp.SymbolKind.Enum
-        case StructureKind.EnumConstructor => lsp.SymbolKind.EnumMember
-        case StructureKind.Extension => lsp.SymbolKind.Object
-        case StructureKind.Function | StructureKind.Macro | StructureKind.Main => lsp.SymbolKind.Function
-        case StructureKind.Method | StructureKind.Finalizer => lsp.SymbolKind.Method
-        case StructureKind.Constructor => lsp.SymbolKind.Constructor
-        case StructureKind.Property => lsp.SymbolKind.Property
-        case StructureKind.Variable => lsp.SymbolKind.Variable
-        case StructureKind.Field => lsp.SymbolKind.Field
-        case StructureKind.Constant => lsp.SymbolKind.Constant
-        case StructureKind.TypeAlias => lsp.SymbolKind.TypeParameter
+        case StructureKind.Class => SymbolKind.Class
+        case StructureKind.Interface => SymbolKind.Interface
+        case StructureKind.Struct => SymbolKind.Struct
+        case StructureKind.Enum => SymbolKind.Enum
+        case StructureKind.EnumConstructor => SymbolKind.EnumMember
+        case StructureKind.Extension => SymbolKind.Object
+        case StructureKind.Function | StructureKind.Macro | StructureKind.Main => SymbolKind.Function
+        case StructureKind.Method | StructureKind.Finalizer => SymbolKind.Method
+        case StructureKind.Constructor => SymbolKind.Constructor
+        case StructureKind.Property => SymbolKind.Property
+        case StructureKind.Variable => SymbolKind.Variable
+        case StructureKind.Field => SymbolKind.Field
+        case StructureKind.Constant => SymbolKind.Constant
+        case StructureKind.TypeAlias => SymbolKind.TypeParameter
     }
 }
 
-func diagnostic(text: Rope, diagnostic: Diagnostic, encoding: Encoding): lsp.Diagnostic {
-    lsp.Diagnostic(
+func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Diagnostic {
+    Diagnostic(
         range: lspRange(text, diagnostic.range.start, diagnostic.range.end, encoding),
         severity: diagnosticSeverity(diagnostic.severity),
         source: "cjls",
-        message: lsp.StringOrMarkupContent.AsString(diagnostic.message)
+        message: StringOrMarkupContent.AsString(diagnostic.message)
     )
 }
 
-func diagnosticSeverity(severity: Severity): lsp.DiagnosticSeverity {
+func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
     match (severity) {
-        case Severity.Error => lsp.DiagnosticSeverity.Error
+        case Severity.Error => DiagnosticSeverity.Error
     }
 }
 
@@ -70,26 +72,26 @@ func diagnosticSeverity(severity: Severity): lsp.DiagnosticSeverity {
  * The token types the server sends, LSP's own only, so every theme knows them (D16); a token's
  * type is its index here.
  */
-let TOKEN_TYPES = [lsp.SemanticTokenTypes.KEYWORD, lsp.SemanticTokenTypes.COMMENT, lsp.SemanticTokenTypes.STRING,
-    lsp.SemanticTokenTypes.NUMBER, lsp.SemanticTokenTypes.OPERATOR, lsp.SemanticTokenTypes.DECORATOR,
-    lsp.SemanticTokenTypes.MACRO, lsp.SemanticTokenTypes.TYPE, lsp.SemanticTokenTypes.CLASS,
-    lsp.SemanticTokenTypes.INTERFACE, lsp.SemanticTokenTypes.STRUCT, lsp.SemanticTokenTypes.ENUM,
-    lsp.SemanticTokenTypes.ENUM_MEMBER, lsp.SemanticTokenTypes.TYPE_PARAMETER, lsp.SemanticTokenTypes.FUNCTION,
-    lsp.SemanticTokenTypes.METHOD, lsp.SemanticTokenTypes.PROPERTY, lsp.SemanticTokenTypes.VARIABLE,
-    lsp.SemanticTokenTypes.PARAMETER]
+let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
+    SemanticTokenTypes.NUMBER, SemanticTokenTypes.OPERATOR, SemanticTokenTypes.DECORATOR,
+    SemanticTokenTypes.MACRO, SemanticTokenTypes.TYPE, SemanticTokenTypes.CLASS,
+    SemanticTokenTypes.INTERFACE, SemanticTokenTypes.STRUCT, SemanticTokenTypes.ENUM,
+    SemanticTokenTypes.ENUM_MEMBER, SemanticTokenTypes.TYPE_PARAMETER, SemanticTokenTypes.FUNCTION,
+    SemanticTokenTypes.METHOD, SemanticTokenTypes.PROPERTY, SemanticTokenTypes.VARIABLE,
+    SemanticTokenTypes.PARAMETER]
 
 /**
  * The modifiers, LSP's own too; a token's modifiers are bits by their index here.
  */
-let TOKEN_MODIFIERS = [(lsp.SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
-    (lsp.SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
-    (lsp.SemanticTokenModifiers.READONLY, HighlightModifier.Readonly),
-    (lsp.SemanticTokenModifiers.STATIC, HighlightModifier.Static),
-    (lsp.SemanticTokenModifiers.DEPRECATED, HighlightModifier.Deprecated),
-    (lsp.SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary)]
+let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
+    (SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
+    (SemanticTokenModifiers.READONLY, HighlightModifier.Readonly),
+    (SemanticTokenModifiers.STATIC, HighlightModifier.Static),
+    (SemanticTokenModifiers.DEPRECATED, HighlightModifier.Deprecated),
+    (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary)]
 
-func semanticTokensLegend(): lsp.SemanticTokensLegend {
-    lsp.SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
+func semanticTokensLegend(): SemanticTokensLegend {
+    SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
         tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value})
 }
 
@@ -97,31 +99,31 @@ func semanticTokensLegend(): lsp.SemanticTokensLegend {
  * LSP has no type for a constructor, a field or a constant: they go as a method, a property and a
  * `readonly` variable, as LSP's own documentation has it.
  */
-func tokenType(tag: HighlightTag): lsp.SemanticTokenTypes {
+func tokenType(tag: HighlightTag): SemanticTokenTypes {
     match (tag) {
-        case HighlightTag.Keyword => lsp.SemanticTokenTypes.KEYWORD
-        case HighlightTag.Comment => lsp.SemanticTokenTypes.COMMENT
-        case HighlightTag.StringLiteral => lsp.SemanticTokenTypes.STRING
-        case HighlightTag.NumberLiteral => lsp.SemanticTokenTypes.NUMBER
-        case HighlightTag.Operator => lsp.SemanticTokenTypes.OPERATOR
-        case HighlightTag.BuiltinAnnotation => lsp.SemanticTokenTypes.DECORATOR
-        case HighlightTag.MacroCall => lsp.SemanticTokenTypes.MACRO
-        case HighlightTag.BuiltinType | HighlightTag.TypeName => lsp.SemanticTokenTypes.TYPE
-        case HighlightTag.TypeParameter => lsp.SemanticTokenTypes.TYPE_PARAMETER
-        case HighlightTag.Parameter => lsp.SemanticTokenTypes.PARAMETER
+        case HighlightTag.Keyword => SemanticTokenTypes.KEYWORD
+        case HighlightTag.Comment => SemanticTokenTypes.COMMENT
+        case HighlightTag.StringLiteral => SemanticTokenTypes.STRING
+        case HighlightTag.NumberLiteral => SemanticTokenTypes.NUMBER
+        case HighlightTag.Operator => SemanticTokenTypes.OPERATOR
+        case HighlightTag.BuiltinAnnotation => SemanticTokenTypes.DECORATOR
+        case HighlightTag.MacroCall => SemanticTokenTypes.MACRO
+        case HighlightTag.BuiltinType | HighlightTag.TypeName => SemanticTokenTypes.TYPE
+        case HighlightTag.TypeParameter => SemanticTokenTypes.TYPE_PARAMETER
+        case HighlightTag.Parameter => SemanticTokenTypes.PARAMETER
         case HighlightTag.Declared(kind) => match (kind) {
-            case StructureKind.Class => lsp.SemanticTokenTypes.CLASS
-            case StructureKind.Interface => lsp.SemanticTokenTypes.INTERFACE
-            case StructureKind.Struct => lsp.SemanticTokenTypes.STRUCT
-            case StructureKind.Enum => lsp.SemanticTokenTypes.ENUM
-            case StructureKind.EnumConstructor => lsp.SemanticTokenTypes.ENUM_MEMBER
-            case StructureKind.Extension | StructureKind.TypeAlias => lsp.SemanticTokenTypes.TYPE
-            case StructureKind.Function | StructureKind.Main => lsp.SemanticTokenTypes.FUNCTION
+            case StructureKind.Class => SemanticTokenTypes.CLASS
+            case StructureKind.Interface => SemanticTokenTypes.INTERFACE
+            case StructureKind.Struct => SemanticTokenTypes.STRUCT
+            case StructureKind.Enum => SemanticTokenTypes.ENUM
+            case StructureKind.EnumConstructor => SemanticTokenTypes.ENUM_MEMBER
+            case StructureKind.Extension | StructureKind.TypeAlias => SemanticTokenTypes.TYPE
+            case StructureKind.Function | StructureKind.Main => SemanticTokenTypes.FUNCTION
             case StructureKind.Method | StructureKind.Constructor | StructureKind.Finalizer =>
-                lsp.SemanticTokenTypes.METHOD
-            case StructureKind.Macro => lsp.SemanticTokenTypes.MACRO
-            case StructureKind.Property | StructureKind.Field => lsp.SemanticTokenTypes.PROPERTY
-            case StructureKind.Variable | StructureKind.Constant => lsp.SemanticTokenTypes.VARIABLE
+                SemanticTokenTypes.METHOD
+            case StructureKind.Macro => SemanticTokenTypes.MACRO
+            case StructureKind.Property | StructureKind.Field => SemanticTokenTypes.PROPERTY
+            case StructureKind.Variable | StructureKind.Constant => SemanticTokenTypes.VARIABLE
         }
     }
 }
@@ -148,7 +150,7 @@ func tokenModifierBits(modifiers: HighlightModifiers): UInt32 {
  * start relative to the token before, columns of `encoding`. A token over several lines is cut at
  * each line's end, unless the client takes it whole (`multiline`).
  */
-func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encoding, multiline: Bool): lsp.SemanticTokens {
+func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encoding, multiline: Bool): SemanticTokens {
     let data = SemanticTokensData()
     for (token in tokens) {
         let tokenKind = tokenTypeIndex(token.tag)
@@ -179,7 +181,7 @@ func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encod
             }
         }
     }
-    lsp.SemanticTokens(data: data.toArray())
+    SemanticTokens(data: data.toArray())
 }
 
 class SemanticTokensData {

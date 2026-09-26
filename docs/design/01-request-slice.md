@@ -19,7 +19,7 @@ The other read requests take the same path; only the `loupe` call and its transl
 | Request | `loupe` | Answer |
 |---|---|---|
 | `textDocument/documentSymbol` | `fileStructure` | `DocumentSymbol[]` |
-| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q9) |
+| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q13) |
 | `textDocument/semanticTokens/full`, `/range` (D16) | `highlight` | `SemanticTokens`, relative, in a fixed legend of LSP's own types; no `resultId`, no `full/delta` yet (Q16) |
 
 ## Write notification (`textDocument/didChange`)
@@ -37,13 +37,12 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 
 | Thread | Step | Where |
 |---|---|---|
-| read loop | an `Exclusive` handler returned, and `setFileContents` took changes | `Server.onNotification` |
-| read loop | snapshot; the open documents, their `version` and a new generation each | `ServerState` |
-| spawn | per open document: `diagnostics(snap.analysis, fileId)` | `loupe` |
-| spawn | → `PublishDiagnosticsParams`, `version` only with `versionSupport` | `to_proto.cj` |
-| spawn | generation still the document's latest → `client.notify(PublishDiagnosticsNotificationSpec(), …)`; else dropped | `Server` |
-| spawn | `Cancelled` → dropped silently: the write that cancelled it scheduled its own | `Server` |
-| spawn | anything else → `WARN`, nothing sent | `Server` |
+| read loop | an `Exclusive` handler (request or notification) returned, having changed the files or opened a document | `Server.writing` |
+| read loop | snapshot; the open documents with their `version`, and a new generation for each | `DiagnosticsPush.schedule` |
+| spawn | per open document: `diagnostics(snap.analysis, fileId)` → LSP `Diagnostic`s | `documentDiagnostics`, `to_proto.cj` |
+| spawn | generation still the document's latest → `client.notify(PublishDiagnosticsNotificationSpec(), …)` with its `version`; else dropped | `DiagnosticsPush.publish` |
+| spawn | `Cancelled` → dropped, `DEBUG`: the write that cancelled it scheduled its own | `DiagnosticsPush.schedule` |
+| spawn | the connection closed → dropped, `DEBUG`; anything else → `ERROR`, nothing sent | `DiagnosticsPush.schedule` |
 
 `didClose` publishes an empty list for the document at once, on the read loop, so its errors do not stay in the editor.
 

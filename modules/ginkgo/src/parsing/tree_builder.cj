@@ -19,19 +19,51 @@ public interface TriviaRules<K> where K <: Kind<K> {
     }
 }
 
-public struct SyntaxError <: Equatable<SyntaxError> & ToString {
-    public SyntaxError(public let message: String, public let range: TextRange) {}
+/**
+ * What a parser found wrong, as data: the language words it (`cjsyntax.message`), and an editor can act on it — a
+ * missing token is one a fix can insert. What the grammar reports only in words is a `Message`.
+ */
+public enum ParseError<K> <: Equatable<ParseError<K>> & ToString where K <: Kind<K> {
+    /** A token of this kind was needed here and is missing (`Parser.expect`). */
+    | Expected(K)
+    | Message(String)
 
-    public operator func ==(other: SyntaxError): Bool {
-        range == other.range && message == other.message
+    public operator func ==(other: ParseError<K>): Bool {
+        match ((this, other)) {
+            case (Expected(a), Expected(b)) => a == b
+            case (Message(a), Message(b)) => a == b
+            case _ => false
+        }
     }
 
-    public operator func !=(other: SyntaxError): Bool {
+    public operator func !=(other: ParseError<K>): Bool {
+        !(this == other)
+    }
+
+    /**
+     * A message naming kinds as `toString` does: for tests and logs, not for users.
+     */
+    public func toString(): String {
+        match (this) {
+            case Expected(kind) => "expected ${kind}"
+            case Message(message) => message
+        }
+    }
+}
+
+public struct SyntaxError<K> <: Equatable<SyntaxError<K>> & ToString where K <: Kind<K> {
+    public SyntaxError(public let error: ParseError<K>, public let range: TextRange) {}
+
+    public operator func ==(other: SyntaxError<K>): Bool {
+        range == other.range && error == other.error
+    }
+
+    public operator func !=(other: SyntaxError<K>): Bool {
         !(this == other)
     }
 
     public func toString(): String {
-        "${range}: ${message}"
+        "${range}: ${error}"
     }
 }
 
@@ -41,7 +73,7 @@ public struct SyntaxError <: Equatable<SyntaxError> & ToString {
  * computation tell that an edit left the tree as it was.
  */
 public class Parse<K> <: Equatable<Parse<K>> where K <: Kind<K> {
-    public Parse(public let green: GreenNode<K>, public let errors: Array<SyntaxError>) {}
+    public Parse(public let green: GreenNode<K>, public let errors: Array<SyntaxError<K>>) {}
 
     public func syntaxNode(): SyntaxNode<K> {
         SyntaxNode.newRoot(green)
@@ -85,7 +117,7 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
                 }
             case FinishNode => sink.exit()
             case AddToken(kind, n) => sink.token(kind, n)
-            case AddError(message) => sink.error(message)
+            case AddError(error) => sink.error(error)
             case Tombstone => ()
         }
     }
@@ -94,7 +126,7 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
 
 class TreeSink<K> where K <: Kind<K> {
     let builder = GreenNodeBuilder<K>()
-    let errors = ArrayList<SyntaxError>()
+    let errors = ArrayList<SyntaxError<K>>()
     var pos = 0
     var textPos = 0
     var depth = 0
@@ -141,7 +173,7 @@ class TreeSink<K> where K <: Kind<K> {
         if (depth == 1) {
             eatTrivia()
             if (pos < lexed.size) {
-                error("unexpected input")
+                error(ParseError.Message("unexpected input"))
                 builder.startNode(errorKind)
                 while (pos < lexed.size) {
                     emit(pos)
@@ -167,8 +199,8 @@ class TreeSink<K> where K <: Kind<K> {
         pos = last + 1
     }
 
-    func error(message: String): Unit {
-        errors.add(SyntaxError(message, TextRange.empty(textPos)))
+    func error(error: ParseError<K>): Unit {
+        errors.add(SyntaxError(error, TextRange.empty(textPos)))
     }
 
     func finish(): Parse<K> {
@@ -179,10 +211,10 @@ class TreeSink<K> where K <: Kind<K> {
             exit()
         }
         for (e in lexed.lexErrors()) {
-            errors.add(SyntaxError(e.message, lexed.range(e.tokenIndex)))
+            errors.add(SyntaxError(ParseError.Message(e.message), lexed.range(e.tokenIndex)))
         }
         let sorted = errors.toArray()
-        sort(sorted, stable: true, by: {a: SyntaxError, b: SyntaxError => a.range.start.compare(b.range.start)})
+        sort(sorted, stable: true, by: {a: SyntaxError<K>, b: SyntaxError<K> => a.range.start.compare(b.range.start)})
         Parse(builder.finish(), sorted)
     }
 }

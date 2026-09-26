@@ -10,7 +10,7 @@ output-type = "executable"
 compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = "-lc++"
-package-configuration = { syntax_codegen = { compile-option = "--static" } }
+package-configuration = {}
 
 [dependencies]
 cjtoml = { path = "../cjtoml" }
@@ -22,6 +22,6 @@ stdxx = { path = "../stdxx" }
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 
-# `cjpm build --lto` - see cjls's manifest; every module needs it, as without it a library is no bitcode to link with
+# `cjpm build --lto`, see cjls's manifest
 [profile.customized-option]
 lto = "--lto=full"

@@ -154,6 +154,13 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
         connection?.close()
     }
 
+    /**
+     * Whether the connection is closed: nothing sent now reaches the client. `false` before it connects.
+     */
+    public func isClosed(): Bool {
+        connection?.isClosed() ?? false
+    }
+
     private func connected(): Connection {
         connection.getOrThrow {=> IllegalStateException("the client is not connected yet")}
     }

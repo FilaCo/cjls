@@ -15,6 +15,6 @@ package-configuration = {}
 [dependencies]
 ginkgo = { path = "../ginkgo" }
 
-# `cjpm build --lto` - see cjls's manifest; every module needs it, as without it a library is no bitcode to link with
+# `cjpm build --lto`, see cjls's manifest
 [profile.customized-option]
 lto = "--lto=full"
