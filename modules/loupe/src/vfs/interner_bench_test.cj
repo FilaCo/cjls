@@ -88,8 +88,41 @@ class IndexSetUnderReadWriteLock <: BenchInterner {
     }
 }
 
-// `PathInterner` since #26
+// `PathInterner` in #26, before `ConcurrentIndexSet`
 class TwoConcurrentHashMaps <: BenchInterner {
+    let ids = ConcurrentHashMap<VfsPath, Int64>()
+    let paths = ConcurrentHashMap<Int64, VfsPath>()
+    let lock = Mutex()
+    var count = 0
+
+    public func lookup(path: VfsPath): ?Int64 {
+        ids.get(path)
+    }
+
+    public func intern(path: VfsPath): Int64 {
+        match (ids.get(path)) {
+            case Some(id) => id
+            case None => synchronized(lock) {
+                match (ids.get(path)) {
+                    case Some(id) => id
+                    case None =>
+                        let id = count
+                        paths.add(id, path)
+                        ids.add(path, id)
+                        count++
+                        id
+                }
+            }
+        }
+    }
+
+    public func path(id: Int64): ?VfsPath {
+        paths.get(id)
+    }
+}
+
+// `PathInterner` itself, on a `ConcurrentIndexSet`
+class PathInternerAsIs <: BenchInterner {
     let interner = PathInterner()
 
     public func lookup(path: VfsPath): ?Int64 {
@@ -105,22 +138,6 @@ class TwoConcurrentHashMaps <: BenchInterner {
 
     public func path(id: Int64): ?VfsPath {
         interner.path(FileId(id))
-    }
-}
-
-class ConcurrentIndexSetInterner <: BenchInterner {
-    let paths = ConcurrentIndexSet<VfsPath>()
-
-    public func lookup(path: VfsPath): ?Int64 {
-        paths.indexOf(path)
-    }
-
-    public func intern(path: VfsPath): Int64 {
-        paths.addWithIndex(path)[0]
-    }
-
-    public func path(id: Int64): ?VfsPath {
-        paths.getAt(id)
     }
 }
 
@@ -145,7 +162,7 @@ let INTERNER_VARIANTS = [
     InternerVariant("IndexSetUnderMutex", {=> IndexSetUnderMutex()}),
     InternerVariant("IndexSetUnderReadWriteLock", {=> IndexSetUnderReadWriteLock()}),
     InternerVariant("TwoConcurrentHashMaps", {=> TwoConcurrentHashMaps()}),
-    InternerVariant("ConcurrentIndexSet", {=> ConcurrentIndexSetInterner()})
+    InternerVariant("PathInterner", {=> PathInternerAsIs()})
 ]
 
 // the ones safe to write to while others read
