@@ -21,6 +21,9 @@ async def test_initialize_tells_what_the_server_can_do(server: LanguageClient):
     assert result.server_info is not None and result.server_info.name == "cjls"
     assert result.capabilities.position_encoding == types.PositionEncodingKind.Utf16
     assert result.capabilities.document_symbol_provider is True
+    diagnostics = result.capabilities.diagnostic_provider
+    assert diagnostics.inter_file_dependencies is False
+    assert diagnostics.workspace_diagnostics is False
     sync = result.capabilities.text_document_sync
     assert sync.open_close is True
     assert sync.change == types.TextDocumentSyncKind.Incremental
