@@ -151,7 +151,7 @@ public class FjReader {
 
     @Frozen
     public func keyIs(name: String): Bool {
-        // small enough to be inlined into a decoder, which asks for every candidate: most differ in length
+        // a decoder asks for every candidate, and most differ in length
         name.size == keyLength && keyBytesAre(name)
     }
 
