@@ -47,6 +47,8 @@ The `cjls` executable goes one step further: it is linked with `--static` (its `
 - cjpm passes **no `-O`** to cjc, and cjc's default is `-O0` — hence `-O2` in the workspace `compile-option`.
 - `-O2` miscompiles a tuple or struct taken apart straight from `ArrayList.remove`'s result (`list.remove(at: i)[1]`, `let (_, v) = list.remove(at: i)`): it yields another element — the one that moved into the gap, or even the first when the last is removed. `-O0`/`-O1` get it right. Read `list[i]` first, then remove.
 - LTO, and so bitcode (`.bc`) static libraries, are refused on Darwin (`Darwin does not support LTO`), `--experimental` or not; it is a Linux-only option.
+
+On Linux x64 (measured in CI, same nightly): `--static` gives the same kind of binary — std and the runtime inside, only `libc`, `libm`, `libstdc++` and `libgcc_s` from the system — 14.5 MB, 10.9 MB stripped. Building it needs LLVM's `libc++-dev`/`libc++abi-dev` (cjc links `-lc++`); running it does not. `--lto=full` for the target (`[target.x86_64-unknown-linux-gnu] compile-option`) works there: 9.5 MB (7.3 stripped), every test and e2e passing — but it makes `cjpm test` take 3x as long, as every test binary is linked with it. So it is not in `cjpm.toml`: CI adds it after the tests and links the binary it ships once more.
 - `-dead_strip` shrinks the binary but the runtime aborts on the first message (`Check failed: objectTi != nullptr`): the linker drops type metadata the runtime reaches indirectly. Don't add it.
 - Most of the binary's code is whatever runtime packages drag in, not ours: anything reachable from `cjls` that implements `std.ast`'s `ToTokens` links `std.ast` *and the compiler's C++ parser under it* — about two thirds of `__text`. Keep `std.ast` out of runtime packages.
 

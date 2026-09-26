@@ -47,6 +47,14 @@ jobs:
         shell: bash
       - run: cjpm test
         shell: bash
+      # a third smaller binary, and what e2e then tests; only here, as it makes `cjpm test` 3x slower
+      - name: Link with LTO
+        if: runner.os == 'Linux'
+        run: |
+          printf '\n[target.x86_64-unknown-linux-gnu]\ncompile-option = "--lto=full"\n' >> cjpm.toml
+          cjpm clean
+          cjpm build
+          ls -l target/release/bin/cjls
       - uses: actions/upload-artifact@v4
         with:
           name: cjls-${{ runner.os }}
