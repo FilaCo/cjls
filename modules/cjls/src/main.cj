@@ -8,6 +8,7 @@ import cjls.handlers.router
 main(): Int64 {
     let logger = stderrLogger()
     try {
+        useBinaryStdio()
         // stdout is the wire: nothing else may write to it
         let exitCode = serve(FramedJsonRpcTransport(StdinStream(), getStdOut(), logger), router(), logger)
         logger.info("stopped", [("exitCode", exitCode)])
