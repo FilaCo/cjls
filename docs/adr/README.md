@@ -31,3 +31,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0013](0013-stdin-is-read-with-readv.md) | Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative` | accepted |
 | [0014](0014-diagnostics-pull-first.md) | Diagnostics are pulled; pushed, by the server after a write, only to clients that cannot pull | accepted |
 | [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
+| [0016](0016-editor-highlighting-from-tree-sitter.md) | Editors highlight with tree-sitter-cangjie, pinned, until the server has semantic tokens | accepted |

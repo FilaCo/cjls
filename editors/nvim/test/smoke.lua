@@ -1,4 +1,5 @@
--- Headless smoke test: the server attaches to a Cangjie buffer at its package root, completes
+-- Headless smoke test: the buffer gets the ftplugin's options and the grammar is registered with
+-- nvim-treesitter; the server attaches to a Cangjie buffer at its package root, completes
 -- `initialize`, and exits with 0 after `shutdown`/`exit`.
 --
 --   cjpm build && nvim --clean --headless -u editors/nvim/test/smoke.lua
@@ -17,9 +18,33 @@ local function fail(msg)
   vim.cmd('cquit 1')
 end
 
+-- What `plugin/` and `ftplugin/` set up without the server: a Cangjie buffer's options, and the
+-- grammar nvim-treesitter installs (checked against a stand-in parser table, so the test needs
+-- neither nvim-treesitter nor the network).
+local function check_editor_support()
+  if vim.bo.commentstring ~= '// %s' or vim.bo.shiftwidth ~= 4 or not vim.bo.expandtab then
+    return 'ftplugin did not apply: commentstring=' .. vim.bo.commentstring .. ', shiftwidth=' .. vim.bo.shiftwidth
+  end
+  if vim.filetype.match({ filename = 'a.cj.macrocall' }) ~= 'cangjie' then
+    return '*.cj.macrocall is not detected as cangjie'
+  end
+  package.loaded['nvim-treesitter.parsers'] = {}
+  vim.api.nvim_exec_autocmds('User', { pattern = 'TSUpdate' })
+  local cangjie = package.loaded['nvim-treesitter.parsers'].cangjie
+  package.loaded['nvim-treesitter.parsers'] = nil
+  if not (cangjie and cangjie.install_info.url and cangjie.install_info.revision) then
+    return 'the cangjie grammar is not registered with nvim-treesitter on TSUpdate'
+  end
+end
+
 local function run()
   vim.cmd.edit(repo .. '/modules/cjls/src/main.cj')
   local expected_root = repo .. '/modules/cjls'
+
+  local err = check_editor_support()
+  if err then
+    return fail(err)
+  end
 
   local client = nil
   local attached = vim.wait(TIMEOUT_MS, function()
