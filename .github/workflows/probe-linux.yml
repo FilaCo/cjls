@@ -1,0 +1,30 @@
+name: Probe Linux linking (temporary)
+
+on:
+  pull_request:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-cangjie
+      - uses: astral-sh/setup-uv@v6
+      - name: As configured (--static)
+        run: |
+          cjpm build
+          b=target/release/bin/cjls
+          { echo '## --static'; echo '```'; file $b; ldd $b || true; ls -l $b; strip -o /tmp/cjls.stripped $b && ls -l /tmp/cjls.stripped; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          cp $b /tmp/cjls.static
+      - name: Runs without the SDK
+        run: env -i PATH=/usr/bin:/bin HOME=$HOME CJLS_BIN=/tmp/cjls.static "$(command -v uv)" run --project tests/e2e --locked pytest tests/e2e -q
+      - name: With --lto=full
+        continue-on-error: true
+        run: |
+          sed -i 's/^compile-option = "\(.*\)"/compile-option = "\1 --lto=full"/' cjpm.toml
+          grep compile-option cjpm.toml
+          cjpm clean
+          cjpm build 2>&1 | tail -20 | tee /tmp/lto.log
+          b=target/release/bin/cjls
+          { echo '## --lto=full'; echo '```'; tail -5 /tmp/lto.log; file $b; ldd $b || true; ls -l $b; strip -o /tmp/cjls.lto.stripped $b && ls -l /tmp/cjls.lto.stripped; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          CJLS_BIN=$PWD/$b uv run --project tests/e2e --locked pytest tests/e2e -q
