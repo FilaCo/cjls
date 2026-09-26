@@ -56,10 +56,20 @@ public class FjWriter {
         }
     }
 
+    /** Room for the comma, if one is due, and `extra` bytes after it; the comma written. */
+    private func separate(extra: Int64): Unit {
+        reserve(extra + 1)
+        if (needComma) {
+            buf[length] = 0x2C
+            length++
+        }
+    }
+
     @Frozen
     public func beginObject(): Unit {
-        separate()
-        put(0x7B)
+        separate(1)
+        buf[length] = 0x7B
+        length++
         needComma = false
     }
 
@@ -71,8 +81,9 @@ public class FjWriter {
 
     @Frozen
     public func beginArray(): Unit {
-        separate()
-        put(0x5B)
+        separate(1)
+        buf[length] = 0x5B
+        length++
         needComma = false
     }
 
@@ -93,9 +104,8 @@ public class FjWriter {
     /** A key encoded beforehand, copied in one piece. */
     @Frozen
     public func name(key: FjName): Unit {
-        separate()
         let source = key.encoded
-        reserve(source.size)
+        separate(source.size)
         source.copyTo(buf, 0, length, source.size)
         length += source.size
         needComma = false
@@ -110,7 +120,7 @@ public class FjWriter {
 
     @Frozen
     public func int64(value: Int64): Unit {
-        separate()
+        separate(20)
         digits(value)
         needComma = true
     }
@@ -163,8 +173,8 @@ public class FjWriter {
         length += source.size
     }
 
+    /** `value` in decimal; the caller has reserved its 20 bytes. */
     private func digits(value: Int64): Unit {
-        reserve(20)
         var magnitude = if (value < 0) {
             buf[length] = 0x2D
             length++
