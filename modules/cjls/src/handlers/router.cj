@@ -19,6 +19,8 @@ public func router(): Router {
         .route(lsp.DidCloseTextDocumentNotificationSpec(), handleDidClose)
         .route(lsp.DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(lsp.DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
+        .route(lsp.SemanticTokensRequestSpec(), handleSemanticTokensFull)
+        .route(lsp.SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
         .publishDiagnostics(documentDiagnostics)
 }
 
@@ -33,6 +35,11 @@ func capabilities(encoding: Encoding): lsp.ServerCapabilities {
         documentSymbolProvider: lsp.BooleanOrDocumentSymbolOptions.AsBoolean(true),
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)
         diagnosticProvider: lsp.DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
-            lsp.DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false))
+            lsp.DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),
+        // no `full/delta` until the server keeps what it sent (D16)
+        semanticTokensProvider: lsp.SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
+            lsp.SemanticTokensOptions(legend: semanticTokensLegend(),
+                range: lsp.BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
+                full: lsp.BooleanOrSemanticTokensFullDelta.AsBoolean(true)))
     )
 }

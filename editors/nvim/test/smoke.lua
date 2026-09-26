@@ -1,5 +1,5 @@
 -- Headless smoke test: the server attaches to a Cangjie buffer at its package root, completes
--- `initialize`, and exits with 0 after `shutdown`/`exit`.
+-- `initialize`, highlights it, and exits with 0 after `shutdown`/`exit`.
 --
 --   cjpm build && nvim --clean --headless -u editors/nvim/test/smoke.lua
 --
@@ -34,6 +34,16 @@ local function run()
   end
   if not (client.server_info and client.server_info.name == 'cjls') then
     return fail('unexpected serverInfo: ' .. vim.inspect(client.server_info))
+  end
+
+  -- Neovim asks for semantic tokens by itself: the file starts with `package`, a keyword
+  local highlighted = vim.wait(TIMEOUT_MS, function()
+    local tokens = vim.lsp.semantic_tokens.get_at_pos(0, 0, 0) or {}
+    return #tokens > 0 and tokens[1].type == 'keyword'
+  end)
+  if not highlighted then
+    return fail('no keyword token at the start of the file within ' .. TIMEOUT_MS .. ' ms: '
+      .. vim.inspect(vim.lsp.semantic_tokens.get_at_pos(0, 0, 0)))
   end
 
   client:stop()

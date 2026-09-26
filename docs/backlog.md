@@ -17,3 +17,5 @@
 | Q13 | `resultId` and `unchanged` diagnostic reports | the server has to keep each document's last result, which a `readonly` handler cannot write (S1, S2); a syntactic report is cheap to send whole |
 | Q14 | `workspace/diagnostic` | needs the files that are not open (Q1, #12) |
 | Q15 | Validation and semantic diagnostics | the compiler's checks after parsing (modifier conflicts, annotation targets), then name resolution and types (Q10); `interFileDependencies: true` then; kept in query results (A11) |
+| Q16 | Semantic tokens `full/delta` and `refresh` | delta needs the last result per `resultId`, kept by the server, as Q13; `refresh` once a file's tokens depend on others, with name resolution (Q10), which also brings names at their use (D16) |
+| Q17 | Base grammars for VS Code and Zed | semantic tokens only refine a base highlighting: a TextMate grammar (VS Code) and a tree-sitter one (Zed) in `editors/`, each a second parser to keep in step with `cjsyntax` |
