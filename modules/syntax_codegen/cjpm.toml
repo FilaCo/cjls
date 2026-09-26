@@ -21,7 +21,3 @@ stdxx = { path = "../stdxx" }
 [test-dependencies]
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
-
-# `cjpm build --lto`, see cjls's manifest
-[profile.customized-option]
-lto = "--lto=full"

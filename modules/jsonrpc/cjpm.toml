@@ -14,7 +14,3 @@ package-configuration = {}
 
 [dependencies]
 stdxx = { path = "../stdxx" }
-
-# `cjpm build --lto`, see cjls's manifest
-[profile.customized-option]
-lto = "--lto=full"
