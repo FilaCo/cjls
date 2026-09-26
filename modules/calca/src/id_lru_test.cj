@@ -81,6 +81,28 @@ class IdLruTest {
     }
 
     @TestCase
+    func removeUnlinksTheOldestTheNewestOrTheOnlyId() {
+        // arrange
+        let lru = IdLru(10)
+        touch(lru, [0, 1, 2, 3])
+
+        // act
+        let oldest = lru.remove(Id(0))
+        let newest = lru.remove(Id(3))
+        let absent = lru.remove(Id(3))
+        let middle = lru.remove(Id(1))
+        let only = lru.remove(Id(2))
+
+        // assert
+        @Expect([oldest, newest, absent, middle, only], [true, true, false, true, true])
+        @Expect(lru.size, 0)
+        @Expect(lru.oldestId, None<Id>)
+        touch(lru, [5, 1])
+        @Expect([5, 1], indices(lru))
+        @Expect(lru.oldestId, Id(5))
+    }
+
+    @TestCase
     func aNegativeCapacityIsRefused() {
         // act, assert
         @AssertThrows[IllegalArgumentException](IdLru(-1))
