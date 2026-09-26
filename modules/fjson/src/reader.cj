@@ -217,7 +217,6 @@ public class FjReader {
     }
 
     private func push(length: Int64, b: Byte): Int64 {
-        reserve(length, 1)
         scratch[length] = b
         length + 1
     }
@@ -228,7 +227,8 @@ public class FjReader {
      */
     private func unescape(start: Int64, end: Int64): Int64 {
         var length = end - start
-        reserve(0, length)
+        // unescaped, a string is never longer than its text: room for the rest of the input is room enough
+        reserve(0, bytes.size - start)
         bytes.copyTo(scratch, start, 0, length)
         var i = end
         while (true) {
@@ -284,7 +284,6 @@ public class FjReader {
                     throw fail("invalid escape")
             }
             let runEnd = scanPlain(i)
-            reserve(length, runEnd - i)
             bytes.copyTo(scratch, i, length, runEnd - i)
             length += runEnd - i
             i = runEnd
@@ -316,7 +315,6 @@ public class FjReader {
     }
 
     private func pushUtf8(length: Int64, cp: UInt32): Int64 {
-        reserve(length, 4)
         if (cp < 0x80) {
             scratch[length] = UInt8(cp)
             return length + 1
