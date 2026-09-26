@@ -10,7 +10,7 @@ Status: accepted, 2026-09-24
 
 ## Decision
 
-- Module: a library knowing nothing of the server (`stdxx`, `jsonrpc`, `index_map`, `calca`, `ginkgo`, `rope`, `cjsyntax`, `loupe`, `cjtoml`).
+- Module: a library knowing nothing of the server (`stdxx`, `jsonrpc`, `index_map`, `linked_list`, `calca`, `ginkgo`, `rope`, `cjsyntax`, `loupe`, `cjtoml`).
 - Everything only the server has: a package of `cjls`.
 
 ## Consequences

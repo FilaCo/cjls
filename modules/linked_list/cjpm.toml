@@ -1,9 +1,9 @@
 [package]
 cjc-version = "1.3.0"
-name = "calca"
+name = "linked_list"
 organization = ""
 description = "nothing here"
-version = "0.1.0"
+version = "1.0.0"
 target-dir = ""
 script-dir = ""
 output-type = "static"
@@ -13,8 +13,6 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-index_map = { path = "../index_map" }
-linked_list = { path = "../linked_list" }
 
 # `cjpm build --lto`, see cjls's manifest
 [profile.customized-option]
