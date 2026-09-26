@@ -10,21 +10,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cangjie
       - uses: astral-sh/setup-uv@v6
-      - name: As configured (--static)
+      - name: LTO for the Linux target only
         run: |
+          printf '\n[target.x86_64-unknown-linux-gnu]\ncompile-option = "--lto=full"\n' >> cjpm.toml
+          tail -4 cjpm.toml
           cjpm build
           b=target/release/bin/cjls
-          { echo '## --static'; echo '```'; file $b; ldd $b || true; ls -l $b; strip -o /tmp/cjls.stripped $b && ls -l /tmp/cjls.stripped; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          cp $b /tmp/cjls.static
-      - name: Runs without the SDK
-        run: env -i PATH=/usr/bin:/bin HOME="$HOME" CJLS_BIN=/tmp/cjls.static "$(command -v uv)" run --project tests/e2e --locked pytest tests/e2e -q
-      - name: With --lto=full
-        continue-on-error: true
-        run: |
-          sed -i 's/^compile-option = "\(.*\)"/compile-option = "\1 --lto=full"/' cjpm.toml
-          grep compile-option cjpm.toml
-          cjpm clean
-          cjpm build 2>&1 | tail -20 | tee /tmp/lto.log
-          b=target/release/bin/cjls
-          { echo '## --lto=full'; echo '```'; tail -5 /tmp/lto.log; file $b; ldd $b || true; ls -l $b; strip -o /tmp/cjls.lto.stripped $b && ls -l /tmp/cjls.lto.stripped; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          CJLS_BIN=$PWD/$b uv run --project tests/e2e --locked pytest tests/e2e -q
+          { echo '## --lto=full on the target'; echo '```'; file $b; ldd $b || true; ls -l $b; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          cp $b /tmp/cjls.lto
+      - name: cjpm test with LTO
+        run: cjpm test 2>&1 | grep -E 'TOTAL|FAILED|success|error' | tail -5
+      - name: LTO binary without the SDK
+        run: env -i PATH=/usr/bin:/bin HOME="$HOME" CJLS_BIN=/tmp/cjls.lto "$(command -v uv)" run --project tests/e2e --locked pytest tests/e2e -q
