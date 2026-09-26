@@ -1,0 +1,35 @@
+# The servers the driver knows, by the name `--server` takes.
+#
+# command                 argv; `{repo}` is this repository, `{env:NAME}` an environment variable
+#                         (a server whose variable is unset is reported as unavailable, not run)
+# env                     added to the driver's environment, with the same placeholders
+# initialization-options  sent as `initializationOptions`, as the server's own editor extension would
+# ready                   when the server counts as started:
+#                         "initialized" — its `initialize` answer;
+#                         "progress"    — no `$/progress` left open, and none begun for `settle-ms`
+# settle-ms               how long "progress" waits for work to begin at all (default 500)
+# workspace               "project" when the server wants a cjpm project as its root, not loose files
+#
+# The ids are prior-art.md's (R4, R9): what is measured here is what that page compares.
+
+[cjls]
+command = ["{env:CJLS_BIN}"]
+fallback-command = ["{repo}/target/release/bin/cjls"]
+ready = "initialized"
+
+# R4, the SDK's server. It accepts `{}` as options; which of those its VS Code extension sends
+# change what it does is still to be found out (#22). It sends no `$/progress`, so it is ready
+# when it has answered `initialize`.
+[lsp-server]
+command = ["{env:CANGJIE_HOME}/tools/bin/LSPServer"]
+ready = "progress"
+workspace = "project"
+
+[lsp-server.initialization-options]
+
+# R9, lin-qingying/cangjie on the JVM. No releases: build it (`./gradlew installDist`) and point
+# CANGJIE_KT_LS at the launcher script installDist writes.
+[cangjie-kt]
+command = ["{env:CANGJIE_KT_LS}"]
+ready = "progress"
+workspace = "project"
