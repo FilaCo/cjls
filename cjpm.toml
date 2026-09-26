@@ -9,6 +9,7 @@ members = [
     "modules/jsonrpc",
     "modules/lsp_codegen",
     "modules/loupe",
+    "modules/lru_set",
     "modules/rope",
     "modules/stdxx",
     "modules/syntax_codegen",
