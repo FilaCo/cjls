@@ -1,7 +1,7 @@
 package cjls.handlers
 
 import rope.Encoding
-import cjls.lsp_types.*
+import cjls.lsp_types as lsp
 import cjls.server.*
 import cjls.macros.LspHandler
 
@@ -11,28 +11,29 @@ import cjls.macros.LspHandler
 const VERSION = "0.1.0"
 
 @LspHandler
-func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
+func handleInitialize(state: ServerState, params: lsp.InitializeParams): lsp.InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
-    InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
+    lsp.InitializeResult(capabilities: capabilities(state.encoding),
+        serverInfo: lsp.ServerInfo(name: "cjls", version: VERSION))
 }
 
 /**
  * UTF-8 if the client can count columns in it, since that is what the text is kept in; UTF-16
  * otherwise, which every client can.
  */
-func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
+func negotiatedEncoding(capabilities: lsp.ClientCapabilities): Encoding {
     let offered = capabilities.general.flatMap {general => general.positionEncodings} ?? []
-    if (offered.any {kind => kind.value == PositionEncodingKind.UTF8.value}) {
+    if (offered.any {kind => kind.value == lsp.PositionEncodingKind.UTF8.value}) {
         Encoding.Utf8
     } else {
         Encoding.Utf16
     }
 }
 
-func positionEncodingKind(encoding: Encoding): PositionEncodingKind {
+func positionEncodingKind(encoding: Encoding): lsp.PositionEncodingKind {
     match (encoding) {
-        case Utf8 => PositionEncodingKind.UTF8
-        case Utf16 => PositionEncodingKind.UTF16
-        case Utf32 => PositionEncodingKind.UTF32
+        case Utf8 => lsp.PositionEncodingKind.UTF8
+        case Utf16 => lsp.PositionEncodingKind.UTF16
+        case Utf32 => lsp.PositionEncodingKind.UTF32
     }
 }
