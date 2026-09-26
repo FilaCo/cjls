@@ -1,5 +1,7 @@
 package fjson
 
+import std.collection.*
+
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -171,6 +173,26 @@ class FjWriterTest {
 
         // assert
         @Expect(String.fromUtf8(w.bytes()), #"{"a":[1,-22,{},null],"b":true,"c":-9223372036854775808}"#)
+    }
+
+    @TestCase
+    func writesEveryIntegerAsItsDecimal() {
+        // arrange
+        let values = ArrayList<Int64>([0, Int64.Max, Int64.Min, Int64.Min + 1])
+        var p: Int64 = 1
+        for (_ in 0..18) {
+            p *= 10
+            values.add(all: [p - 1, p, p + 1, -(p - 1), -p])
+        }
+
+        for (value in values) {
+            // act
+            let w = FjWriter(capacity: 1)
+            w.int64(value)
+
+            // assert
+            @Expect(String.fromUtf8(w.bytes()), value.toString())
+        }
     }
 
     @TestCase
