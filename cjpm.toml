@@ -21,6 +21,11 @@ link-option = ""
 target-dir = ""
 script-dir = ""
 
+# a third smaller binary on Linux; cjpm skips it on Darwin, which refuses LTO, and `cjpm test`
+# (its own profile) never links with it, as that would make the tests 3x slower
+[profile.build.lto]
+level = "full"
+
 [dependencies]
 
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
