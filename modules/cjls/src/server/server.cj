@@ -130,7 +130,7 @@ class Server <: Handler {
         }
         let opened = state.openDocuments.keys().iterator().any {path => !openBefore.contains(path)}
         if (filesChanged || opened) {
-            let documents = state.openDocuments |> map {entry: (VfsPath, Int32) => entry} |> collectArray
+            let documents = collectArray(state.openDocuments)
             push.schedule(state.snapshot(), documents)
         }
         result

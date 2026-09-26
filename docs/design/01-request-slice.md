@@ -19,7 +19,7 @@ The other read requests take the same path; only the `loupe` call and its transl
 | Request | `loupe` | Answer |
 |---|---|---|
 | `textDocument/documentSymbol` | `fileStructure` | `DocumentSymbol[]` |
-| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q9) |
+| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q13) |
 
 ## Write notification (`textDocument/didChange`)
 

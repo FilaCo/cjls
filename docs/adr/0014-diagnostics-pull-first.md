@@ -23,5 +23,5 @@ Status: accepted, 2026-09-26
 - VS Code and Neovim get diagnostics with nothing new in the server; the push path serves the rest.
 - The server now runs work of its own after a write: the same mechanism is what reading the disk on a `spawn` (#12) and `semanticTokens/refresh` (#16) need.
 - Every change re-publishes every open document. Cheap while `parse` is memoized and diagnostics are syntactic; revisit when semantic ones make it costly.
-- No `resultId`, `unchanged` reports or `workspace/diagnostic` yet (Q9, Q10).
+- No `resultId`, `unchanged` reports or `workspace/diagnostic` yet (Q13, Q14).
 - Q4 is closed.

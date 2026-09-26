@@ -7,7 +7,7 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 /**
- * What is wrong in a document, all of it every time: no `resultId` yet (Q9). A document the server
+ * What is wrong in a document, all of it every time: no `resultId` yet (Q13). A document the server
  * does not know has nothing wrong. The files changing under it is the server's to answer (S5), with
  * `ServerCancelled` so the client pulls again (D14).
  */
