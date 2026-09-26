@@ -116,7 +116,9 @@ func varrayType(p: P): Unit {
         typ(p)
         p.expect(Comma)
         p.expect(Dollar)
-        p.expect(IntLit)
+        if (!p.eat(IntLit)) {
+            p.error("expected an integer")
+        }
         p.expect(Gt)
     }
     m.complete(p, VArrayType)

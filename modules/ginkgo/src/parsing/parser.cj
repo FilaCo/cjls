@@ -192,13 +192,17 @@ public class Parser<K> where K <: Kind<K> {
     }
 
     /**
-     * Consumes the current token if it is `kind`, and reports it missing otherwise.
+     * Consumes the current token if it is `kind`, and reports it missing otherwise: by its text (`expected '}'`), or
+     * by its name when it has no one text.
      */
     public func expect(kind: K): Bool {
         if (eat(kind)) {
             return true
         }
-        error("expected ${kind}")
+        match (kind.fixedText()) {
+            case Some(text) => error("expected '${text}'")
+            case None => error("expected ${kind}")
+        }
         false
     }
 

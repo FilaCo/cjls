@@ -33,7 +33,7 @@ class DiagnosticsTest {
         @Expect(result.size, 1)
         @Expect(result[0].range, TextRange(9, 9))
         @Expect(result[0].severity == Severity.Error)
-        @Expect(result[0].message, "expected RBrace")
+        @Expect(result[0].message, "expected '}'")
     }
 
     @TestCase
