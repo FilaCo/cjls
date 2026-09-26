@@ -50,6 +50,35 @@ class VfsPathTest {
         @Expect(VfsPath.fromUri("file:///a%2").filePath, None<String>)
         @Expect(VfsPath.fromUri("file:///a%FF").filePath, None<String>)
     }
+
+    @TestCase
+    func aDrivePathIsAbsoluteAsWindowsSpellsIt() {
+        // act
+        let path = VfsPath.file("C:\\src\\.\\app\\..\\a.cj")
+
+        // assert
+        @Expect(path.filePath, Some("c:/src/a.cj"))
+        @Expect(VfsPath.file("c:"), VfsPath.file("C:\\"))
+        @AssertThrows[IllegalArgumentException](VfsPath.file("C:a.cj"))
+    }
+
+    @TestCase
+    func clientsSpellingOneDriveApartGiveOnePath() {
+        // arrange
+        let vsCode = "file:///c%3A/Users/Me/a.cj"
+        let neovim = "file:///C:/Users/Me/a.cj"
+
+        // act, assert
+        @Expect(VfsPath.fromUri(vsCode), VfsPath.fromUri(neovim))
+        @Expect(VfsPath.fromUri(neovim).filePath, Some("c:/Users/Me/a.cj"))
+        @Expect(VfsPath.fromUri(neovim) != VfsPath.fromUri("file:///C:/users/me/a.cj"))
+    }
+
+    @TestCase
+    func aDrivePathGoesBackToAUriAsVsCodeWritesIt() {
+        // act, assert
+        @Expect(VfsPath.file("C:\\Users\\Me\\a b.cj").toUri(), "file:///c%3A/Users/Me/a%20b.cj")
+    }
 }
 
 @Test

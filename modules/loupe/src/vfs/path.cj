@@ -6,6 +6,12 @@ import std.collection.*
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
  * editor's `untitled:` buffer), the URI it was given, as is. Two URIs spelling one path apart (a
  * `%`-escape the other does not use, a `/./`) give the one `VfsPath`.
+ *
+ * A path is absolute from `/`, or from a drive (`C:\`, `c:/`): alike on every platform, so what a
+ * Windows client sends reads the same wherever it is tested. A drive path keeps `/` for its
+ * separator and its letter lowercase, as VS Code writes it (`file:///c%3A/src/a.cj`): clients
+ * differ in both, and the letter's case never tells two drives apart. The rest keeps its case, as
+ * the client got it from the file system.
  */
 public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     private VfsPath(private let onDisk: Bool, private let value: String) {}
@@ -14,10 +20,13 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * @throws IllegalArgumentException - if `path` is not absolute
      */
     public static func file(path: String): VfsPath {
-        if (!path.startsWith("/")) {
+        if (path.startsWith("/")) {
+            VfsPath(true, normalize("/", path))
+        } else if (startsWithDrive(path)) {
+            VfsPath(true, normalize(path[..2].toAsciiLower() + "/", path[2..].replace("\\", "/")))
+        } else {
             throw IllegalArgumentException("not an absolute path: ${path}")
         }
-        VfsPath(true, normalize(path))
     }
 
     public static func virtual(name: String): VfsPath {
@@ -38,6 +47,8 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
             case _ => return virtual(uri)
         }
         match (percentDecoded(path)) {
+            // `/c:/src`: in a URI the drive is the first segment
+            case Some(decoded) where startsWithDrive(decoded[1..]) => file(decoded[1..])
             case Some(decoded) => file(decoded)
             case None => virtual(uri)
         }
@@ -60,7 +71,9 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * A `file:` URI for a path on disk, escaped the way VS Code does, the URI given for a virtual one.
      */
     public func toUri(): String {
-        if (onDisk) {
+        if (onDisk && startsWithDrive(value)) {
+            "file:///" + percentEncoded(value)
+        } else if (onDisk) {
             "file://" + percentEncoded(value)
         } else {
             value
@@ -88,9 +101,18 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
 }
 
 /**
- * `path`, absolute, with no empty, `.` or `..` segments: `..` above the root stays at the root.
+ * `C:` and the like, alone or before a separator.
  */
-func normalize(path: String): String {
+func startsWithDrive(path: String): Bool {
+    path.size >= 2 && path[0].isAsciiLetter() && path[1] == b':' &&
+        (path.size == 2 || path[2] == b'/' || path[2] == b'\\')
+}
+
+/**
+ * `root` and then `path`'s segments, with no empty, `.` or `..` ones: `..` above the root stays at
+ * the root.
+ */
+func normalize(root: String, path: String): String {
     let segments = ArrayList<String>()
     for (segment in path.split("/")) {
         match (segment) {
@@ -102,7 +124,7 @@ func normalize(path: String): String {
             case _ => segments.add(segment)
         }
     }
-    "/" + String.join(segments.toArray(), delimiter: "/")
+    root + String.join(segments.toArray(), delimiter: "/")
 }
 
 /**
