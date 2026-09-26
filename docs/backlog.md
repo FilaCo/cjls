@@ -4,7 +4,7 @@
 |---|---|---|
 | Q1 | Workspace loader | files not open are read from disk only on `didClose`; no watching, no `didChangeWatchedFiles` |
 | Q2 | Singleton inputs in calca | a layer above `loupe.db` cannot add a global input (project model) to `AnalysisDatabase` (D4) |
-| Q3 | LRU / GC of memos and interned values in calca | until then, A2 |
+| Q3 | GC of interned values and of the memos keyed by them | #13 §3–§4: a slab with generations, interning recorded as a dependency, only `Low` values, staleness in active revisions; with the first `@CalcaInterned` of name resolution. Memo values are evicted already (D17); until then, A2 |
 | ~~Q4~~ | ~~Server push (`publishDiagnostics`)~~ | closed by [D14](adr/0014-diagnostics-pull-first.md) |
 | ~~Q5~~ | ~~Windows paths in `VfsPath`~~ | closed by [D12](adr/0012-drive-paths.md) |
 | Q6 | Batched writes | every file change is its own revision |
@@ -17,3 +17,4 @@
 | Q13 | `resultId` and `unchanged` diagnostic reports | the server has to keep each document's last result, which a `readonly` handler cannot write (S1, S2); a syntactic report is cheap to send whole |
 | Q14 | `workspace/diagnostic` | needs the files that are not open (Q1, #12) |
 | Q15 | Validation and semantic diagnostics | the compiler's checks after parsing (modifier conflicts, annotation targets), then name resolution and types (Q10); `interFileDependencies: true` then; kept in query results (A11) |
+| Q16 | LRU capacity at run time, and by memory | `lru` is fixed at compile time (D17), as in R1; `initializationOptions` / `workspace/configuration` as `rust-analyzer.lru.capacity`, or Pyright's emptying caches past 90% of the heap |
