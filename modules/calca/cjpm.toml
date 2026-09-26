@@ -14,6 +14,7 @@ package-configuration = {}
 
 [dependencies]
 index_map = { path = "../index_map" }
+lru_set = { path = "../lru_set" }
 
 # `cjpm build --lto`, see cjls's manifest
 [profile.customized-option]

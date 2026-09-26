@@ -3,6 +3,7 @@ package calca
 import std.collection.*
 import std.sync.*
 import index_map.*
+import lru_set.*
 
 /**
  * A `@CalcaTracked` function, process-wide: where its memos are in any database. Held by the static
@@ -14,11 +15,15 @@ import index_map.*
  *
  * `equal` tells whether a value computed again is the one remembered, in which case the memo keeps
  * the revision it last changed in and what read it need not run again ("backdating").
+ *
+ * `lru` keeps the values of only that many keys, the ones last fetched, from one revision to the
+ * next; the others lose their value but keep what they read, and are computed again when fetched.
+ * `None` keeps every value.
  */
 public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equatable<K> {
     let index: Int64
 
-    public TrackedFunction(let name: String, let equal: (V, V) -> Bool) {
+    public TrackedFunction(let name: String, let equal: (V, V) -> Bool, let lru!: ?Int64 = None) {
         index = reserveIngredients(1)
     }
 
@@ -34,15 +39,16 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
         storage.read {
             let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute)}
             let id = memos.intern(key)
-            let memo = memos.fetchMemo(db, storage, id, key)
+            let (value, memo) = memos.fetchValue(db, storage, id, key)
             storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
-            memo.value
+            value
         }
     }
 }
 
 /**
- * A value computed, with what it was computed from.
+ * A value computed, with what it was computed from. An evicted memo has lost its value, but still
+ * knows what it read and when it last changed, so it can be verified without computing it again.
  */
 class Memo<V> {
     /**
@@ -52,12 +58,19 @@ class Memo<V> {
 
     Memo(
         verifiedAt: Int64,
-        let value: V,
+        let value: ?V,
         let changedAt: Int64,
         let durability: Durability,
         let dependencies: Array<DatabaseKey>
     ) {
         this.verifiedAt = AtomicInt64(verifiedAt)
+    }
+
+    /**
+     * This memo without its value.
+     */
+    func evicted(): Memo<V> {
+        Memo<V>(verifiedAt.load(), None, changedAt, durability, dependencies)
     }
 }
 
@@ -70,9 +83,17 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
     private let entries = IndexMap<K, ?Memo<V>>()
 
     /**
+     * When the function keeps only some values, the keys whose memo may hold one, in the order they
+     * were last fetched. Touched under `lock`; trimmed in `newRevision`, while nothing reads.
+     */
+    private let used: ?LruSet<Id>
+
+    /**
      * The function itself, the same whichever `fetch` gave it.
      */
-    MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V) {}
+    MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V) {
+        used = function.lru.map {capacity => LruSet<Id>(capacity)}
+    }
 
     func intern(key: K): Id {
         synchronized(lock) {
@@ -82,18 +103,25 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
     }
 
     /**
-     * The memo at `id`, verified or computed again.
+     * The value at `id` and the memo holding it: remembered if the memo is verified, else computed
+     * again. A use of the key, as far as `lru` goes.
      */
-    func fetchMemo(db: D, storage: Storage, id: Id, key: K): Memo<V> {
+    func fetchValue(db: D, storage: Storage, id: Id, key: K): (V, Memo<V>) {
         let databaseKey = DatabaseKey(function.index, id)
         storage.enter(databaseKey)
         try {
             let old = synchronized(lock) {
+                used?.touch(id)
                 entry(id)[1]
             }
             match (old) {
-                case Some(memo) where verify(db, storage.runtime, memo) => memo
-                case _ => execute(db, storage, databaseKey, key, old)
+                case Some(memo) => match (memo.value) {
+                    case Some(value) where verify(db, storage.runtime, memo) => (value, memo)
+                    case None where verify(db, storage.runtime, memo) =>
+                        execute(db, storage, databaseKey, key, old, unchanged: true)
+                    case _ => execute(db, storage, databaseKey, key, old, unchanged: false)
+                }
+                case None => execute(db, storage, databaseKey, key, old, unchanged: false)
             }
         } finally {
             storage.exit(databaseKey)
@@ -121,7 +149,13 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         true
     }
 
-    private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>): Memo<V> {
+    /**
+     * Runs the body and remembers the value. The memo keeps the revision `old` last changed in when
+     * the value is the one `old` held, or when `old` was evicted but is `unchanged`: verified, so
+     * computed again from what it was computed from before.
+     */
+    private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>,
+        unchanged!: Bool): (V, Memo<V>) {
         let frame = storage.push(databaseKey)
         let value = try {
             body(db, key)
@@ -129,23 +163,63 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
             storage.pop()
         }
         let changedAt = match (old) {
-            case Some(memo) where frame.durability >= memo.durability && (function.equal)(memo.value, value) =>
+            case Some(memo) where frame.durability >= memo.durability && (unchanged || isEqual(memo.value, value)) =>
                 memo.changedAt
             case _ => frame.changedAt
         }
         let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
         synchronized(lock) {
             entries.add(key, memo)
+            used?.touch(databaseKey.id)
         }
-        memo
+        (value, memo)
     }
 
+    private func isEqual(old: ?V, new: V): Bool {
+        match (old) {
+            case Some(value) => (function.equal)(value, new)
+            case None => false
+        }
+    }
+
+    /**
+     * Verifying the memo at `id` for another one's sake, which is not a use of it. A memo with a
+     * value that is not current is computed again, so backdating can tell whether it changed. An
+     * evicted one never is: if nothing it read changed, neither did it; else it may have, and
+     * whoever fetches it computes it.
+     */
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
         let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
-        let key = synchronized(lock) {
-            entry(id)[0]
+        let storage = db.storage
+        let (key, old) = synchronized(lock) {
+            entry(id)
         }
-        fetchMemo(typed, db.storage, id, key).changedAt > revision
+        let databaseKey = DatabaseKey(function.index, id)
+        storage.enter(databaseKey)
+        try {
+            match (old) {
+                case Some(memo) where memo.value.isNone() => !verify(typed, storage.runtime, memo) || memo.changedAt > revision
+                case Some(memo) where verify(typed, storage.runtime, memo) => memo.changedAt > revision
+                case _ => execute(typed, storage, databaseKey, key, old, unchanged: false)[1].changedAt > revision
+            }
+        } finally {
+            storage.exit(databaseKey)
+        }
+    }
+
+    /**
+     * Evicts the values of the keys fetched least recently, beyond `lru`.
+     */
+    public func newRevision(): Unit {
+        synchronized(lock) {
+            used?.trim {
+                id =>
+                let (key, memo) = entry(id)
+                if (let Some(kept) <- memo) {
+                    entries.add(key, kept.evicted())
+                }
+            }
+        }
     }
 
     public func describe(id: Id): String {
