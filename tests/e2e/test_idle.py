@@ -23,7 +23,7 @@ async def test_a_server_waiting_for_input_uses_no_cpu(client: LanguageClient):
     await asyncio.sleep(2)
     after = process.cpu_times()
 
-    # assert: a collection used to wait for the thread blocked reading stdin, at full CPU, until
-    # the client next wrote
+    # assert: a collection used to wait for the thread blocked reading stdin with a `read` cjc
+    # compiled as @FastNative, at full CPU, until the client next wrote (D13)
     used = (after.user - before.user) + (after.system - before.system)
     assert used < 0.5, f"{used:.2f}s of CPU in 2s of waiting"
