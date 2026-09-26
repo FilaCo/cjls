@@ -27,7 +27,7 @@ async def pull(client: LanguageClient, uri: str) -> list[types.Diagnostic]:
         types.DocumentDiagnosticParams(text_document=types.TextDocumentIdentifier(uri=uri))
     )
     assert report.kind == types.DocumentDiagnosticReportKind.Full
-    return report.items
+    return list(report.items)
 
 
 async def pushed_after(client: LanguageClient, send) -> types.PublishDiagnosticsParams:

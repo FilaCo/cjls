@@ -3,7 +3,7 @@ package cjls.server
 import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
-import stdx.serialization.serialization.DataModel
+import stdx.serialization.serialization.*
 import calca.Cancelled
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -136,12 +136,17 @@ class Server <: Handler {
 
 /**
  * Why a query of `request` was `Cancelled`: the client cancelled the request, or the files changed
- * under it, which the client may ask again for.
+ * under it, which the client may ask again for — and a diagnostic pull asks again at once, rather
+ * than keep the diagnostics it had (D14).
  */
 private func cancelledError(request: InboundRequest, logger: Logger): ResponseError {
     if (request.cancellation.isCancelled) {
         logger.debug("cancelled", [("reason", "the client cancelled it")])
         ResponseError(ErrorCode.REQUEST_CANCELLED, "the request was cancelled")
+    } else if (request.method == DocumentDiagnosticRequestSpec.METHOD) {
+        logger.debug("cancelled", [("reason", "the content was modified")])
+        ResponseError(ErrorCode.SERVER_CANCELLED, "the content was modified",
+            data: DiagnosticServerCancellationData(retriggerRequest: true).serialize())
     } else {
         logger.debug("cancelled", [("reason", "the content was modified")])
         ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")

@@ -74,16 +74,34 @@ let PARKED_PATH = VfsPath.file(getTempDirectory().join("a.cj"))
  * queries it.
  */
 func answerOfAQueryParkedUntil(interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
+    answerOfAQueryParkedUntil(HoverRequestSpec.METHOD, interrupt)
+}
+
+/**
+ * The same for a request of `method`, a hover or a diagnostic pull.
+ */
+func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
     let release = LinkedBlockingQueue<Bool>()
     let state = ServerState()
     state.setFileContents(PARKED_PATH, Rope("a"))
-    let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
-        ctx: ReadOnlyContext<HoverParams> =>
-            release.remove()
-            ctx.snapshot.sourceFile(PARKED_PATH).getOrThrow().text(ctx.snapshot.analysis)
-            Nullable<Hover>.Null
-    })
-    let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+    let parked = {snapshot: ServerSnapshot =>
+        release.remove()
+        snapshot.sourceFile(PARKED_PATH).getOrThrow().text(snapshot.analysis)
+    }
+    let server = initialized(lifecycleRouter()
+        .withState(state)
+        .route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                parked(ctx.snapshot)
+                Nullable<Hover>.Null
+        }
+        .route(DocumentDiagnosticRequestSpec()) {
+            ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
+                parked(ctx.snapshot)
+                DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
+                    RelatedFullDocumentDiagnosticReport(items: []))
+        })
+    let asked = Asked(method, params: hoverParams())
     server.onRequest(asked.request)
 
     interrupt(state, asked.request)
@@ -256,6 +274,30 @@ class ServerDispatchTest {
 
         // assert
         @Expect(ErrorCode.CONTENT_MODIFIED, answer.getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aPullTheFilesChangedUnderIsAnsweredServerCancelledToBeAskedAgain() {
+        // act
+        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+            state, _ => state.setFileContents(PARKED_PATH, Rope("b"))
+        }
+
+        // assert
+        let error = answer.getErrorOrThrow()
+        @Expect(ErrorCode.SERVER_CANCELLED, error.code)
+        @Expect(DiagnosticServerCancellationData.deserialize(error.data.getOrThrow()).retriggerRequest)
+    }
+
+    @TestCase
+    func aPullTheClientCancelledIsAnsweredRequestCancelled() {
+        // act
+        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+            _, request => request.cancellation.cancel()
+        }
+
+        // assert
+        @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
     }
 
     @TestCase
