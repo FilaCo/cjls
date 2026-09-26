@@ -33,7 +33,7 @@ jobs:
           package() { # artifact, target, archive format
             dir="cjls-$2"
             mkdir "$dir"
-            cp "artifacts/cjls-$1"/* "$dir/"
+            cp "artifacts/cjls-$1"/* README.md LICENSE-MIT LICENSE-APACHE "$dir/"
             chmod +x "$dir"/cjls*
             if [ "$3" = zip ]; then zip -qr "dist/$dir.zip" "$dir"; else tar -czf "dist/$dir.tar.gz" "$dir"; fi
           }
@@ -42,15 +42,23 @@ jobs:
           package Windows x86_64-pc-windows-gnu zip
           (cd dist && sha256sum -- * > SHA256SUMS)
           ls -l dist
-      # installs cog; there is nothing to check between the tag and itself
-      - uses: cocogitto/cocogitto-action@v4
-        with:
-          command: check
-          args: --from-latest-tag
+      # the tag's section of CHANGELOG.md, written by hand or by cog alike (D20)
+      - name: Notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          awk -v tag="$TAG" '
+            function heads(h) { return index($0, h) == 1 && substr($0, length(h) + 1, 1) ~ /^( |$)/ }
+            heads("## " tag) || index($0, "## [" tag "]") == 1 { on = 1; next }
+            on && /^(- - -|## )/ { exit }
+            on
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $TAG"
+            exit 1
+          fi
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: |
-          cog changelog --at "$TAG" > notes.md
-          gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --verify-tag
+        run: gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --verify-tag
