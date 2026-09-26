@@ -15,7 +15,7 @@ members = [
 ]
 build-members = []
 test-members = []
-compile-option = "-Woff unused -O2"
+compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = ""
 target-dir = ""
@@ -25,10 +25,16 @@ script-dir = ""
 
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]
-path-option = ["${CANGJIE_HOME}/third_party/stdx/darwin_aarch64_cjnative/static/stdx"]
+path-option = [
+    "${CANGJIE_HOME}/third_party/stdx/darwin_aarch64_cjnative/static/stdx",
+]
 
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
-path-option = ["${CANGJIE_HOME}/third_party/stdx/linux_x86_64_cjnative/static/stdx"]
+path-option = [
+    "${CANGJIE_HOME}/third_party/stdx/linux_x86_64_cjnative/static/stdx",
+]
 
 [target.x86_64-w64-mingw32.bin-dependencies]
-path-option = ["${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx"]
+path-option = [
+    "${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx",
+]
