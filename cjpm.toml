@@ -4,6 +4,7 @@ members = [
     "modules/cjls",
     "modules/cjsyntax",
     "modules/cjtoml",
+    "modules/fjson",
     "modules/ginkgo",
     "modules/index_map",
     "modules/jsonrpc",
