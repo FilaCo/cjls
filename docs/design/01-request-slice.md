@@ -14,6 +14,13 @@
 | spawn | offsets → `Range` via the snapshot's rope | `to_proto.cj` |
 | spawn | `encodeResult` → respond | `Server.answer` |
 
+The other read requests take the same path; only the `loupe` call and its translation differ.
+
+| Request | `loupe` | Answer |
+|---|---|---|
+| `textDocument/documentSymbol` | `fileStructure` | `DocumentSymbol[]` |
+| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q9) |
+
 ## Write notification (`textDocument/didChange`)
 
 | Thread | Step | Where |
@@ -23,21 +30,30 @@
 | read loop | `Vfs` → `takeChanges` → `AnalysisDatabase.applyChanges` | `ServerState.setFileContents` |
 | read loop | calca: cancel in-flight snapshot queries, wait for them, new revision | `Runtime.write` |
 
-## Server push (`textDocument/publishDiagnostics`) — not built (Q4)
+## Server push (`textDocument/publishDiagnostics`, D14)
 
-| Thread | Step |
-|---|---|
-| read loop | after an `Exclusive` handler changed the files: snapshot |
-| spawn | `loupe.diagnostics(db, fileId)` per open document → `client.notify` |
-| spawn | `Cancelled` → drop silently: the next change schedules its own |
+Only for a client that cannot pull (`initialize` found no `textDocument.diagnostic`, kept in `ServerState`).
+
+| Thread | Step | Where |
+|---|---|---|
+| read loop | an `Exclusive` handler returned, and `setFileContents` took changes | `Server.onNotification` |
+| read loop | snapshot; the open documents, their `version` and a new generation each | `ServerState` |
+| spawn | per open document: `diagnostics(snap.analysis, fileId)` | `loupe` |
+| spawn | → `PublishDiagnosticsParams`, `version` only with `versionSupport` | `to_proto.cj` |
+| spawn | generation still the document's latest → `client.notify(PublishDiagnosticsNotificationSpec(), …)`; else dropped | `Server` |
+| spawn | `Cancelled` → dropped silently: the write that cancelled it scheduled its own | `Server` |
+| spawn | anything else → `WARN`, nothing sent | `Server` |
+
+`didClose` publishes an empty list for the document at once, on the read loop, so its errors do not stay in the editor.
 
 ## Cancellation (D8)
 
 | Cause | Mechanism | Answer |
 |---|---|---|
-| a file changed | `Runtime.write` cancels in-flight queries; a stale snapshot is `Cancelled` | `ContentModified` |
+| a file changed | `Runtime.write` cancels in-flight queries; a stale snapshot is `Cancelled` | `ContentModified`; `ServerCancelled` with `retriggerRequest: true` for `textDocument/diagnostic` (D14) |
 | `$/cancelRequest` | token → snapshot's `cancelledBy` → next calca call throws `Cancelled` | `RequestCancelled` |
 | connection closed | every token cancelled | dropped |
+| a push overtaken by a write | its snapshot is `Cancelled`, or its generation is no longer the latest | nothing sent |
 
 ## Rules
 
@@ -46,6 +62,9 @@
 | S1 | A `Context` handler never runs a query: it only changes inputs, and it is short. |
 | S2 | A `readonly` handler reads everything from its snapshot: `FileId`, text for positions (`file.text(snap.analysis)`, never the `Vfs`), encoding. |
 | S3 | Handlers only translate; logic goes to `loupe`. Conversion lives in `from_proto.cj` / `to_proto.cj`. |
-| S4 | Unknown document → empty answer (`null`, `[]`); `RpcException` only for bad params. |
+| S4 | Unknown document → empty answer (`null`, `[]`, an empty report); `RpcException` only for bad params. |
 | S5 | Never catch `Cancelled` in a handler; the server maps it (see table). |
 | S6 | Handlers are not `@CalcaTracked` (D6). |
+| S7 | Work after a write is scheduled by the server, not by a handler: it takes the snapshot on the read loop, after the `Context` handler returned, and runs the queries on a `spawn` (D14). |
+| S8 | One source of diagnostics per client: a client that pulls is never pushed to (D14). |
+| S9 | A push never overwrites a newer one: a publish whose generation is not its document's latest is dropped before `notify`. |

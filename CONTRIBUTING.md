@@ -36,6 +36,6 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
 5. **Record what you decided** in `docs/` if it is a new rule or decision ([docs/README.md](docs/README.md)).
 
-6. **Test the function directly**, next to it in `<feature>_test.cj`: call it with the arguments it takes (`ServerState().snapshot()`, `CancellationToken()`, `NoopLogger()`, …). Only behaviour of the server itself — lifecycle, dispatch, threading — is tested through `Server`, in `cjls.server`.
+6. **Test the function directly**, next to it in `<feature>_test.cj`: call it with the arguments it takes (`ServerState().snapshot()`, `CancellationToken()`, `NoopLogger()`, …). Only behaviour of the server itself — lifecycle, dispatch, threading — is tested through `Server`, in `cjls.server`. An end-to-end test in `tests/e2e` is for what only the built binary shows — one or two per feature, not a case each ([C7](docs/design/03-conventions.md)).
 
 Don't await a `Client.request` from a `@LspHandler` without `readonly`: its answer can only arrive through the read loop that the handler is holding.
