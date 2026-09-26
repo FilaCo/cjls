@@ -151,16 +151,17 @@ public class FjReader {
 
     @Frozen
     public func keyIs(name: String): Bool {
-        if (name.size != keyLength) {
-            return false
-        }
+        // small enough to be inlined into a decoder, which asks for every candidate: most differ in length
+        name.size == keyLength && keyBytesAre(name)
+    }
+
+    private func keyBytesAre(name: String): Bool {
         let source = if (keyInScratch) { scratch } else { bytes }
-        for (i in 0..keyLength) {
-            if (source[keyStart + i] != name[i]) {
-                return false
-            }
+        var i = 0
+        while (i < keyLength && source[keyStart + i] == name[i]) {
+            i++
         }
-        true
+        i == keyLength
     }
 
     @Frozen
