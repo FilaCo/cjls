@@ -91,3 +91,30 @@ jobs:
       - name: Neovim smoke test
         run: nvim --clean --headless -u editors/nvim/test/smoke.lua
         shell: bash
+
+  # a report per commit, kept as an artifact; shared runners are too noisy for a threshold (D16)
+  perf:
+    name: Performance (ubuntu-latest)
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      CJLS_BIN: ${{ github.workspace }}/bin/cjls
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: cjls-Linux
+          path: bin
+      - run: chmod +x "$CJLS_BIN"
+      - uses: astral-sh/setup-uv@v6
+      - name: cjls-perf
+        run: |
+          uv run --project tests/perf --locked cjls-perf run --server cjls -o perf.json
+          uv run --project tests/perf --locked cjls-perf compare perf.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-${{ github.sha }}
+          path: |
+            perf.json
+            perf-logs

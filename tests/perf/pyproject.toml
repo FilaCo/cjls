@@ -1,0 +1,17 @@
+[project]
+name = "cjls-perf"
+version = "0.1.0"
+description = "Speed and memory of Cangjie language servers, driven over stdio as an editor drives them"
+requires-python = ">=3.11"
+dependencies = [
+    "lsprotocol>=2025.0.0",
+    "psutil>=7.2.2",
+    "pygls>=2.1.1",
+]
+
+[project.scripts]
+cjls-perf = "cjls_perf.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
