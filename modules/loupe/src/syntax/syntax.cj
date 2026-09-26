@@ -12,7 +12,7 @@ import loupe.db.*
  *
  * Only the trees of the 128 files parsed last are kept from one revision to the next: a tree is the
  * largest thing the analysis holds, and parsing is cheap. What read an evicted tree is verified
- * without parsing it again. So a query result never holds a node, only pointers to one (A11), or
+ * without parsing it again. So a query result never holds a node, only pointers to one (A13), or
  * it keeps the whole tree alive.
  */
 @CalcaTracked[lru: 128]
