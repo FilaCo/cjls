@@ -1,10 +1,9 @@
 package loupe.vfs
 
 import std.collection.*
-import std.collection.concurrent.ConcurrentHashMap
 import std.deriving.*
-import std.sync.*
 import index_map.IndexMap
+import index_map.concurrent.ConcurrentIndexSet
 import rope.Rope
 
 /**
@@ -27,46 +26,30 @@ public struct FileId <: ToString {
  * id takes a lock (C9).
  */
 public class PathInterner {
-    private let ids = ConcurrentHashMap<VfsPath, FileId>()
-    private let paths = ConcurrentHashMap<Int64, VfsPath>()
-    // the next id to give; read and written only under `lock`
-    private let lock = Mutex()
-    private var count = 0
+    private let paths = ConcurrentIndexSet<VfsPath>()
 
     /**
      * The id `path` has, or `None` if it was never seen.
      */
     public func lookup(path: VfsPath): ?FileId {
-        ids.get(path)
+        match (paths.indexOf(path)) {
+            case Some(index) => FileId(index)
+            case None => None
+        }
     }
 
     /**
      * The id `path` has, given it if it had none.
      */
     public func intern(path: VfsPath): FileId {
-        match (ids.get(path)) {
-            case Some(id) => id
-            // another thread may have given it one meanwhile
-            case None => synchronized(lock) {
-                ids.get(path) ?? give(path)
-            }
-        }
-    }
-
-    private func give(path: VfsPath): FileId {
-        let id = FileId(count)
-        // the path first, so whoever has the id finds it
-        paths.add(id.index, path)
-        ids.add(path, id)
-        count++
-        id
+        FileId(paths.addWithIndex(path)[0])
     }
 
     /**
      * @throws IndexOutOfBoundsException - if the id was not given here
      */
     public func path(id: FileId): VfsPath {
-        paths.get(id.index).getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
+        paths.getAt(id.index).getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
     }
 }
 
