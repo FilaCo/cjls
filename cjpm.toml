@@ -7,7 +7,6 @@ members = [
     "modules/ginkgo",
     "modules/index_map",
     "modules/jsonrpc",
-    "modules/linked_list",
     "modules/lsp_codegen",
     "modules/loupe",
     "modules/rope",

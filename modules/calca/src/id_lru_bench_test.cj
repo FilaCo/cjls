@@ -5,129 +5,6 @@ import std.random.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import calca.macros.*
-import linked_list.*
-
-const NO_ID: Int64 = -1
-
-/**
- * `prev` of an id that is not in the list.
- */
-const ABSENT: Int64 = -2
-
-/**
- * `IdLru` as it was before `linked_list` (D17): the same list, written out inside calca. The
- * baseline `IdLru` on `IndexLinkedList` is measured against, across the package boundary.
- */
-class ArrayIdLru <: Iterable<Id> {
-    private let prev = ArrayList<Int64>()
-    private let next = ArrayList<Int64>()
-
-    /**
-     * The least recently used, `NO_ID` when empty.
-     */
-    private var oldest = NO_ID
-
-    /**
-     * The most recently used, `NO_ID` when empty.
-     */
-    private var newest = NO_ID
-
-    private var size_ = 0
-
-    /**
-     * @throws IllegalArgumentException - if `capacity` is negative
-     */
-    ArrayIdLru(let capacity: Int64) {
-        if (capacity < 0) {
-            throw IllegalArgumentException("a capacity is not negative: ${capacity}")
-        }
-    }
-
-    prop size: Int64 {
-        get() {
-            size_
-        }
-    }
-
-    func contains(id: Id): Bool {
-        id.index < prev.size && prev[id.index] != ABSENT
-    }
-
-    /**
-     * Makes `id` the most recently used, adding it if it is not there. Evicts nothing.
-     */
-    func touch(id: Id): Unit {
-        let i = id.index
-        while (prev.size <= i) {
-            prev.add(ABSENT)
-            next.add(NO_ID)
-        }
-        if (prev[i] == ABSENT) {
-            size_++
-        } else if (i == newest) {
-            return
-        } else {
-            unlink(i)
-        }
-        prev[i] = newest
-        next[i] = NO_ID
-        if (newest == NO_ID) {
-            oldest = i
-        } else {
-            next[newest] = i
-        }
-        newest = i
-    }
-
-    /**
-     * Evicts the least recently used ids while there are more than `capacity`, handing each one to
-     * `onEvict`, oldest first.
-     */
-    func trim(onEvict: (Id) -> Unit): Unit {
-        while (size_ > capacity) {
-            let i = oldest
-            unlink(i)
-            prev[i] = ABSENT
-            size_--
-            onEvict(Id(i))
-        }
-    }
-
-    /**
-     * The ids, from the least recently used to the most.
-     */
-    public func iterator(): Iterator<Id> {
-        ArrayIdLruIterator(next, oldest)
-    }
-
-    private func unlink(i: Int64): Unit {
-        let before = prev[i]
-        let after = next[i]
-        if (before == NO_ID) {
-            oldest = after
-        } else {
-            next[before] = after
-        }
-        if (after == NO_ID) {
-            newest = before
-        } else {
-            prev[after] = before
-        }
-    }
-}
-
-class ArrayIdLruIterator <: Iterator<Id> {
-    ArrayIdLruIterator(let next_: ArrayList<Int64>, var index: Int64) {}
-
-    public func next(): ?Id {
-        if (index == NO_ID) {
-            return None
-        }
-        let id = Id(index)
-        index = next_[index]
-        id
-    }
-}
 
 /**
  * The baseline `IdLru` replaced (D17): a hash set in the order of last use, the list kept in arrays
@@ -214,6 +91,144 @@ class HashLru<T> where T <: Hashable & Equatable<T> {
 }
 
 /**
+ * A linked list of our own, what `std.collection.LinkedList` would be if it could move a node: values
+ * in the slots of an arena, `prev`/`next` arrays over the slots, a slot freed by `remove` reused, and a
+ * handle carrying its slot's generation so that it never reaches a value added in its place. A move
+ * allocates nothing.
+ */
+class ArenaList<T> {
+    private let values = ArrayList<?T>()
+    private let generations = ArrayList<Int64>()
+    private let prev = ArrayList<Int64>()
+    private let next = ArrayList<Int64>()
+    private let free = ArrayList<Int64>()
+    private var front = NO_ID
+    private var back = NO_ID
+    private var size_ = 0
+
+    prop size: Int64 {
+        get() {
+            size_
+        }
+    }
+
+    func pushBack(value: T): (Int64, Int64) {
+        let slot = allocate(value)
+        link(slot)
+        size_++
+        (slot, generations[slot])
+    }
+
+    func moveToBack(handle: (Int64, Int64)): Unit {
+        let slot = check(handle)
+        if (slot != back) {
+            unlink(slot)
+            link(slot)
+        }
+    }
+
+    func remove(handle: (Int64, Int64)): T {
+        release(check(handle))
+    }
+
+    func popFront(): ?T {
+        if (front == NO_ID) {
+            None
+        } else {
+            release(front)
+        }
+    }
+
+    private func check(handle: (Int64, Int64)): Int64 {
+        let (slot, generation) = handle
+        if (slot < 0 || slot >= values.size || generations[slot] != generation || values[slot].isNone()) {
+            throw NoneValueException("${slot}#${generation} is not in the list")
+        }
+        slot
+    }
+
+    private func allocate(value: T): Int64 {
+        if (!free.isEmpty()) {
+            // read before removing: -O2 miscompiles a value taken from `remove`'s result
+            let slot = free[free.size - 1]
+            free.remove(at: free.size - 1)
+            values[slot] = value
+            return slot
+        }
+        values.add(value)
+        generations.add(0)
+        prev.add(NO_ID)
+        next.add(NO_ID)
+        values.size - 1
+    }
+
+    private func release(slot: Int64): T {
+        let value = values[slot].getOrThrow()
+        unlink(slot)
+        values[slot] = None
+        generations[slot]++
+        free.add(slot)
+        size_--
+        value
+    }
+
+    private func link(slot: Int64): Unit {
+        prev[slot] = back
+        next[slot] = NO_ID
+        if (back == NO_ID) {
+            front = slot
+        } else {
+            next[back] = slot
+        }
+        back = slot
+    }
+
+    private func unlink(slot: Int64): Unit {
+        let before = prev[slot]
+        let after = next[slot]
+        if (before == NO_ID) {
+            front = after
+        } else {
+            next[before] = after
+        }
+        if (after == NO_ID) {
+            back = before
+        } else {
+            prev[after] = before
+        }
+    }
+}
+
+/**
+ * `ArenaList` in the order of last use, its handles found by `Id.index`.
+ */
+class ArenaListLru {
+    private let list = ArenaList<Id>()
+    private let handles = ArrayList<?(Int64, Int64)>()
+
+    ArenaListLru(let capacity: Int64) {}
+
+    func touch(id: Id): Unit {
+        let i = id.index
+        while (handles.size <= i) {
+            handles.add(None)
+        }
+        match (handles[i]) {
+            case Some(handle) => list.moveToBack(handle)
+            case None => handles[i] = list.pushBack(id)
+        }
+    }
+
+    func trim(onEvict: (Id) -> Unit): Unit {
+        while (list.size > capacity) {
+            let id = list.popFront().getOrThrow()
+            handles[id.index] = None
+            onEvict(id)
+        }
+    }
+}
+
+/**
  * `std.collection.LinkedList` in the order of last use, its nodes found by `Id.index`. The list
  * cannot move a node, so a touch removes it and adds a new one at the end.
  */
@@ -269,36 +284,6 @@ class HashLinkedListLru<T> where T <: Hashable & Equatable<T> {
 }
 
 /**
- * `linked_list.ArenaList` in the order of last use, its handles found by `Id.index`: what
- * `std.collection.LinkedList` would be if it could move a node.
- */
-class ArenaListLru {
-    private let list = ArenaList<Id>()
-    private let handles = ArrayList<?ArenaHandle>()
-
-    ArenaListLru(let capacity: Int64) {}
-
-    func touch(id: Id): Unit {
-        let i = id.index
-        while (handles.size <= i) {
-            handles.add(None)
-        }
-        match (handles[i]) {
-            case Some(handle) => list.moveToBack(handle)
-            case None => handles[i] = list.pushBack(id)
-        }
-    }
-
-    func trim(onEvict: (Id) -> Unit): Unit {
-        while (list.size > capacity) {
-            let id = list.popFront().getOrThrow()
-            handles[id.index] = None
-            onEvict(id)
-        }
-    }
-}
-
-/**
  * The keys fetched in one revision: 4096 fetches over 256 keys, half of them among the first 64.
  */
 let BENCH_IDS: Array<Id> = {
@@ -316,9 +301,8 @@ let BENCH_IDS: Array<Id> = {
 let BENCH_CAPACITY = 128
 
 /**
- * A revision's touches and the trim ending it: on `IdLru` (an `IndexLinkedList`), on the same list
- * written out inside calca, on the hash set it replaced, on `ArenaList`, and on
- * `std.collection.LinkedList`.
+ * A revision's touches and the trim ending it, on `IdLru`, on the hash set it replaced, on a linked
+ * list of our own (`ArenaList`), and on `std.collection.LinkedList`.
  * `cjpm bench '--filter=IdLruBench.*'`.
  */
 @Test
@@ -335,8 +319,8 @@ class IdLruBench {
     }
 
     @Bench
-    func arrayIdLru(): Int64 {
-        let lru = ArrayIdLru(BENCH_CAPACITY)
+    func hashLru(): Int64 {
+        let lru = HashLru<Id>(BENCH_CAPACITY)
         for (id in BENCH_IDS) {
             lru.touch(id)
         }
@@ -348,17 +332,6 @@ class IdLruBench {
     @Bench
     func arenaListLru(): Int64 {
         let lru = ArenaListLru(BENCH_CAPACITY)
-        for (id in BENCH_IDS) {
-            lru.touch(id)
-        }
-        let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
-        evicted.size
-    }
-
-    @Bench
-    func hashLru(): Int64 {
-        let lru = HashLru<Id>(BENCH_CAPACITY)
         for (id in BENCH_IDS) {
             lru.touch(id)
         }

@@ -17,7 +17,6 @@
 cjls ──> jsonrpc ──> stdxx
   │
   └────> loupe ──> calca ──> index_map
-           │         └─────> linked_list
            ├─────> cjsyntax ──> ginkgo
            └─────> rope
 ```
