@@ -85,6 +85,11 @@ jobs:
         with:
           neovim: true
           version: stable
+      # the plugin's own smoke test, against the binary built here (D16)
+      - uses: actions/checkout@v4
+        with:
+          repository: ide4cj/cangjie.nvim
+          path: cangjie.nvim
       - name: Neovim smoke test
-        run: nvim --clean --headless -u editors/nvim/test/smoke.lua
+        run: nvim --clean --headless -u cangjie.nvim/test/smoke.lua
         shell: bash
