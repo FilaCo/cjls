@@ -19,6 +19,7 @@ public func router(): Router {
         .route(lsp.DidCloseTextDocumentNotificationSpec(), handleDidClose)
         .route(lsp.DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(lsp.DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
+        .publishDiagnostics(documentDiagnostics)
 }
 
 /**

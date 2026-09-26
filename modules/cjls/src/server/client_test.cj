@@ -23,6 +23,13 @@ class WrittenTransport <: JsonRpcTransport {
         written.remove().getNotificationBodyOrThrow()
     }
 
+    /**
+     * Whether nothing was written that was not taken.
+     */
+    func isEmpty(): Bool {
+        written.size == 0
+    }
+
     public func isClosed(): Bool {
         closed.load()
     }

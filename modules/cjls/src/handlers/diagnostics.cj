@@ -1,6 +1,7 @@
 package cjls.handlers
 
 import loupe.*
+import loupe.vfs.VfsPath
 import cjls.lsp_types as lsp
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -13,14 +14,15 @@ import cjls.macros.LspHandler
 @LspHandler[readonly]
 func handleDocumentDiagnostic(snap: ServerSnapshot, params: lsp.DocumentDiagnosticParams): lsp.DocumentDiagnosticReport {
     lsp.DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
-        lsp.RelatedFullDocumentDiagnosticReport(items: documentDiagnostics(snap, params.textDocument.uri)))
+        lsp.RelatedFullDocumentDiagnosticReport(items: documentDiagnostics(snap, VfsPath.fromUri(params.textDocument.uri))))
 }
 
 /**
- * The diagnostics of the document at `uri`, as the snapshot has it.
+ * The diagnostics of the document at `path`, as the snapshot has it: what a pull answers, and what
+ * the server pushes to a client that cannot pull.
  */
-func documentDiagnostics(snap: ServerSnapshot, uri: lsp.DocumentUri): Array<lsp.Diagnostic> {
-    let file = fileOf(snap, uri) ?? return []
+func documentDiagnostics(snap: ServerSnapshot, path: VfsPath): Array<lsp.Diagnostic> {
+    let file = snap.sourceFile(path) ?? return []
     let text = file.text(snap.analysis)
     diagnostics(snap.analysis, file.fileId(snap.analysis)).map {it => diagnostic(text, it, snap.encoding)}
 }

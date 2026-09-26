@@ -80,6 +80,6 @@ async def test_a_client_that_cannot_pull_is_pushed_the_errors_and_their_clearing
     assert opened.uri == uri
     assert_the_broken_body(opened.diagnostics)
     assert closed.uri == uri
-    assert closed.diagnostics == []
+    assert list(closed.diagnostics) == []
 
     await server.shutdown_session()
