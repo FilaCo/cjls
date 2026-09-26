@@ -175,6 +175,16 @@ public class Storage {
         stack.last?.read(key, durability, changedAt)
     }
 
+    /**
+     * The lowest durability the query running has read so far, `None` outside any query. It only
+     * falls as the query goes on.
+     */
+    prop queryDurability: ?Durability {
+        get() {
+            stack.last?.durability
+        }
+    }
+
     private func describe(key: DatabaseKey): String {
         runtime.ingredientAt(key.ingredient).describe(key.id)
     }

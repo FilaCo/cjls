@@ -19,14 +19,14 @@
 | # | Rule |
 |---|---|
 | A1 | Every query takes `AnalysisDatabase` itself; no database interface (D4). |
-| A2 | A query is keyed by an entity (`SourceFile`, interned ids), never by a position: only memo values can be evicted (`lru`, D17); keys and interned values live as long as the database (D6, Q3). |
+| A2 | A query is keyed by an entity (`SourceFile`, interned ids), never by a position (D6): memo values are evicted (`lru`, D17), and interned values unused for a while are collected with the memos keyed by them (D18), but other keys live as long as the database. |
 | A3 | Position-dependent API (`hover(db, position)`) is a plain function over queries. |
 | A4 | Inputs are created and set on the root handle only, outside queries (`IllegalStateException` otherwise). |
 | A5 | A deleted file is an empty text; its `FileId` and `SourceFile` stay. |
 | A6 | Offsets are UTF-8 bytes on character boundaries, as `TextRange` and `Rope`. |
 | A7 | Lines break at `\n` only, as the compiler's lexer; a line ends before the `\r` of `\r\n` (D1). |
 | A8 | `loupe` knows no LSP: no URIs, `Position`, encodings or LSP types (D5). |
-| A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`. |
+| A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`, unless its values are collected: then a `Slab` of generations (calca's interned values and memo keys, D18). `PathInterner` stays an `IndexSet`: `FileId`s are forever (A5). |
 | A10 | A value a query returns is `Equatable`, so it backdates; `[noEq]` only with a reason. |
 | A11 | Diagnostics are part of the results of the queries that find them (`Parse.errors`), never accumulated on the side (D14). |
 | A12 | A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end of a file); widening it for a client is translation. |

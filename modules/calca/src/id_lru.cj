@@ -60,6 +60,19 @@ class IdLru <: Iterable<Id> {
     }
 
     /**
+     * The least recently used, `None` when empty.
+     */
+    prop oldestId: ?Id {
+        get() {
+            if (oldest == NO_ID) {
+                None
+            } else {
+                Id(oldest)
+            }
+        }
+    }
+
+    /**
      * Makes `id` the most recently used, adding it if it is not there. Evicts nothing.
      */
     func touch(id: Id): Unit {
@@ -83,6 +96,19 @@ class IdLru <: Iterable<Id> {
             next[newest] = i
         }
         newest = i
+    }
+
+    /**
+     * Takes `id` out of the list. Returns whether it was there.
+     */
+    func remove(id: Id): Bool {
+        if (!contains(id)) {
+            return false
+        }
+        unlink(id.index)
+        prev[id.index] = ABSENT
+        size_--
+        true
     }
 
     /**

@@ -98,13 +98,13 @@ private func isPresent<T>(read: () -> T): Bool {
  * A type that is its `calcaId`, in the database `ingredient` keeps: a constructor of the database
  * and `params` setting it to what `create` gives, the `accessors`, then the identity members,
  * described by that ingredient, and the members the user wrote, `kept`. Its supertypes are the
- * identity ones, then those the user wrote.
+ * identity ones, `identity` after them (`& InternedValue`), then those the user wrote.
  */
 func identityStruct(decl: StructDecl, ingredient: Tokens, params: Tokens, create: Tokens, accessors: Tokens,
-    kept: Tokens): Tokens {
+    kept: Tokens, identity!: Tokens = quote()): Tokens {
     let visibility = modifiersOf(decl.modifiers)
     let name = decl.identifier
-    var superTypes = quote(Hashable & Equatable<$name> & ToString)
+    var superTypes = quote(Hashable & Equatable<$name> & ToString $identity)
     for (superType in decl.superTypes) {
         superTypes += quote(& $(superType.toTokens()))
     }

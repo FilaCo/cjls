@@ -2,7 +2,6 @@ package calca
 
 import std.collection.*
 import std.sync.*
-import index_map.*
 
 /**
  * A `@CalcaTracked` function, process-wide: where its memos are in any database. Held by the static
@@ -37,7 +36,7 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
         let storage = db.storage
         storage.read {
             let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute)}
-            let id = memos.intern(key)
+            let id = memos.intern(storage.runtime, key)
             let (value, memo) = memos.fetchValue(db, storage, id, key)
             storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
             value
@@ -74,12 +73,30 @@ class Memo<V> {
 }
 
 /**
- * The memos of one tracked function in one database, one per key it was called with. A key's `Id` is
- * its index, given the first time it is seen, so what depends on it can name it.
+ * The key of a memo table and the memo at it, `None` until it is first computed.
  */
-class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equatable<K> {
+class MemoEntry<K, V> {
+    MemoEntry(let key: K, var memo: ?Memo<V>) {}
+}
+
+/**
+ * The memos of one tracked function in one database, one per key it was called with. A key's `Id`
+ * is its slot in a `Slab`, given the first time it is seen, so what depends on it can name it.
+ *
+ * Keyed by an `@CalcaInterned` type, the table drops the memo of a value once the value is
+ * collected, and its slot is reused under the next generation: a memo that read the dropped one
+ * finds its `Id` stale, and counts it as changed.
+ */
+class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K <: Hashable & Equatable<K> {
     private let lock = Mutex()
-    private let entries = IndexMap<K, ?Memo<V>>()
+    let entries = Slab<MemoEntry<K, V>>()
+    private let ids = HashMap<K, Id>()
+
+    /**
+     * When the keys are interned values, the key's `Id` for the `Id` of the value it is. `None` when
+     * they are not; unknown until the first key.
+     */
+    private var byInterned: ?(?HashMap<Id, Id>) = None
 
     /**
      * When the function keeps only some values, the keys whose memo may hold one, in the order they
@@ -94,10 +111,63 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         used = function.lru.map {capacity => IdLru(capacity)}
     }
 
-    func intern(key: K): Id {
+    /**
+     * The `Id` of `key`, a new one the first time it is seen.
+     */
+    func intern(runtime: Runtime, key: K): Id {
         synchronized(lock) {
-            // not `addWithIndex` alone: it would replace the memo of a key already there
-            Id(entries.indexOf(key) ?? entries.addWithIndex(key, None)[0])
+            match (ids.get(key)) {
+                case Some(id) => id
+                case None =>
+                    let id = entries.insert(MemoEntry<K, V>(key, None))
+                    ids.add(key, id)
+                    if (let Some(map) <- internedKeys(runtime, key)) {
+                        map.add((key as InternedValue).getOrThrow().calcaKey().id, id)
+                    }
+                    id
+            }
+        }
+    }
+
+    /**
+     * Where the key's `Id` goes by the value's, if the keys are interned values. The first key
+     * decides, and registers the table with theirs, to be told what is collected: a macro sees only
+     * tokens, so which type a key is is found out here. Called with the lock held.
+     */
+    private func internedKeys(runtime: Runtime, key: K): ?HashMap<Id, Id> {
+        if (let Some(known) <- byInterned) {
+            return known
+        }
+        let found: ?HashMap<Id, Id> = match (key as InternedValue) {
+            case Some(value) =>
+                let ingredient = value.calcaKey().ingredient
+                let table = (runtime.ingredientAt(ingredient) as InternedKeys).getOrThrow {
+                    => IllegalStateException("${function.name} is keyed by ${ingredient}, which interns nothing")
+                }
+                table.watch(this)
+                HashMap<Id, Id>()
+            case None => None
+        }
+        byInterned = found
+        found
+    }
+
+    /**
+     * Drops the memos keyed by the values `collected`, and their keys' `Id`s with them.
+     */
+    public func dropKeys(collected: Array<Id>): Unit {
+        synchronized(lock) {
+            let map = match (byInterned) {
+                case Some(Some(map)) => map
+                case _ => return
+            }
+            for (value in collected) {
+                let id = map.remove(value) ?? continue
+                if (let Some(entry) <- entries.remove(id)) {
+                    ids.remove(entry.key)
+                }
+                used?.remove(Id(id.index))
+            }
         }
     }
 
@@ -111,7 +181,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         try {
             let old = synchronized(lock) {
                 used?.touch(id)
-                entry(id)[1]
+                entry(id).memo
             }
             match (old) {
                 case Some(memo) => match (memo.value) {
@@ -168,7 +238,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         }
         let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
         synchronized(lock) {
-            entries.add(key, memo)
+            entry(databaseKey.id).memo = memo
             used?.touch(databaseKey.id)
         }
         (value, memo)
@@ -185,13 +255,17 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
      * Verifying the memo at `id` for another one's sake, which is not a use of it. A memo with a
      * value that is not current is computed again, so backdating can tell whether it changed. An
      * evicted one never is: if nothing it read changed, neither did it; else it may have, and
-     * whoever fetches it computes it.
+     * whoever fetches it computes it. A memo dropped with its key is changed.
      */
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
         let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
         let storage = db.storage
-        let (key, old) = synchronized(lock) {
-            entry(id)
+        let found = synchronized(lock) {
+            entries.get(id)
+        }
+        let (key, old) = match (found) {
+            case Some(entry) => (entry.key, entry.memo)
+            case None => return true
         }
         let databaseKey = DatabaseKey(function.index, id)
         storage.enter(databaseKey)
@@ -213,9 +287,8 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
         synchronized(lock) {
             used?.trim {
                 id =>
-                let (key, memo) = entry(id)
-                if (let Some(kept) <- memo) {
-                    entries.add(key, kept.evicted())
+                if (let Some((_, entry)) <- entries.getAt(id.index)) {
+                    entry.memo = entry.memo?.evicted()
                 }
             }
         }
@@ -228,7 +301,7 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
     /**
      * Called with the lock held.
      */
-    private func entry(id: Id): (K, ?Memo<V>) {
-        entries.getAt(id.index).getOrThrow {=> IllegalStateException("${function.name} has no key ${id}")}
+    private func entry(id: Id): MemoEntry<K, V> {
+        entries.get(id).getOrThrow {=> IllegalStateException("${function.name} has no key ${id}")}
     }
 }
