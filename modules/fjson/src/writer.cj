@@ -90,6 +90,17 @@ public class FjWriter {
         needComma = false
     }
 
+    /** A key encoded beforehand, copied in one piece. */
+    @Frozen
+    public func name(key: FjName): Unit {
+        separate()
+        let source = key.encoded
+        reserve(source.size)
+        source.copyTo(buf, 0, length, source.size)
+        length += source.size
+        needComma = false
+    }
+
     @Frozen
     public func string(value: String): Unit {
         separate()
@@ -224,5 +235,19 @@ public class FjWriter {
         buf[length + 4] = HEX[Int64(b >> 4)]
         buf[length + 5] = HEX[Int64(b & 0x0F)]
         length += 6
+    }
+}
+
+/**
+ * A key encoded once — quotes, escapes and the colon — for `FjWriter.name` to copy in one piece:
+ * what a generated encoder keeps in a static per field, as the keys never change.
+ */
+public struct FjName {
+    let encoded: Array<Byte>
+
+    public init(key: String) {
+        let w = FjWriter(capacity: key.size + 3)
+        w.name(key)
+        encoded = w.bytes()
     }
 }

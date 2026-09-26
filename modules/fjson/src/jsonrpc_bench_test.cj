@@ -193,40 +193,54 @@ func rpcSymbolParams(_: String, r: FjReader): String {
     rpcRequired(uri, "uri")
 }
 
+let NAME_character = FjName("character")
+let NAME_children = FjName("children")
+let NAME_detail = FjName("detail")
+let NAME_end = FjName("end")
+let NAME_id = FjName("id")
+let NAME_jsonrpc = FjName("jsonrpc")
+let NAME_kind = FjName("kind")
+let NAME_line = FjName("line")
+let NAME_name = FjName("name")
+let NAME_range = FjName("range")
+let NAME_result = FjName("result")
+let NAME_selectionRange = FjName("selectionRange")
+let NAME_start = FjName("start")
+
 func rpcWritePosition(w: FjWriter, position: RpcPosition): Unit {
     w.beginObject()
-    w.name("line")
+    w.name(NAME_line)
     w.uint32(position.line)
-    w.name("character")
+    w.name(NAME_character)
     w.uint32(position.character)
     w.endObject()
 }
 
 func rpcWriteRange(w: FjWriter, range: RpcRange): Unit {
     w.beginObject()
-    w.name("start")
+    w.name(NAME_start)
     rpcWritePosition(w, range.start)
-    w.name("end")
+    w.name(NAME_end)
     rpcWritePosition(w, range.end)
     w.endObject()
 }
 
 func rpcWriteSymbol(w: FjWriter, symbol: RpcSymbol): Unit {
     w.beginObject()
-    w.name("name")
+    w.name(NAME_name)
     w.string(symbol.name)
     if (let Some(detail) <- symbol.detail) {
-        w.name("detail")
+        w.name(NAME_detail)
         w.string(detail)
     }
-    w.name("kind")
+    w.name(NAME_kind)
     w.int64(symbol.kind)
-    w.name("range")
+    w.name(NAME_range)
     rpcWriteRange(w, symbol.range)
-    w.name("selectionRange")
+    w.name(NAME_selectionRange)
     rpcWriteRange(w, symbol.selectionRange)
     if (let Some(children) <- symbol.children) {
-        w.name("children")
+        w.name(NAME_children)
         w.beginArray()
         for (child in children) {
             rpcWriteSymbol(w, child)
@@ -238,11 +252,11 @@ func rpcWriteSymbol(w: FjWriter, symbol: RpcSymbol): Unit {
 
 func rpcWriteResponse(w: FjWriter, id: Int64, symbols: Array<RpcSymbol>): Array<Byte> {
     w.beginObject()
-    w.name("jsonrpc")
+    w.name(NAME_jsonrpc)
     w.string("2.0")
-    w.name("id")
+    w.name(NAME_id)
     w.int64(id)
-    w.name("result")
+    w.name(NAME_result)
     w.beginArray()
     for (symbol in symbols) {
         rpcWriteSymbol(w, symbol)
