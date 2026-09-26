@@ -5,7 +5,8 @@
 --
 -- Run from the repo root. The binary defaults to target/release/bin/cjls; CJLS_BIN overrides it.
 
-local repo = vim.fn.getcwd()
+-- `/`-separated, as Neovim reports a root: on Windows the working directory comes with `\`
+local repo = vim.fs.normalize(vim.fn.getcwd())
 vim.opt.runtimepath:prepend(repo .. '/editors/nvim')
 
 local TIMEOUT_MS = 5000

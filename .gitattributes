@@ -1,0 +1,3 @@
+# LF everywhere, Windows checkouts included: generated files are compared byte for byte with
+# what their generators make, and a test's expected text with what the code builds
+* text=auto eol=lf

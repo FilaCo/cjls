@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  commits:
+    name: Conventional commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: cocogitto/cocogitto-action@v4
+        with:
+          command: check
+          args: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+      # a squash merge makes the title the commit on master, and `cog bump` reads that
+      - name: Check the PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: cog verify "$TITLE"
+
+  build:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-cangjie
+      - run: cjpm build
+        shell: bash
+      - run: cjpm test
+        shell: bash
+      # a third smaller binary, and what e2e then tests; only here, as it makes `cjpm test` 3x slower
+      - name: Link with LTO
+        if: runner.os == 'Linux'
+        run: |
+          printf '\n[target.x86_64-unknown-linux-gnu]\ncompile-option = "--lto=full"\n' >> cjpm.toml
+          cjpm clean
+          cjpm build
+          ls -l target/release/bin/cjls
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cjls-${{ runner.os }}
+          path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+
+  e2e:
+    name: End-to-end (${{ matrix.os }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # no SDK here: the binary has to run the way an editor starts it
+    env:
+      CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: cjls-${{ runner.os }}
+          path: bin
+      - run: chmod +x "$CJLS_BIN"
+        shell: bash
+      - uses: astral-sh/setup-uv@v6
+      - name: pytest-lsp
+        run: uv run --project tests/e2e --locked pytest tests/e2e
+        shell: bash
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - name: Neovim smoke test
+        run: nvim --clean --headless -u editors/nvim/test/smoke.lua
+        shell: bash

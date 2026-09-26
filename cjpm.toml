@@ -23,12 +23,12 @@ script-dir = ""
 
 [dependencies]
 
-# [target.x86_64-unknown-linux-gnu.bin-dependencies]
-# path-option = ["third_party/stdx"]
-
+# stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]
-# TODO: platform-specific stdx path
-path-option = ["${CANGJIE_HOME}/third_party/stdx/static/stdx"]
+path-option = ["${CANGJIE_HOME}/third_party/stdx/darwin_aarch64_cjnative/static/stdx"]
 
-# [target.x86_64-w64-mingw32.bin-dependencies]
-# path-option = ["third_party/stdx"]
+[target.x86_64-unknown-linux-gnu.bin-dependencies]
+path-option = ["${CANGJIE_HOME}/third_party/stdx/linux_x86_64_cjnative/static/stdx"]
+
+[target.x86_64-w64-mingw32.bin-dependencies]
+path-option = ["${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx"]

@@ -1,6 +1,7 @@
 package cjls.server
 
 import std.collection.concurrent.LinkedBlockingQueue
+import std.env.getTempDirectory
 import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -66,7 +67,7 @@ func initialized(router: Router, client!: Client = Client()): Server {
     server
 }
 
-let PARKED_PATH = VfsPath.file("/a.cj")
+let PARKED_PATH = VfsPath.file(getTempDirectory().join("a.cj"))
 
 /**
  * The answer to a hover whose handler takes its snapshot, parks until `interrupt` has run, then

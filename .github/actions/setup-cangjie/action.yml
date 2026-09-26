@@ -1,0 +1,29 @@
+name: Set up Cangjie
+description: Installs the Cangjie nightly SDK pinned in .cangjie-version, with its stdx, and loads its environment.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    # cjc links against LLVM's C++ library on Linux; the runner has only GCC's
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq libc++-dev libc++abi-dev
+
+    - id: version
+      shell: bash
+      run: echo "tag=$(tr -d '[:space:]' < .cangjie-version)" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v4
+      with:
+        path: ${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}
+        key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.tag }}
+
+    - shell: bash
+      run: python "$GITHUB_ACTION_PATH/setup.py" "${{ steps.version.outputs.tag }}" "${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}"
+
+    - shell: bash
+      run: cjc --version

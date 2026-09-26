@@ -7,6 +7,15 @@ import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
 
 /**
+ * The root of an absolute path: `/` is not one on Windows.
+ */
+@When[os == "Windows"]
+let ROOT = "C:/"
+
+@When[os != "Windows"]
+let ROOT = "/"
+
+/**
  * Runs `body` with the path of `cfg` written as `lsp_codegen.toml` into a throwaway directory, and
  * that directory - `manifest`, when given, is its `cjpm.toml`.
  */
@@ -72,7 +81,7 @@ class ConfigLoadTest {
     @TestCase
     func anAbsoluteSrcDirIsLeftAlone() {
         // arrange
-        let cfg = "[general]\nsrc-dir = \"/tmp/elsewhere\"\noutput-subpackage = \"lsp_types\"\n"
+        let cfg = "[general]\nsrc-dir = \"${ROOT}tmp/elsewhere\"\noutput-subpackage = \"lsp_types\"\n"
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
@@ -80,7 +89,7 @@ class ConfigLoadTest {
                 let sut = Config.load(cfgPath)
 
                 // assert
-                @Expect(Path("/tmp/elsewhere").join("lsp_types").toString(), sut.outputDir.toString())
+                @Expect(Path("${ROOT}tmp/elsewhere").normalize().join("lsp_types").toString(), sut.outputDir.toString())
         }
     }
 
@@ -193,15 +202,15 @@ class ConfigPathsTest {
         @Expect("modules/cjls", sut.toString())
     }
 
-    @TestCase[row in [("src", "/base/src"), ("./nested/../src", "/base/src"), ("/elsewhere/src", "/elsewhere/src")]]
+    @TestCase[row in [("src", "base/src"), ("./nested/../src", "base/src"), ("${ROOT}elsewhere/src", "elsewhere/src")]]
     func aPathResolvesAgainstABaseUnlessItIsAbsolute(row: (String, String)) {
         // arrange
         let (path, expected) = row
 
         // act
-        let sut = Path(path).resolveAgainst(Path("/base"))
+        let sut = Path(path).resolveAgainst(Path("${ROOT}base"))
 
         // assert
-        @Expect(expected, sut.toString())
+        @Expect(Path("${ROOT}${expected}").normalize().toString(), sut.toString())
     }
 }

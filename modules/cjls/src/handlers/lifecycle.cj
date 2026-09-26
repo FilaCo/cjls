@@ -5,10 +5,15 @@ import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
 
+/**
+ * The server's version, as `modules/cjls/cjpm.toml` has it: `cog bump` rewrites both.
+ */
+const VERSION = "0.1.0"
+
 @LspHandler
 func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
-    InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: "0.1.0"))
+    InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }
 
 /**

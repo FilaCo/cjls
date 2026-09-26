@@ -1,23 +1,41 @@
 package loupe.vfs
 
-import std.collection.*
+import std.fs.Path
+import stdx.encoding.url.{URL, UrlSyntaxException}
 
 /**
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
  * editor's `untitled:` buffer), the URI it was given, as is. Two URIs spelling one path apart (a
  * `%`-escape the other does not use, a `/./`) give the one `VfsPath`.
+ *
+ * Paths are `std.fs.Path`s and URIs stdx's `URL`s, so a path is absolute as the platform the
+ * server runs on says (D12). On Windows a drive path keeps `\` for its separator and its letter
+ * lowercase: clients differ in both (VS Code sends `c%3A/`, Neovim `C:/`), and the letter's case
+ * never tells two drives apart. The rest keeps its case, as the client got it from the file system.
  */
 public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
-    private VfsPath(private let onDisk: Bool, private let value: String) {}
+    /**
+     * A path on disk is kept as the text of its canonical `Path`, a virtual one as its URI: a
+     * `VfsPath` is hashed and compared on every lookup of a file, and a `Path` in it made both
+     * three times slower (measured with `@Bench`, `path_bench_test.cj`).
+     */
+    private VfsPath(private let onDisk: Bool, private let text: String) {}
+
+    /**
+     * @throws IllegalArgumentException - if `path` is not absolute
+     */
+    public static func file(path: Path): VfsPath {
+        if (!path.isAbsolute()) {
+            throw IllegalArgumentException("not an absolute path: ${path}")
+        }
+        VfsPath(true, canonical(path.normalize()).toString())
+    }
 
     /**
      * @throws IllegalArgumentException - if `path` is not absolute
      */
     public static func file(path: String): VfsPath {
-        if (!path.startsWith("/")) {
-            throw IllegalArgumentException("not an absolute path: ${path}")
-        }
-        VfsPath(true, normalize(path))
+        file(Path(path))
     }
 
     public static func virtual(name: String): VfsPath {
@@ -28,28 +46,34 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * The path a `file:` URI names, anything else a virtual path of the URI itself.
      */
     public static func fromUri(uri: String): VfsPath {
-        if (!uri.startsWith("file://")) {
+        let url = try {
+            URL.parse(uri)
+        } catch (_: UrlSyntaxException) {
+            return virtual(uri)
+        } catch (_: IllegalArgumentException) {
+            // an escape that spells no UTF-8
             return virtual(uri)
         }
-        let rest = uri["file://".size..]
-        // the authority is empty, or `localhost`, for a file on this machine
-        let path = match (rest.indexOf("/")) {
-            case Some(slash) where slash == 0 || rest[..slash] == "localhost" => rest[slash..]
-            case _ => return virtual(uri)
+        // the host is empty, or `localhost`, for a file on this machine
+        let local = url.hostName.isEmpty() || url.hostName == "localhost"
+        if (url.scheme != "file" || !local || url.path.isEmpty()) {
+            return virtual(uri)
         }
-        match (percentDecoded(path)) {
-            case Some(decoded) => file(decoded)
-            case None => virtual(uri)
+        let path = Path(pathOfUriPath(url.path))
+        if (path.isAbsolute()) {
+            file(path)
+        } else {
+            virtual(uri)
         }
     }
 
     /**
      * The path on disk, `None` for a virtual one.
      */
-    public prop filePath: ?String {
+    public prop filePath: ?Path {
         get() {
             if (onDisk) {
-                value
+                Path(text)
             } else {
                 None
             }
@@ -57,25 +81,26 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     /**
-     * A `file:` URI for a path on disk, escaped the way VS Code does, the URI given for a virtual one.
+     * A `file:` URI for a path on disk (`file:///c:/src/a.cj` for a drive), the URI given for a
+     * virtual one.
      */
     public func toUri(): String {
         if (onDisk) {
-            "file://" + percentEncoded(value)
+            URL(scheme: "file", hostName: "", path: uriPathOf(Path(text))).toString()
         } else {
-            value
+            text
         }
     }
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
         hasher.write(onDisk)
-        hasher.write(value)
+        hasher.write(text)
         hasher.finish()
     }
 
     public operator func ==(other: VfsPath): Bool {
-        onDisk == other.onDisk && value == other.value
+        onDisk == other.onDisk && text == other.text
     }
 
     public operator func !=(other: VfsPath): Bool {
@@ -83,88 +108,54 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     public func toString(): String {
-        value
+        text
     }
 }
 
 /**
- * `path`, absolute, with no empty, `.` or `..` segments: `..` above the root stays at the root.
+ * A normalized path as `VfsPath` keeps it: on Windows with `\` and a lowercase drive letter.
  */
-func normalize(path: String): String {
-    let segments = ArrayList<String>()
-    for (segment in path.split("/")) {
-        match (segment) {
-            case "" | "." => ()
-            case ".." =>
-                if (!segments.isEmpty()) {
-                    segments.remove(at: segments.size - 1)
-                }
-            case _ => segments.add(segment)
-        }
-    }
-    "/" + String.join(segments.toArray(), delimiter: "/")
-}
-
-/**
- * `None` if an escape is malformed, or what they spell is not UTF-8.
- */
-func percentDecoded(text: String): ?String {
-    if (!text.contains("%")) {
-        return text
-    }
-    let bytes = ArrayList<Byte>()
-    var i = 0
-    while (i < text.size) {
-        let b = text[i]
-        if (b == b'%') {
-            if (i + 2 >= text.size) {
-                return None
-            }
-            let high = hexValue(text[i + 1]) ?? return None
-            let low = hexValue(text[i + 2]) ?? return None
-            bytes.add(high * 16 + low)
-            i += 3
-        } else {
-            bytes.add(b)
-            i++
-        }
-    }
-    try {
-        String.fromUtf8(bytes.toArray())
-    } catch (_: IllegalArgumentException) {
-        None
-    }
-}
-
-private func hexValue(b: Byte): ?Byte {
-    if (b >= b'0' && b <= b'9') {
-        b - b'0'
-    } else if (b >= b'a' && b <= b'f') {
-        b - b'a' + 10
-    } else if (b >= b'A' && b <= b'F') {
-        b - b'A' + 10
+@When[os == "Windows"]
+func canonical(path: Path): Path {
+    let text = path.toString().replace("/", "\\")
+    if (text.size >= 2 && text[1] == b':') {
+        Path(text[..1].toAsciiLower() + text[1..])
     } else {
-        None
+        Path(text)
     }
 }
 
-private let HEX_DIGITS = "0123456789ABCDEF"
+@When[os != "Windows"]
+func canonical(path: Path): Path {
+    path
+}
 
 /**
- * Every byte escaped but the unreserved ones and `/`.
+ * The path of a `file:` URI's path: in `/c:/src` the drive is the first segment (RFC 8089).
  */
-func percentEncoded(path: String): String {
-    let encoded = StringBuilder()
-    for (b in path) {
-        let unreserved = b >= b'a' && b <= b'z' || b >= b'A' && b <= b'Z' || b >= b'0' && b <= b'9' ||
-            b == b'-' || b == b'.' || b == b'_' || b == b'~' || b == b'/'
-        if (unreserved) {
-            encoded.append(Rune(b))
-        } else {
-            encoded.append("%")
-            encoded.append(Rune(HEX_DIGITS[Int64(b >> 4)]))
-            encoded.append(Rune(HEX_DIGITS[Int64(b & 0xF)]))
-        }
+@When[os == "Windows"]
+func pathOfUriPath(uriPath: String): String {
+    if (uriPath.size >= 3 && uriPath[2] == b':') {
+        uriPath[1..]
+    } else {
+        uriPath
     }
-    encoded.toString()
+}
+
+@When[os != "Windows"]
+func pathOfUriPath(uriPath: String): String {
+    uriPath
+}
+
+/**
+ * The path of a `file:` URI for `path`: a drive goes in as a first segment, `/c:/src`.
+ */
+@When[os == "Windows"]
+func uriPathOf(path: Path): String {
+    "/" + path.toString().replace("\\", "/")
+}
+
+@When[os != "Windows"]
+func uriPathOf(path: Path): String {
+    path.toString()
 }
