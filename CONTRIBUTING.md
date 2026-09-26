@@ -34,7 +34,7 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
 4. **Advertise it** in `capabilities()` in `handlers/router.cj`, or clients will never send it.
 
-5. **Record what you decided** in `docs/` if it is a new rule or decision ([docs/README.md](docs/README.md)).
+5. **Nothing goes in `docs/`** for a request that takes the slice as it is: the router and the handler are the record. Only a new rule or a real decision does ([docs/README.md](docs/README.md#when-a-change-writes-here)).
 
 6. **Test the function directly**, next to it in `<feature>_test.cj`: call it with the arguments it takes (`ServerState().snapshot()`, `CancellationToken()`, `NoopLogger()`, …). Only behaviour of the server itself — lifecycle, dispatch, threading — is tested through `Server`, in `cjls.server`. An end-to-end test in `tests/e2e` is for what only the built binary shows — one or two per feature, not a case each ([C7](docs/design/03-conventions.md)).
 
