@@ -10,7 +10,7 @@ output-type = "executable"
 compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = "-lc++"
-package-configuration = { syntax_codegen = { compile-option = "--static" } }
+package-configuration = {}
 
 [dependencies]
 cjtoml = { path = "../cjtoml" }
