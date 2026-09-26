@@ -1,5 +1,6 @@
 package loupe.db
 
+import std.env.getTempDirectory
 import std.sync.*
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -62,8 +63,8 @@ class DbTest {
         // arrange
         let vfs = Vfs()
         let db = AnalysisDatabase()
-        let a = VfsPath.file("/a.cj")
-        let b = VfsPath.file("/b.cj")
+        let a = VfsPath.file(getTempDirectory().join("a.cj"))
+        let b = VfsPath.file(getTempDirectory().join("b.cj"))
         vfs.setFileContents(a, Rope("a"))
         vfs.setFileContents(b, Rope("b"))
         db.applyChanges(vfs, vfs.takeChanges())

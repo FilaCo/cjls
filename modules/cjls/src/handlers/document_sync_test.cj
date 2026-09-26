@@ -136,7 +136,7 @@ class DocumentSyncTest {
         let dir = Directory.createTemp(getTempDirectory())
         let onDisk = dir.join("b.cj")
         File.writeTo(onDisk, "on disk".toArray())
-        let uri = VfsPath.file(onDisk.toString()).toUri()
+        let uri = VfsPath.file(onDisk).toUri()
         let state = opened("in the editor", uri: uri)
 
         // act

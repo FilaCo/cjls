@@ -2,7 +2,16 @@ package loupe.vfs
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import std.env.getTempDirectory
+import std.fs.Path
 import rope.Rope
+
+/**
+ * A path in the temporary directory, absolute wherever the tests run; nothing is created there.
+ */
+func inTemp(name: String): VfsPath {
+    VfsPath.file(getTempDirectory().join(name))
+}
 
 func kinds(changes: Array<ChangedFile>): Array<String> {
     changes.map {change => change.toString()}
@@ -11,12 +20,52 @@ func kinds(changes: Array<ChangedFile>): Array<String> {
 @Test
 class VfsPathTest {
     @TestCase
+    func aUriNotOfAFileIsVirtual() {
+        // act
+        let path = VfsPath.fromUri("untitled:Untitled-1")
+
+        // assert
+        @Expect(path.filePath, None<Path>)
+        @Expect(path.toUri(), "untitled:Untitled-1")
+        @Expect(path != inTemp("Untitled-1"))
+    }
+
+    @TestCase
+    func aPathGoesToAUriAndBack() {
+        // arrange - `#` and `?` would start a fragment and a query unescaped
+        let paths = [inTemp("проект/a b.cj"), inTemp("y#z?.cj")]
+
+        // act, assert
+        for (path in paths) {
+            @Expect(VfsPath.fromUri(path.toUri()), path)
+        }
+    }
+
+    @TestCase
+    func aMalformedEscapeLeavesTheUriVirtual() {
+        // act, assert
+        @Expect(VfsPath.fromUri("file:///a%2").filePath, None<Path>)
+        @Expect(VfsPath.fromUri("file:///a%FF").filePath, None<Path>)
+    }
+
+    @TestCase
+    func aRelativePathIsNoFile() {
+        // act, assert
+        @AssertThrows[IllegalArgumentException](VfsPath.file("a.cj"))
+    }
+}
+
+@When[os != "Windows"]
+@Test
+class VfsPathOnPosixTest {
+    @TestCase
     func aFileUriIsItsDecodedPath() {
         // act
         let path = VfsPath.fromUri("file:///home/me/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82/a%20b.cj")
 
         // assert
-        @Expect(path.filePath, Some("/home/me/проект/a b.cj"))
+        @Expect(path.filePath, Some(Path("/home/me/проект/a b.cj")))
+        @Expect(path.toUri(), "file:///home/me/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82/a%20b.cj")
     }
 
     @TestCase
@@ -25,41 +74,19 @@ class VfsPathTest {
         @Expect(VfsPath.fromUri("file:///a/./b/../c.cj"), VfsPath.fromUri("file://localhost/a/%63.cj"))
         @Expect(VfsPath.file("//a///c.cj"), VfsPath.file("/a/c.cj"))
     }
+}
 
+@When[os == "Windows"]
+@Test
+class VfsPathOnWindowsTest {
     @TestCase
-    func aUriNotOfAFileIsVirtual() {
+    func aDrivePathIsKeptWithBackslashesAndALowercaseLetter() {
         // act
-        let path = VfsPath.fromUri("untitled:Untitled-1")
+        let path = VfsPath.file("C:/src/./app/../a.cj")
 
         // assert
-        @Expect(path.filePath, None<String>)
-        @Expect(path.toUri(), "untitled:Untitled-1")
-        @Expect(path != VfsPath.file("/untitled:Untitled-1"))
-    }
-
-    @TestCase
-    func aPathGoesBackToAUriEscaped() {
-        // act, assert
-        @Expect(VfsPath.file("/home/проект/a b.cj").toUri(), "file:///home/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82/a%20b.cj")
-        @Expect(VfsPath.fromUri(VfsPath.file("/x/y#z?.cj").toUri()), VfsPath.file("/x/y#z?.cj"))
-    }
-
-    @TestCase
-    func aMalformedEscapeLeavesTheUriVirtual() {
-        // act, assert
-        @Expect(VfsPath.fromUri("file:///a%2").filePath, None<String>)
-        @Expect(VfsPath.fromUri("file:///a%FF").filePath, None<String>)
-    }
-
-    @TestCase
-    func aDrivePathIsAbsoluteAsWindowsSpellsIt() {
-        // act
-        let path = VfsPath.file("C:\\src\\.\\app\\..\\a.cj")
-
-        // assert
-        @Expect(path.filePath, Some("c:/src/a.cj"))
-        @Expect(VfsPath.file("c:"), VfsPath.file("C:\\"))
-        @AssertThrows[IllegalArgumentException](VfsPath.file("C:a.cj"))
+        @Expect(path.filePath, Some(Path("c:\\src\\a.cj")))
+        @Expect(VfsPath.file("C:\\src\\a.cj"), path)
     }
 
     @TestCase
@@ -70,7 +97,7 @@ class VfsPathTest {
 
         // act, assert
         @Expect(VfsPath.fromUri(vsCode), VfsPath.fromUri(neovim))
-        @Expect(VfsPath.fromUri(neovim).filePath, Some("c:/Users/Me/a.cj"))
+        @Expect(VfsPath.fromUri(neovim).filePath, Some(Path("c:\\Users\\Me\\a.cj")))
         @Expect(VfsPath.fromUri(neovim) != VfsPath.fromUri("file:///C:/users/me/a.cj"))
     }
 
@@ -81,7 +108,6 @@ class VfsPathTest {
 
         // assert
         @Expect(uri, "file:///c:/Users/Me/a%20b.cj")
-        @Expect(VfsPath.fromUri(uri), VfsPath.fromUri("file:///c%3A/Users/Me/a%20b.cj"))
     }
 }
 
@@ -91,7 +117,7 @@ class VfsTest {
     func aFileKeepsItsIdForGood() {
         // arrange
         let vfs = Vfs()
-        let path = VfsPath.file("/a.cj")
+        let path = inTemp("a.cj")
         vfs.setFileContents(path, Rope("x"))
         let id = vfs.fileId(path).getOrThrow()
 
@@ -111,7 +137,7 @@ class VfsTest {
     func settingWhatAFileHoldsAlreadyChangesNothing() {
         // arrange
         let vfs = Vfs()
-        let path = VfsPath.file("/a.cj")
+        let path = inTemp("a.cj")
         vfs.setFileContents(path, Rope("x"))
         vfs.takeChanges()
 
@@ -127,7 +153,7 @@ class VfsTest {
     func changesAreFoldedIntoWhatTheyAmountTo() {
         // arrange
         let vfs = Vfs()
-        let (a, b, c, d) = (VfsPath.file("/a"), VfsPath.file("/b"), VfsPath.file("/c"), VfsPath.file("/d"))
+        let (a, b, c, d) = (inTemp("a"), inTemp("b"), inTemp("c"), inTemp("d"))
         vfs.setFileContents(c, Rope("c"))
         vfs.setFileContents(d, Rope("d"))
         vfs.takeChanges()
