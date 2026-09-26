@@ -11,9 +11,7 @@
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
-| `fileStructure` | `loupe` | API: the outline of a file |
-| `diagnostics` | `loupe` | API: a file's `Diagnostic`s (`range: TextRange`, `severity: Severity`, `message`), in the order of the text; for now the lexer's and parser's errors, read from `Parse.errors` and worded by `cjsyntax.message` (D14). Not a query: it collects what queries remember |
-| `highlight` | `loupe` | API: a file's `HighlightedRange`s (`range: TextRange`, `tag: HighlightTag`, `modifiers`), a token each, in the order of the text, of a `range` if given; what the tree tells, names at their declaration only (D19). Not a query: a range would be a position in its key (A2) |
+| API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
 
 ## Rules
 

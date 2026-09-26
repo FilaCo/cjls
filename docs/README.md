@@ -9,6 +9,20 @@
 
 How to build, test and commit: [CLAUDE.md](../CLAUDE.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+## When a change writes here
+
+Only when it tells the next reader something the docs and the code do not already say. A change that follows the rules written here writes nothing: a new read request along the slice (S1–S6), a new API function of `loupe`, a new query keyed by an entity.
+
+| Writes | When |
+|---|---|
+| a rule (`design/`) | the change sets a constraint future code must keep, and the compiler does not check it |
+| an ADR | there was a real choice: alternatives weighed, one taken, a reason that is not obvious from the code — or a departure from a rule, R1 or R3 |
+| a question (`backlog.md`) | something is knowingly left undone, and the way to do it is open |
+| nothing | the list of what exists (requests served, API functions, fields): that is the code (`handlers/router.cj`, `loupe`'s package) |
+| nothing | the story of the PR, its measurements included: the PR description, with the `@Bench` left beside the code; a rule or ADR cites the conclusion and the bench's name |
+
+One fact, one place: a rule is stated once, in `design/`; an ADR says why, CLAUDE.md and CONTRIBUTING.md link to both rather than repeat them.
+
 ## Design
 
 | File | Topic |
@@ -26,8 +40,8 @@ How to build, test and commit: [CLAUDE.md](../CLAUDE.md). How to add a handler: 
 | S# | rule of the request slice | [01-request-slice.md](design/01-request-slice.md) |
 | A# | rule of the analysis | [02-analysis.md](design/02-analysis.md) |
 | C# | code convention | [03-conventions.md](design/03-conventions.md) |
-| D# ≡ ADR-000# | decision | [adr/](adr/) |
+| D# ≡ ADR-NNNN | decision | [adr/](adr/) |
 | Q# | open question | [backlog.md](backlog.md) |
 | R# | reference implementation | [prior-art.md](prior-art.md) |
 
-Ids are never reused; a rule dropped keeps its number, struck through.
+Ids are never reused. A rule dropped keeps its number, struck through; a closed question leaves the backlog, and the ADR or rule that closes it names it.

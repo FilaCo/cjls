@@ -14,7 +14,3 @@ package-configuration = {}
 
 [dependencies]
 ginkgo = { path = "../ginkgo" }
-
-# `cjpm build --lto`, see cjls's manifest
-[profile.customized-option]
-lto = "--lto=full"
