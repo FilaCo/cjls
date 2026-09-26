@@ -4,7 +4,7 @@ import std.fs.{File, FSException}
 import stdx.log.Logger
 import rope.{Encoding, Rope}
 import loupe.vfs.VfsPath
-import cjls.lsp_types as lsp
+import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
 
@@ -12,7 +12,7 @@ import cjls.macros.LspHandler
  * From now until `didClose`, the file holds what the editor's buffer does.
  */
 @LspHandler
-func handleDidOpen(state: ServerState, params: lsp.DidOpenTextDocumentParams): Unit {
+func handleDidOpen(state: ServerState, params: DidOpenTextDocumentParams): Unit {
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
     state.openDocuments.add(path, document.version)
@@ -25,7 +25,7 @@ func handleDidOpen(state: ServerState, params: lsp.DidOpenTextDocumentParams): U
  * dropped whole, with a warning.
  */
 @LspHandler
-func handleDidChange(state: ServerState, logger: Logger, params: lsp.DidChangeTextDocumentParams): Unit {
+func handleDidChange(state: ServerState, logger: Logger, params: DidChangeTextDocumentParams): Unit {
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
     let text = match (state.fileContents(path)) {
@@ -46,7 +46,7 @@ func handleDidChange(state: ServerState, logger: Logger, params: lsp.DidChangeTe
  * The file goes back to what the disk holds, or away if it is not on the disk.
  */
 @LspHandler
-func handleDidClose(state: ServerState, params: lsp.DidCloseTextDocumentParams): Unit {
+func handleDidClose(state: ServerState, params: DidCloseTextDocumentParams): Unit {
     let path = VfsPath.fromUri(params.textDocument.uri)
     state.openDocuments.remove(path)
     state.setFileContents(path, diskContents(path))
@@ -56,12 +56,12 @@ func handleDidClose(state: ServerState, params: lsp.DidCloseTextDocumentParams):
  * `text` with `changes` applied in order, `None` if a range ends before it starts. A position
  * past its line, or past the text, stands for the end of it, as LSP asks.
  */
-func edited(text: Rope, changes: Array<lsp.TextDocumentContentChangeEvent>, encoding: Encoding): ?Rope {
+func edited(text: Rope, changes: Array<TextDocumentContentChangeEvent>, encoding: Encoding): ?Rope {
     var result = text
     for (change in changes) {
         result = match (change) {
-            case lsp.TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(whole) => Rope(whole.text)
-            case lsp.TextDocumentContentChangeEvent.AsTextDocumentContentChangePartial(partial) =>
+            case AsTextDocumentContentChangeWholeDocument(whole) => Rope(whole.text)
+            case AsTextDocumentContentChangePartial(partial) =>
                 let start = result.offsetOf(lineColumn(partial.range.start), encoding)
                 let end = result.offsetOf(lineColumn(partial.range.end), encoding)
                 if (end < start) {
