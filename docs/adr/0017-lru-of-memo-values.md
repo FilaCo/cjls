@@ -8,7 +8,7 @@ calca forgot nothing: every memo kept its value for as long as the database live
 
 ## Decision
 
-- **`lru_set`, a module of its own**: `LruSet<T>`, a hash set in the order of last use, the list intrusive in arrays with an implicit free list. Not thread-safe; `touch` never evicts, only `trim` does. It cannot be an `IndexMap`: removing from one is a swap or an O(n) shift.
+- **`IdLru`, inside calca**: the keys of one function in the order of last use, a doubly linked list over their `Id`s — `prev`/`next` arrays indexed by `Id.index`, which is dense (the key's index in the memo table). Not thread-safe; `touch` never evicts, only `trim` does. Not a hash set in a module of its own (`LruSet<T>`, the first version): nothing needs hashing when the keys are already dense indices, and a call into another package is not inlined without `@Frozen` (#28). Measured (`IdLruBench`, `LruFetchBench`; `-O2`, darwin arm64): 4096 touches and a trim take 22.5 µs on `IdLru`, 41 µs on the same hash set inside calca, 486 µs on `LruSet` across the module boundary; a fetch that hits costs +1% with `lru` on `IdLru`, +20% on `LruSet`. Nor an `IndexMap`: removing from one is a swap or an O(n) shift.
 - **`@CalcaTracked[lru: N]`** keeps the values of the `N` keys fetched last; capacity at compile time only, as rust-analyzer lives with (R1).
 - **A use is a `fetch`**, a hit or an execution, touched under the `MemoTable` lock already taken; verifying a memo for another one's sake is not a use.
 - **Eviction happens only when a write opens a revision**, under the gate with nothing in flight (`Ingredient.newRevision`), as salsa does in `new_revision`: no reader ever sees a memo lose its value.

@@ -3,7 +3,6 @@ package calca
 import std.collection.*
 import std.sync.*
 import index_map.*
-import lru_set.*
 
 /**
  * A `@CalcaTracked` function, process-wide: where its memos are in any database. Held by the static
@@ -86,13 +85,13 @@ class MemoTable<D, K, V> <: Ingredient where D <: Database, K <: Hashable & Equa
      * When the function keeps only some values, the keys whose memo may hold one, in the order they
      * were last fetched. Touched under `lock`; trimmed in `newRevision`, while nothing reads.
      */
-    private let used: ?LruSet<Id>
+    private let used: ?IdLru
 
     /**
      * The function itself, the same whichever `fetch` gave it.
      */
     MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V) {
-        used = function.lru.map {capacity => LruSet<Id>(capacity)}
+        used = function.lru.map {capacity => IdLru(capacity)}
     }
 
     func intern(key: K): Id {
