@@ -91,6 +91,61 @@ class HashLru<T> where T <: Hashable & Equatable<T> {
 }
 
 /**
+ * `std.collection.LinkedList` in the order of last use, its nodes found by `Id.index`. The list
+ * cannot move a node, so a touch removes it and adds a new one at the end.
+ */
+class LinkedListLru {
+    private let list = LinkedList<Id>()
+    private let nodes = ArrayList<?LinkedListNode<Id>>()
+
+    LinkedListLru(let capacity: Int64) {}
+
+    func touch(id: Id): Unit {
+        let i = id.index
+        while (nodes.size <= i) {
+            nodes.add(None)
+        }
+        if (let Some(node) <- nodes[i]) {
+            list.remove(node)
+        }
+        nodes[i] = list.addLast(id)
+    }
+
+    func trim(onEvict: (Id) -> Unit): Unit {
+        while (list.size > capacity) {
+            let id = list.removeFirst().getOrThrow()
+            nodes[id.index] = None
+            onEvict(id)
+        }
+    }
+}
+
+/**
+ * The textbook LRU: `std.collection.LinkedList` and a `HashMap` from a key to its node.
+ */
+class HashLinkedListLru<T> where T <: Hashable & Equatable<T> {
+    private let list = LinkedList<T>()
+    private let nodes = HashMap<T, LinkedListNode<T>>()
+
+    HashLinkedListLru(let capacity: Int64) {}
+
+    func touch(value: T): Unit {
+        if (let Some(node) <- nodes.get(value)) {
+            list.remove(node)
+        }
+        nodes.add(value, list.addLast(value))
+    }
+
+    func trim(onEvict: (T) -> Unit): Unit {
+        while (list.size > capacity) {
+            let value = list.removeFirst().getOrThrow()
+            nodes.remove(value)
+            onEvict(value)
+        }
+    }
+}
+
+/**
  * The keys fetched in one revision: 4096 fetches over 256 keys, half of them among the first 64.
  */
 let BENCH_IDS: Array<Id> = {
@@ -108,7 +163,8 @@ let BENCH_IDS: Array<Id> = {
 let BENCH_CAPACITY = 128
 
 /**
- * A revision's touches and the trim ending it, on `IdLru` and on the hash set it replaced.
+ * A revision's touches and the trim ending it, on `IdLru`, on the hash set it replaced, and on
+ * `std.collection.LinkedList`.
  * `cjpm bench '--filter=IdLruBench.*'`.
  */
 @Test
@@ -127,6 +183,28 @@ class IdLruBench {
     @Bench
     func hashLru(): Int64 {
         let lru = HashLru<Id>(BENCH_CAPACITY)
+        for (id in BENCH_IDS) {
+            lru.touch(id)
+        }
+        let evicted = ArrayList<Id>()
+        lru.trim {id => evicted.add(id)}
+        evicted.size
+    }
+
+    @Bench
+    func linkedListLru(): Int64 {
+        let lru = LinkedListLru(BENCH_CAPACITY)
+        for (id in BENCH_IDS) {
+            lru.touch(id)
+        }
+        let evicted = ArrayList<Id>()
+        lru.trim {id => evicted.add(id)}
+        evicted.size
+    }
+
+    @Bench
+    func hashLinkedListLru(): Int64 {
+        let lru = HashLinkedListLru<Id>(BENCH_CAPACITY)
         for (id in BENCH_IDS) {
             lru.touch(id)
         }
