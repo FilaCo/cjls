@@ -5,6 +5,7 @@
 | [design/](design/) | living rules | tables and lists, no prose; changed in the same PR as the code they describe |
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [backlog.md](backlog.md) | open questions | a closed question becomes an ADR or a rule, and leaves the backlog |
+| [prior-art.md](prior-art.md) | the servers cjls is measured against, and what comes from which | updated when a reference changes, or a part of cjls starts following one |
 
 How to build, test and commit: [CLAUDE.md](../CLAUDE.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
@@ -27,5 +28,6 @@ How to build, test and commit: [CLAUDE.md](../CLAUDE.md). How to add a handler: 
 | C# | code convention | [03-conventions.md](design/03-conventions.md) |
 | D# ≡ ADR-000# | decision | [adr/](adr/) |
 | Q# | open question | [backlog.md](backlog.md) |
+| R# | reference implementation | [prior-art.md](prior-art.md) |
 
 Ids are never reused; a rule dropped keeps its number, struck through.

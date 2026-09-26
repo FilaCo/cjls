@@ -10,3 +10,5 @@
 | Q6 | Batched writes | every file change is its own revision |
 | Q7 | `protected` instead of `public` across `cjls` packages | module-wide visibility |
 | Q8 | Move the architecture notes of CLAUDE.md into `design/` | jsonrpc, calca, serialization, lsp_codegen |
+| Q9 | Macro expansion | Cangjie macros are compiled packages run on tokens: expand them out of process, as R1's `proc-macro-srv` and R4's `LSPMacroServer` do; which ABI, and whether the SDK's macro libraries can be loaded as they are ([prior-art.md](prior-art.md)) |
+| Q10 | Name resolution and types | R1 for resolution (`ItemTree` → `DefMap`), but overloads, subclassing and `extend` have no R1 answer: R6, R7, and R3's Sema as the specification (D14) |
