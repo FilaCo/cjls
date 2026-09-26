@@ -13,3 +13,8 @@ target
 # Claude Code: only the shared settings are checked in
 .claude/*
 !.claude/settings.json
+
+# end-to-end tests
+.venv
+__pycache__
+.pytest_cache
