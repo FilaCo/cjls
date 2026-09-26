@@ -93,7 +93,10 @@ class TwoConcurrentHashMaps <: BenchInterner {
     let interner = PathInterner()
 
     public func lookup(path: VfsPath): ?Int64 {
-        interner.lookup(path).map {id => id.index}
+        match (interner.lookup(path)) {
+            case Some(id) => id.index
+            case None => None
+        }
     }
 
     public func intern(path: VfsPath): Int64 {
@@ -122,7 +125,15 @@ class ConcurrentIndexSetInterner <: BenchInterner {
 }
 
 class InternerVariant <: ToString {
-    InternerVariant(let name: String, let make: () -> BenchInterner, let shared!: Bool = true) {}
+    // holding `BENCH_INTERNED`
+    let filled: BenchInterner
+
+    InternerVariant(let name: String, let make: () -> BenchInterner, let shared!: Bool = true) {
+        filled = make()
+        for (path in BENCH_INTERNED) {
+            filled.intern(path)
+        }
+    }
 
     public func toString(): String {
         name
@@ -140,19 +151,6 @@ let INTERNER_VARIANTS = [
 // the ones safe to write to while others read
 let SHARED_INTERNER_VARIANTS = INTERNER_VARIANTS.filter {variant => variant.shared}
 
-// each variant holding `BENCH_INTERNED`, by name
-let FILLED_INTERNERS = {=>
-    let filled = HashMap<String, BenchInterner>()
-    for (variant in INTERNER_VARIANTS) {
-        let interner = variant.make()
-        for (path in BENCH_INTERNED) {
-            interner.intern(path)
-        }
-        filled[variant.name] = interner
-    }
-    filled
-}()
-
 /**
  * Every way of interning paths, on the operations `PathInterner` does: which a shared interner
  * should be, and what `@Frozen` on `index_map` changes. `cjpm bench '--filter=InternerBench.*'`.
@@ -161,22 +159,22 @@ let FILLED_INTERNERS = {=>
 class InternerBench {
     @Bench[variant in INTERNER_VARIANTS]
     func lookUpAPathSeen(variant: InternerVariant): ?Int64 {
-        FILLED_INTERNERS[variant.name].lookup(BENCH_INTERNED[BENCH_PATH_COUNT / 2])
+        variant.filled.lookup(BENCH_INTERNED[BENCH_PATH_COUNT / 2])
     }
 
     @Bench[variant in INTERNER_VARIANTS]
     func lookUpAPathNeverSeen(variant: InternerVariant): ?Int64 {
-        FILLED_INTERNERS[variant.name].lookup(BENCH_UNSEEN)
+        variant.filled.lookup(BENCH_UNSEEN)
     }
 
     @Bench[variant in INTERNER_VARIANTS]
     func internAPathSeen(variant: InternerVariant): Int64 {
-        FILLED_INTERNERS[variant.name].intern(BENCH_INTERNED[BENCH_PATH_COUNT / 2])
+        variant.filled.intern(BENCH_INTERNED[BENCH_PATH_COUNT / 2])
     }
 
     @Bench[variant in INTERNER_VARIANTS]
     func pathOfAnId(variant: InternerVariant): ?VfsPath {
-        FILLED_INTERNERS[variant.name].path(BENCH_PATH_COUNT / 2)
+        variant.filled.path(BENCH_PATH_COUNT / 2)
     }
 
     /**
@@ -196,7 +194,7 @@ class InternerBench {
      */
     @Bench[variant in INTERNER_VARIANTS]
     func lookUpFromSeveralThreads(variant: InternerVariant): Int64 {
-        let interner = FILLED_INTERNERS[variant.name]
+        let interner = variant.filled
         let readers = Array(BENCH_READERS) {
             reader => spawn {
                 var found = 0
