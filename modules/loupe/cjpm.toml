@@ -18,3 +18,7 @@ cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 index_map = { path = "../index_map" }
 rope = { path = "../rope" }
+
+# `cjpm build --lto` - see cjls's manifest; every module needs it, as without it a library is no bitcode to link with
+[profile.customized-option]
+lto = "--lto=full"

@@ -21,3 +21,7 @@ stdxx = { path = "../stdxx" }
 [test-dependencies]
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
+
+# `cjpm build --lto` - see cjls's manifest; every module needs it, as without it a library is no bitcode to link with
+[profile.customized-option]
+lto = "--lto=full"

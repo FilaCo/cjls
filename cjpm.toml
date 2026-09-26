@@ -29,11 +29,6 @@ path-option = [
     "${CANGJIE_HOME}/third_party/stdx/darwin_aarch64_cjnative/static/stdx",
 ]
 
-# a third smaller binary (Darwin refuses LTO), and the tests run the code it ships: `cjpm build` and `cjpm test` share
-# `target/`, so a build profile's LTO left the tests linking the bitcode libraries it made as archives
-[target.x86_64-unknown-linux-gnu]
-compile-option = "--lto=full"
-
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
 path-option = [
     "${CANGJIE_HOME}/third_party/stdx/linux_x86_64_cjnative/static/stdx",
