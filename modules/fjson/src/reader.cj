@@ -283,10 +283,25 @@ public class FjReader {
                     pos = i - 1
                     throw fail("invalid escape")
             }
-            let runEnd = scanPlain(i)
-            bytes.copyTo(scratch, i, length, runEnd - i)
-            length += runEnd - i
-            i = runEnd
+            // the ASCII run up to the next escape copied as it is scanned: runs are short in code,
+            // an escape every few dozen bytes, and a `copyTo` a run costs more than its bytes
+            let source = bytes
+            let target = scratch
+            while (i < source.size) {
+                let b = source[i]
+                if (b == QUOTE || b == BACKSLASH || b < 0x20 || b >= 0x80) {
+                    break
+                }
+                target[length] = b
+                length++
+                i++
+            }
+            if (i < source.size && source[i] >= 0x80) {
+                let runEnd = scanPlain(i)
+                source.copyTo(target, i, length, runEnd - i)
+                length += runEnd - i
+                i = runEnd
+            }
         }
         0
     }
