@@ -4,9 +4,6 @@
 |---|---|---|
 | Q1 | Workspace loader | files not open are read from disk only on `didClose`; no watching, no `didChangeWatchedFiles` |
 | Q2 | Singleton inputs in calca | a layer above `loupe.db` cannot add a global input (project model) to `AnalysisDatabase` (D4) |
-| ~~Q3~~ | ~~GC of interned values and of the memos keyed by them~~ | closed by [D18](adr/0018-gc-of-interned-values.md) |
-| ~~Q4~~ | ~~Server push (`publishDiagnostics`)~~ | closed by [D14](adr/0014-diagnostics-pull-first.md) |
-| ~~Q5~~ | ~~Windows paths in `VfsPath`~~ | closed by [D12](adr/0012-drive-paths.md) |
 | Q6 | Batched writes | every file change is its own revision |
 | Q7 | `protected` instead of `public` across `cjls` packages | module-wide visibility |
 | Q8 | Move the architecture notes of CLAUDE.md into `design/` | jsonrpc, calca, serialization, lsp_codegen |

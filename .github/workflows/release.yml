@@ -42,7 +42,7 @@ jobs:
           package Windows x86_64-pc-windows-gnu zip
           (cd dist && sha256sum -- * > SHA256SUMS)
           ls -l dist
-      # the tag's section of CHANGELOG.md, written by hand or by cog alike (D20)
+      # the tag's section of CHANGELOG.md, written by hand or by cog alike (D21)
       - name: Notes
         env:
           TAG: ${{ github.ref_name }}

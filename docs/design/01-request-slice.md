@@ -14,13 +14,7 @@
 | spawn | offsets → `Range` via the snapshot's rope | `to_proto.cj` |
 | spawn | `encodeResult` → respond | `Server.answer` |
 
-The other read requests take the same path; only the `loupe` call and its translation differ.
-
-| Request | `loupe` | Answer |
-|---|---|---|
-| `textDocument/documentSymbol` | `fileStructure` | `DocumentSymbol[]` |
-| `textDocument/diagnostic` (pull, D14) | `diagnostics` | `RelatedFullDocumentDiagnosticReport`; no `resultId` yet (Q13) |
-| `textDocument/semanticTokens/full`, `/range` (D19) | `highlight` | `SemanticTokens`, relative, in a fixed legend of LSP's own types; no `resultId`, no `full/delta` yet (Q19) |
+Every read request takes this path; only the `loupe` call and its translation differ. Which ones the server answers is `handlers/router.cj`.
 
 ## Write notification (`textDocument/didChange`)
 

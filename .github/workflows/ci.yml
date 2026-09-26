@@ -47,15 +47,10 @@ jobs:
         shell: bash
       - run: cjpm test
         shell: bash
-      # the binary that ships, a third smaller; in a target dir of its own, as `cjpm build` and `cjpm test` share theirs
-      - name: Link with LTO
-        if: runner.os == 'Linux'
-        run: cjpm build --lto --target-dir target/lto
-        shell: bash
       - uses: actions/upload-artifact@v4
         with:
           name: cjls-${{ runner.os }}
-          path: target/${{ runner.os == 'Linux' && 'lto/' || '' }}release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
+          path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
           if-no-files-found: error
 
   e2e:
