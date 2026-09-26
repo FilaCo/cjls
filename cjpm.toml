@@ -1,5 +1,8 @@
 [workspace]
 members = [
+    "bench/cangjieJSON",
+    "bench/CJson",
+    "bench/fjson",
     "modules/calca",
     "modules/cjls",
     "modules/cjsyntax",

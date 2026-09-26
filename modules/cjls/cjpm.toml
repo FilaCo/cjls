@@ -19,6 +19,12 @@ loupe = { path = "../loupe" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }
 
+# The JSON libraries the codec benchmark measures (issue #9), vendored under bench/
+[test-dependencies]
+cjjson = { path = "../../bench/cangjieJSON" }
+CJson = { path = "../../bench/CJson" }
+fjson = { path = "../../bench/fjson" }
+
 # `cjpm build --lto`: the binary that ships from Linux, a third smaller (Darwin refuses LTO). Every module declares it,
 # as a library built without it is no bitcode to link with. Only CI builds with it, into a target dir of its own after
 # the tests, which need no LTO: `cjpm build` and `cjpm test` share theirs

@@ -1,0 +1,16 @@
+# Vendored for the JSON codec benchmark only (issue #9), static as every library here must be
+[package]
+cjc-version = "1.3.0"
+name = "CJson"
+organization = ""
+description = "nothing here"
+version = "1.0.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = "-Woff all -O2"
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]

@@ -1,0 +1,13 @@
+*.cjo
+*.bc
+*.o
+*.so
+*.a
+*.cj.macrocall
+
+cjpm.lock
+
+.cache/
+.vscode/
+target/
+
