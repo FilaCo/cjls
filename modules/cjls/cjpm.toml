@@ -19,8 +19,9 @@ loupe = { path = "../loupe" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }
 
-# `cjpm build --lto`: the binary that ships from Linux, a third smaller (Darwin refuses LTO). Every module declares it,
-# as a library built without it is no bitcode to link with. Only CI builds with it, into a target dir of its own after
-# the tests, which need no LTO: `cjpm build` and `cjpm test` share theirs
+# `cjpm build --lto`: the binary that ships from Linux, a third smaller (Darwin refuses LTO). The libraries under it
+# declare it too, as one built without it is no bitcode to link with - all but stdxx, which the generators share, and
+# they are linked without LTO. Only CI builds with it, into a target dir of its own after the tests, which need no LTO:
+# `cjpm build` and `cjpm test` share theirs
 [profile.customized-option]
 lto = "--lto=full"

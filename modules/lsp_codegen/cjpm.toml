@@ -15,12 +15,3 @@ package-configuration = { lsp_codegen = { compile-option = "--static" } }
 [dependencies]
 cjtoml = { path = "../cjtoml" }
 stdxx = { path = "../stdxx" }
-
-# Linux's SDK has std.ast as bitcode but not the flatbuffers under it, which only its archive carries: without it the
-# LTO link (`cjpm build --lto`) of this static executable misses every flatbuffers symbol
-[target.x86_64-unknown-linux-gnu]
-link-option = "-l:libcangjie-std-ast.a"
-
-# `cjpm build --lto` - see cjls's manifest; every module needs it, as without it a library is no bitcode to link with
-[profile.customized-option]
-lto = "--lto=full"
