@@ -17,6 +17,6 @@ cjtoml = { path = "../cjtoml" }
 stdxx = { path = "../stdxx" }
 
 # Linux's SDK has std.ast as bitcode but not the flatbuffers under it, which only its archive carries: without it the
-# LTO link ([profile.build.lto]) of this static executable misses every flatbuffers symbol
+# LTO link of this static executable (Linux's `compile-option` in the root `cjpm.toml`) misses every flatbuffers symbol
 [target.x86_64-unknown-linux-gnu]
 link-option = "-l:libcangjie-std-ast.a"

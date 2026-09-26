@@ -47,7 +47,7 @@ jobs:
         shell: bash
       - run: cjpm test
         shell: bash
-      # on Linux linked with LTO ([profile.build.lto]), which `cjpm test` must have left alone
+      # on Linux linked with LTO, as the tests before it were
       - run: ls -l target/release/bin/cjls*
         shell: bash
       - uses: actions/upload-artifact@v4
