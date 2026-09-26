@@ -1,6 +1,6 @@
 # Prior art
 
-The language servers cjls is measured against, what each is for us ([D14](adr/0014-reference-implementations.md)), and where each part of cjls comes from. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
+The language servers cjls is measured against, in two roles ([D14](adr/0014-reference-implementations.md)): **references**, which cjls learns from, and **competitors**, which a user picks cjls over or not. R4 is both. Where each part of cjls comes from, and where it stands against the competitors. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
 
 ## References
 
@@ -23,22 +23,21 @@ Looked at, not references:
 | [Pyright](https://github.com/microsoft/pyright) | lazy checker with hand-made caches, emptied by heap size; R2 covers Python with salsa |
 | [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) | Swift is as near to Cangjie as Kotlin, but the server is a wrapper over the compiler (`sourcekitd`) and a build's index store, as R4 is over cjc |
 | [HLS / ghcide](https://github.com/haskell/haskell-language-server) | incrementality from a build system (Shake), not from queries |
-| [cjlsp](https://github.com/XYZboom/cjlsp) | Cangjie in Rust, own lexer/parser/sema; young, no incremental engine |
-| [lin-qingying/cangjie](https://github.com/lin-qingying/cangjie) | Cangjie on the JVM, PSI and an analysis API after R7; young |
+| [cjlsp](https://github.com/XYZboom/cjlsp) | Cangjie in Rust, own lexer/parser/sema, written in three days (2026-08-28..30) to pass `cangjie_test`'s LSP cases, then paused: a test of a hypothesis, not a product. Worth reading for the macro ABI (`docs/windows-macros.md`, Q9) and the std sources it downloads (Q11) |
 
 ## Comparison
 
-| | cjls | R1 rust-analyzer | R2 ty | R4 LSPServer | R5 gopls | R6 Roslyn | R7 Kotlin | R8 clangd |
-|---|---|---|---|---|---|---|---|---|
-| Frontend | own (`cjsyntax`, `loupe`) | own (`hir`), not rustc | own (ruff's parser, `ty_python_semantic`) | cjc in-process (`libcangjie-lsp`: parser, Sema, CHIR) | `go/parser` + `go/types` | the compiler itself | K2 (FIR) behind the Analysis API | clang in-process |
-| Tree | lossless CST (`ginkgo`, rowan) | lossless CST (rowan) | AST with ranges, tokens kept aside | the compiler's AST | AST, comments aside | lossless red-green | lossless PSI | the compiler's AST |
-| Incrementality | queries (calca, salsa's model) | queries (salsa) | queries (salsa, fine-grained: per scope, per definition) | the compiler's pipeline over the package (it links cjc's `IncrementalCompilation`; how much it reuses is not checked) | per package, keyed, export data cached on disk | immutable snapshots, lazy compilations, incremental reparse | PSI modification trackers, lazy resolve phases | preamble (headers) kept, the main file reparsed |
-| Concurrency | read loop writes; a `spawn` per `readonly` request on a snapshot | main loop writes; a pool reads snapshots | same as R1 | a worker per file (`ArkASTWorker`) | a snapshot per change | snapshots, async | read/write actions | a worker per file (`ASTWorker`) |
-| Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request |
-| Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` |
-| Macros | none yet (Q9) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler |
-| Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk |
-| Diagnostics | none yet (#17) | push; `cargo check` on save | pull, push for clients without it | push, the compiler's | push | pull | — | push |
+| | cjls | R1 rust-analyzer | R2 ty | R4 LSPServer | R5 gopls | R6 Roslyn | R7 Kotlin | R8 clangd | R9 lin-qingying |
+|---|---|---|---|---|---|---|---|---|---|
+| Frontend | own (`cjsyntax`, `loupe`) | own (`hir`), not rustc | own (ruff's parser, `ty_python_semantic`) | cjc in-process (`libcangjie-lsp`: parser, Sema, CHIR) | `go/parser` + `go/types` | the compiler itself | K2 (FIR) behind the Analysis API | clang in-process | own, K2 ported to Cangjie: PSI → Raw CFIR → lazy resolve phases per declaration |
+| Tree | lossless CST (`ginkgo`, rowan) | lossless CST (rowan) | AST with ranges, tokens kept aside | the compiler's AST | AST, comments aside | lossless red-green | lossless PSI | the compiler's AST | lossless PSI (IntelliJ core) |
+| Incrementality | queries (calca, salsa's model) | queries (salsa) | queries (salsa, fine-grained: per scope, per definition) | the compiler's pipeline over the package (it links cjc's `IncrementalCompilation`; how much it reuses is not checked) | per package, keyed, export data cached on disk | immutable snapshots, lazy compilations, incremental reparse | PSI modification trackers, lazy resolve phases | preamble (headers) kept, the main file reparsed | a PSI snapshot per open document; the analysis session invalidated on a change |
+| Concurrency | read loop writes; a `spawn` per `readonly` request on a snapshot | main loop writes; a pool reads snapshots | same as R1 | a worker per file (`ArkASTWorker`) | a snapshot per change | snapshots, async | read/write actions | a worker per file (`ASTWorker`) | one worker thread, every request in turn |
+| Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request | none: a queued request runs |
+| Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
+| Macros | none yet (Q9) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
+| Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
+| Diagnostics | none yet (#17) | push; `cargo check` on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
 
 ## Where each part of cjls comes from
 
@@ -61,28 +60,44 @@ Looked at, not references:
 | Workspace symbols, references | R1, R8 | an index in memory first; on disk only when measured to be needed | #12 |
 | Test fixtures | R1 | `$0` cursors, `//- /path` multi-file fixtures | not yet |
 
-## cjls against R4
+## Competitors
 
-The methods R4 answers (its binary's strings, SDK of 2025-07), and where cjls is on them.
+What a user can run instead of cjls, as of 2026-09.
 
-| Feature | R4 | cjls |
-|---|---|---|
-| Diagnostics | the compiler's, all of them; push | none; syntax in #17, semantic after Q10 |
-| Semantic tokens | `full` | #16 (syntactic; `full` and `range`) |
-| Document symbols | yes | yes |
-| Workspace symbols | yes | #12 |
-| Hover, definition, references, document highlight, rename | yes | after Q10 |
-| Completion, signature help | yes | after Q10 |
-| Call and type hierarchy | yes | after Q10 |
-| Code actions, code lens, document links | yes | — |
-| Macros | expanded (`LSPMacroServer`) | Q9 |
-| Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio | never: standard LSP only |
+| | R4 LSPServer | R9 lin-qingying/cangjie | cjls |
+|---|---|---|---|
+| What | the SDK's server, cjc linked in | a frontend of its own after R7, and a standalone server (lsp4j) | a frontend of its own after R1 |
+| Getting it | comes with the SDK (`tools/bin/LSPServer`) | no releases: built from source (JDK 21, Gradle, IntelliJ's core) | one binary per platform, GitHub releases (D11) |
+| Runs | native; needs the SDK beside it (`@loader_path/../lib/libcangjie-lsp.dylib`, 62 MB) | on the JVM, `-Xmx2g` by default | native, static, nothing beside it |
+| Clients | DevEco Studio, its VS Code extension | IntelliJ (LSP4IJ), DevEco Studio; any client over stdio | any client; configs for Neovim, VS Code, Zed (`editors/`) |
+| State | released with each SDK | one author, active; `main-tests` red on every run since 2026-08 at least, `:compiler:frontend` not compiling on 2026-09-22 | early: document symbols only |
+| Tried (2026-09-26, Neovim 0.12, a two-file project with `extend`) | refuses `initialize` without its extension's `initializationOptions`; with a guessed set: document symbols with signatures, hover, definition, completion, tokens and diagnostics empty, 480 MB — not configured right, so not judged | `cfc565d` builds only with three workarounds (Gradle on JDK 21; `flatc` fetched by hand, its macOS asset name is wrong; duplicate jars in `installDist`), 305 MB installed. `initialize` 0.3–2.7 s, 240–280 MB. Document symbols, semantic tokens, completion (the names in scope, not `c.`'s members) answer; hover and definition fail (`Extend declaration package is not indexed`: `extend` in the file or in `std`); no diagnostics, not even a syntax error | `initialize` 0.2 s, 13 MB; document symbols, nothing else yet |
 
-Where cjls can be ahead without the semantics:
+Features:
 
-| | R4 | cjls |
-|---|---|---|
-| A file that does not parse | the compiler's recovery | a tree covering the text, always; no false errors against R3 |
-| An edit | the compiler's pipeline over the package | the queries that read what changed |
-| Clients | DevEco Studio, VS Code | any LSP client; Neovim, VS Code, Zed first |
-| Distribution | the SDK (`libcangjie-lsp` alone is 62 MB) | one static binary |
+| Feature | R4 | R9 | cjls |
+|---|---|---|---|
+| Diagnostics | the compiler's, all of them; push | its checkers; push | none; syntax in #17, semantic after Q10 |
+| Semantic tokens | `full` | `full`, `range` | #16 (syntactic; `full` and `range`) |
+| Document symbols | yes | yes | yes |
+| Workspace symbols | yes | yes | #12 |
+| Hover, definition, references, document highlight, rename | yes | yes | after Q10 |
+| Completion, signature help | yes | yes | after Q10 |
+| Type definition, implementation | — | yes | after Q10 |
+| Call and type hierarchy | yes | — | after Q10 |
+| Folding, selection range, formatting | — | yes | — |
+| Code actions, code lens, document links | yes | code actions | — |
+| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | Q9 |
+| `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | Q11 |
+| Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio | — | never: standard LSP only |
+
+R4's column is the methods its binary answers (its strings, SDK of 2025-07); R9's is what its `AnalysisApiCangjieAnalysisFacade` declares, not what worked when tried (above).
+
+Where cjls can be ahead before it has the semantics:
+
+| | R4 | R9 | cjls |
+|---|---|---|---|
+| A file that does not parse | the compiler's recovery | PSI's recovery | a tree covering the text, always; no false errors against R3 |
+| An edit | the compiler's pipeline over the package | the analysis session invalidated | the queries that read what changed |
+| Concurrency | a worker per file | one thread for every request | snapshots, cancelled by a write (D8) |
+| Distribution | the SDK | a JVM application built from source | one static binary |
