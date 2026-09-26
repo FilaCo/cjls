@@ -1,6 +1,6 @@
 ---@brief
 ---
---- https://github.com/FilaCo/cjls
+--- https://github.com/ide4cj/cjls
 ---
 --- Language server for Cangjie, written in Cangjie. Put the `cjls` binary on your `PATH`
 --- (or point `cmd` at it), then:
