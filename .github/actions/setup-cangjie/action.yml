@@ -8,6 +8,11 @@ runs:
       with:
         python-version: "3.12"
 
+    # cjc links against LLVM's C++ library on Linux; the runner has only GCC's
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq libc++-dev libc++abi-dev
+
     - id: version
       shell: bash
       run: echo "tag=$(tr -d '[:space:]' < .cangjie-version)" >> "$GITHUB_OUTPUT"
