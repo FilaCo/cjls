@@ -1,13 +1,13 @@
 # Prior art
 
-The language servers cjls is measured against, in two roles ([D14](adr/0014-reference-implementations.md)): **references**, which cjls learns from, and **competitors**, which a user picks cjls over or not. R4 is both. Where each part of cjls comes from, and where it stands against the competitors. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
+The language servers cjls is measured against, in two roles ([D15](adr/0015-reference-implementations.md)): **references**, which cjls learns from, and **competitors**, which a user picks cjls over or not. R4 is both. Where each part of cjls comes from, and where it stands against the competitors. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
 
 ## References
 
 | # | Server | Serves | Written in | For cjls |
 |---|---|---|---|---|
-| R1 | [rust-analyzer](https://github.com/rust-lang/rust-analyzer) | Rust | Rust | **the model**: layers, VFS, main loop, trees, parser, API, handlers, tests |
-| R2 | [ty](https://github.com/astral-sh/ty) (server in [ruff](https://github.com/astral-sh/ruff)) | Python | Rust | calca: salsa as it is now (tracked structs, interned GC, LRU, cycles); pull diagnostics |
+| R1 | [rust-analyzer](https://github.com/rust-lang/rust-analyzer) | Rust | Rust | **the model**: layers, VFS, main loop, trees, parser, macros, name resolution, API, handlers, tests, LSP extensions |
+| R2 | [ty](https://github.com/astral-sh/ty) (server in [ruff](https://github.com/astral-sh/ruff)) | Python | Rust | salsa's current API used natively (tracked structs, interned values, LRU, cycles), where R1 keeps its old query groups through a shim; the model for calca is salsa itself (D15) |
 | R3 | [cjc](https://gitcode.com/Cangjie/cangjie_compiler) (`src/Parse`, `src/Sema`) | Cangjie | C++ | **the specification**: what the language is; where cjls disagrees, cjls is wrong |
 | R4 | [LSPServer](https://gitcode.com/Cangjie/cangjie_tools) (`cangjie-language-server`, in the SDK as `tools/bin/LSPServer`) | Cangjie | C++ | **the baseline**: the features to reach, behaviour to compare against; not a model |
 | R5 | [gopls](https://github.com/golang/tools/tree/master/gopls) | Go | Go | the workspace: a project model from the build tool, snapshots, watched files, a cache on disk |
@@ -36,8 +36,9 @@ Looked at, not references:
 | Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request | none: a queued request runs |
 | Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
 | Macros | none yet (Q9) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
+| Cache between sessions | none (Q12) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
 | Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
-| Diagnostics | none yet (#17) | push; `cargo check` on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
+| Diagnostics | none yet (#17) | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
 
 ## Where each part of cjls comes from
 
@@ -48,16 +49,17 @@ Looked at, not references:
 | Lossless trees | R1 ← R6 | rowan | `ginkgo` |
 | Parser, events, typed views from an ungrammar | R1 | `parser`, `syntax`, `sourcegen` | `ginkgo.parsing`, `cjsyntax`, D10 |
 | What the grammar accepts | R3 | `src/Parse` | the parser test harness (CLAUDE.md) |
-| Incremental engine | R1, R2 | salsa | `calca`; what is missing: #13, #14 — take salsa's current API, as R2 uses it |
+| Incremental engine | salsa, R2 | salsa's current API; R2 uses it natively, R1 through `query-group-macro` | `calca`; what is missing: #13, #14 |
 | Cancellation on write | R1 | salsa's `Cancelled` | D8 |
-| Diagnostics delivery | R2 | pull, push only for clients without it | #17 |
+| Diagnostics delivery | R1, R2 | pull, push only for clients without it | #17 |
 | Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` | #16 |
 | Workspace, watched files | R1, R5 | `project_model`, `load-cargo`; `go/packages`, file watching | #12 |
 | Project model | R4, R5 | cjpm has no `cargo metadata` / `go list`: read `cjpm.toml` ourselves, as R4 does | #12, #14 §3 |
 | Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap` | Q10 |
 | Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | Q10 |
 | Macros | R1, R4 | expand out of process, by running the compiled macro package | Q9 |
-| Workspace symbols, references | R1, R8 | an index in memory first; on disk only when measured to be needed | #12 |
+| Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, Q12 |
+| LSP extensions | R1 | `lsp-extensions.md`: methods of its own where LSP has none, under a prefix, in `experimental` | D15 |
 | Test fixtures | R1 | `$0` cursors, `//- /path` multi-file fixtures | not yet |
 
 ## Competitors
@@ -89,7 +91,7 @@ Features:
 | Code actions, code lens, document links | yes | code actions | — |
 | Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | Q9 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | Q11 |
-| Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio | — | never: standard LSP only |
+| Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio, in place of standard ones | — | only where LSP has nothing, under `cjls/` (D15) |
 
 R4's column is the methods its binary answers (its strings, SDK of 2025-07); R9's is what its `AnalysisApiCangjieAnalysisFacade` declares, not what worked when tried (above).
 

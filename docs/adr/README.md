@@ -29,4 +29,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0011](0011-ci-and-releases.md) | A pinned nightly toolchain, CI on three platforms, releases from `cog bump` | accepted |
 | [0012](0012-drive-paths.md) | Paths are `std.fs.Path`, URIs are stdx's `URL`; Windows drives are spelled one way | accepted |
 | [0013](0013-stdin-is-read-with-readv.md) | Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative` | accepted |
-| [0014](0014-reference-implementations.md) | rust-analyzer is the model, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
+| [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
