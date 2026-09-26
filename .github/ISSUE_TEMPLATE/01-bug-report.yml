@@ -2,7 +2,7 @@ name: 🐜 Bug report
 description: If something isn't working 🔧
 title: "[Bug]: "
 labels: ["bug"]
-projects: ["FilaCo/4"]
+projects: ["ide4cj/1"]
 assignees:
   - FilaCo
 body:

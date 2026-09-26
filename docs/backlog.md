@@ -4,7 +4,7 @@
 |---|---|---|
 | Q1 | Workspace loader | files not open are read from disk only on `didClose`; no watching, no `didChangeWatchedFiles` |
 | Q2 | Singleton inputs in calca | a layer above `loupe.db` cannot add a global input (project model) to `AnalysisDatabase` (D4) |
-| Q3 | LRU / GC of memos and interned values in calca | until then, A2 |
+| ~~Q3~~ | ~~GC of interned values and of the memos keyed by them~~ | closed by [D18](adr/0018-gc-of-interned-values.md) |
 | ~~Q4~~ | ~~Server push (`publishDiagnostics`)~~ | closed by [D14](adr/0014-diagnostics-pull-first.md) |
 | ~~Q5~~ | ~~Windows paths in `VfsPath`~~ | closed by [D12](adr/0012-drive-paths.md) |
 | Q6 | Batched writes | every file change is its own revision |
@@ -17,5 +17,7 @@
 | Q13 | `resultId` and `unchanged` diagnostic reports | the server has to keep each document's last result, which a `readonly` handler cannot write (S1, S2); a syntactic report is cheap to send whole |
 | Q14 | `workspace/diagnostic` | needs the files that are not open (Q1, #12) |
 | Q15 | Validation and semantic diagnostics | the compiler's checks after parsing (modifier conflicts, annotation targets), then name resolution and types (Q10); `interFileDependencies: true` then; kept in query results (A11) |
-| Q16 | Semantic tokens `full/delta` and `refresh` | delta needs the last result per `resultId`, kept by the server, as Q13; `refresh` once a file's tokens depend on others, with name resolution (Q10), which also brings names at their use (D16) |
-| Q17 | Base grammars for VS Code and Zed | semantic tokens only refine a base highlighting: a TextMate grammar (VS Code) and a tree-sitter one (Zed) in `editors/`, each a second parser to keep in step with `cjsyntax` |
+| Q16 | LRU capacity at run time, and by memory | `lru` is fixed at compile time (D17), as in R1; `initializationOptions` / `workspace/configuration` as `rust-analyzer.lru.capacity`, or Pyright's emptying caches past 90% of the heap |
+| Q17 | Base grammars for VS Code and Zed | semantic tokens only refine a base highlighting: a TextMate grammar (VS Code) and a tree-sitter one (Zed) in the editors' own repositories (D16), each a second parser to keep in step with `cjsyntax` |
+| Q18 | GC of memo keys that are not interned values | the memo keys are a `Slab` already (D18); which keys to drop (inputs never go, A5) and when is open |
+| Q19 | Semantic tokens `full/delta` and `refresh` | delta needs the last result per `resultId`, kept by the server, as Q13; `refresh` once a file's tokens depend on others, with name resolution (Q10), which also brings names at their use (D19) |

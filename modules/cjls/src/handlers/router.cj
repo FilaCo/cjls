@@ -36,7 +36,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)
         diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
             DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),
-        // no `full/delta` until the server keeps what it sent (D16)
+        // no `full/delta` until the server keeps what it sent (D19)
         semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),

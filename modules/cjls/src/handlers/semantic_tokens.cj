@@ -8,7 +8,7 @@ import cjls.macros.LspHandler
 
 /**
  * What every token of a document is, as far as its tree tells; `null` for a document the server
- * does not know. All of it every time: no `full/delta` yet (D16).
+ * does not know. All of it every time: no `full/delta` yet (D19).
  */
 @LspHandler[readonly]
 func handleSemanticTokensFull(snap: ServerSnapshot, params: SemanticTokensParams): Nullable<SemanticTokens> {

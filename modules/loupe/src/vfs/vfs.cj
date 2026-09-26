@@ -2,8 +2,8 @@ package loupe.vfs
 
 import std.collection.*
 import std.deriving.*
-import std.sync.*
-import index_map.{IndexMap, IndexSet}
+import index_map.IndexMap
+import index_map.concurrent.ConcurrentIndexSet
 import rope.Rope
 
 /**
@@ -22,43 +22,34 @@ public struct FileId <: ToString {
 /**
  * Every path a `Vfs` has seen, each with its `FileId`, for good: an id is its path's index in the
  * order they were seen, and never stands for another path, even once its file is gone. Safe to
- * share between threads, so a handler off the main loop can look a path up.
+ * share between threads, so a handler off the main loop can look a path up; only giving a path its
+ * id takes a lock (C9).
  */
 public class PathInterner {
-    private let lock = ReadWriteLock()
-    private let paths = IndexSet<VfsPath>()
+    private let paths = ConcurrentIndexSet<VfsPath>()
 
     /**
      * The id `path` has, or `None` if it was never seen.
      */
     public func lookup(path: VfsPath): ?FileId {
-        let index = synchronized(lock.readLock) {
-            paths.indexOf(path)
+        match (paths.indexOf(path)) {
+            case Some(index) => FileId(index)
+            case None => None
         }
-        index.map {i => FileId(i)}
     }
 
     /**
      * The id `path` has, given it if it had none.
      */
     public func intern(path: VfsPath): FileId {
-        match (lookup(path)) {
-            case Some(id) => id
-            // adding a path already there, as another thread may have meanwhile, keeps its index
-            case None => synchronized(lock.writeLock) {
-                FileId(paths.addWithIndex(path)[0])
-            }
-        }
+        FileId(paths.addWithIndex(path)[0])
     }
 
     /**
      * @throws IndexOutOfBoundsException - if the id was not given here
      */
     public func path(id: FileId): VfsPath {
-        let path = synchronized(lock.readLock) {
-            paths.getAt(id.index)
-        }
-        path.getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
+        paths.getAt(id.index).getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
     }
 }
 

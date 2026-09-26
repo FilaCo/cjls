@@ -69,7 +69,7 @@ func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
 }
 
 /**
- * The token types the server sends, LSP's own only, so every theme knows them (D16); a token's
+ * The token types the server sends, LSP's own only, so every theme knows them (D19); a token's
  * type is its index here.
  */
 let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,

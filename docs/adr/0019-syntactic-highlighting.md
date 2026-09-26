@@ -1,4 +1,4 @@
-# ADR-0016: Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types
+# ADR-0019: Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types
 
 Status: accepted, 2026-09-26
 
