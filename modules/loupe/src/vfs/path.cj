@@ -14,7 +14,12 @@ import stdx.encoding.url.{URL, UrlSyntaxException}
  * never tells two drives apart. The rest keeps its case, as the client got it from the file system.
  */
 public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
-    private VfsPath(private let disk: ?Path, private let uri: String) {}
+    /**
+     * A path on disk is kept as the text of its canonical `Path`, a virtual one as its URI: a
+     * `VfsPath` is hashed and compared on every lookup of a file, and a `Path` in it made both
+     * three times slower (measured with `@Bench`, `path_bench_test.cj`).
+     */
+    private VfsPath(private let onDisk: Bool, private let text: String) {}
 
     /**
      * @throws IllegalArgumentException - if `path` is not absolute
@@ -23,7 +28,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
         if (!path.isAbsolute()) {
             throw IllegalArgumentException("not an absolute path: ${path}")
         }
-        VfsPath(canonical(path.normalize()), "")
+        VfsPath(true, canonical(path.normalize()).toString())
     }
 
     /**
@@ -34,7 +39,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     public static func virtual(name: String): VfsPath {
-        VfsPath(None, name)
+        VfsPath(false, name)
     }
 
     /**
@@ -67,7 +72,11 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      */
     public prop filePath: ?Path {
         get() {
-            disk
+            if (onDisk) {
+                Path(text)
+            } else {
+                None
+            }
         }
     }
 
@@ -76,21 +85,22 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * virtual one.
      */
     public func toUri(): String {
-        match (disk) {
-            case Some(path) => URL(scheme: "file", hostName: "", path: uriPathOf(path)).toString()
-            case None => uri
+        if (onDisk) {
+            URL(scheme: "file", hostName: "", path: uriPathOf(Path(text))).toString()
+        } else {
+            text
         }
     }
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(disk.isSome())
-        hasher.write(toString())
+        hasher.write(onDisk)
+        hasher.write(text)
         hasher.finish()
     }
 
     public operator func ==(other: VfsPath): Bool {
-        disk == other.disk && uri == other.uri
+        onDisk == other.onDisk && text == other.text
     }
 
     public operator func !=(other: VfsPath): Bool {
@@ -98,10 +108,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     public func toString(): String {
-        match (disk) {
-            case Some(path) => path.toString()
-            case None => uri
-        }
+        text
     }
 }
 
