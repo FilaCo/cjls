@@ -1,0 +1,56 @@
+name: Release
+
+# `cog bump --auto` pushes the tag
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: GitHub release
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # the binaries CI built and tested end to end
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cjls-*
+          path: artifacts
+      - name: Package
+        run: |
+          mkdir dist
+          package() { # artifact, target, archive format
+            dir="cjls-$2"
+            mkdir "$dir"
+            cp artifacts/cjls-$1/* "$dir/"
+            chmod +x "$dir"/cjls*
+            if [ "$3" = zip ]; then zip -qr "dist/$dir.zip" "$dir"; else tar -czf "dist/$dir.tar.gz" "$dir"; fi
+          }
+          package macOS aarch64-apple-darwin tar
+          package Linux x86_64-unknown-linux-gnu tar
+          package Windows x86_64-pc-windows-gnu zip
+          (cd dist && sha256sum * > SHA256SUMS)
+          ls -l dist
+      # installs cog; there is nothing to check between the tag and itself
+      - uses: cocogitto/cocogitto-action@v4
+        with:
+          command: check
+          args: --from-latest-tag
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cog changelog --at "$TAG" > notes.md
+          gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --verify-tag

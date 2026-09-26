@@ -1,2 +1,21 @@
 ignore_merge_commits = true
 ignore_fixup_commits = true
+
+# `cog bump --auto` on master: the version goes into the server, the tag triggers the release
+tag_prefix = "v"
+branch_whitelist = ["master"]
+pre_bump_hooks = [
+    "perl -pi -e 's/^version = \".*\"/version = \"{{version}}\"/' modules/cjls/cjpm.toml",
+    "perl -pi -e 's/^const VERSION = \".*\"/const VERSION = \"{{version}}\"/' modules/cjls/src/handlers/lifecycle.cj",
+]
+post_bump_hooks = [
+    "git push",
+    "git push origin v{{version}}",
+]
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+owner = "FilaCo"
+repository = "cjls"
