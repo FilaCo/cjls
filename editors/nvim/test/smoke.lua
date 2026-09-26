@@ -1,6 +1,6 @@
 -- Headless smoke test: the buffer gets the ftplugin's options and the grammar is registered with
--- nvim-treesitter; the server attaches to a Cangjie buffer at its package root, completes
--- `initialize`, and exits with 0 after `shutdown`/`exit`.
+-- nvim-treesitter; the installer unpacks a release; the server attaches to a Cangjie buffer at its
+-- package root, completes `initialize`, and exits with 0 after `shutdown`/`exit`.
 --
 --   cjpm build && nvim --clean --headless -u editors/nvim/test/smoke.lua
 --
@@ -8,7 +8,9 @@
 
 -- `/`-separated, as Neovim reports a root: on Windows the working directory comes with `\`
 local repo = vim.fs.normalize(vim.fn.getcwd())
-vim.opt.runtimepath:prepend(repo .. '/editors/nvim')
+-- the repository itself, as a plugin manager installs it (plugin/editors_nvim.lua)
+vim.opt.runtimepath:prepend(repo)
+local bin = vim.env.CJLS_BIN or (repo .. '/target/release/bin/cjls')
 
 local TIMEOUT_MS = 5000
 local exit_code = nil
@@ -37,11 +39,59 @@ local function check_editor_support()
   end
 end
 
+-- The installer, against a release of the binary under test in a directory, packaged as
+-- release.yml does it: `cjls-<target>/cjls` in an archive, and SHA256SUMS.
+local function check_install()
+  local install = require('cjls.install')
+  local target, format = install.target()
+  if not target then
+    return -- no prebuilt binary for this platform
+  end
+  local exe = vim.fn.has('win32') == 1 and 'cjls.exe' or 'cjls'
+  local tmp = vim.fs.normalize(vim.fn.tempname())
+  local name = 'cjls-' .. target
+  local archive_name = name .. '.' .. format
+  local release = tmp .. '/download/v0.0.0'
+  vim.fn.mkdir(tmp .. '/pkg/' .. name, 'p')
+  vim.fn.mkdir(release, 'p')
+  local source = vim.uv.fs_stat(bin) and bin or (bin .. '.exe')
+  assert(vim.uv.fs_copyfile(source, tmp .. '/pkg/' .. name .. '/' .. exe))
+  local pack = format == 'zip' and { install.tar(), '-a', '-cf' } or { install.tar(), '-czf' }
+  local out = vim.system(vim.list_extend(pack, { release .. '/' .. archive_name, '-C', tmp .. '/pkg', name })):wait()
+  if out.code ~= 0 then
+    return 'could not pack the release: ' .. out.stderr
+  end
+  local f = assert(io.open(release .. '/' .. archive_name, 'rb'))
+  local sum = vim.fn.sha256(f:read('*a'))
+  f:close()
+  vim.fn.writefile({ sum .. '  ' .. archive_name }, release .. '/SHA256SUMS')
+
+  local result = nil
+  install.install({
+    version = 'v0.0.0',
+    base = 'file://' .. (tmp:sub(1, 1) == '/' and '' or '/') .. tmp,
+    dir = tmp .. '/data',
+    on_done = function(err)
+      result = err or false
+    end,
+  })
+  if not vim.wait(TIMEOUT_MS, function() return result ~= nil end) then
+    return 'the installer did not finish within ' .. TIMEOUT_MS .. ' ms'
+  end
+  if result then
+    return 'the installer failed: ' .. result
+  end
+  if vim.fn.executable(tmp .. '/data/bin/' .. exe) ~= 1 or install.installed(tmp .. '/data') ~= 'v0.0.0' then
+    return 'the installer left no executable v0.0.0 in ' .. tmp .. '/data'
+  end
+  vim.fn.delete(tmp, 'rf')
+end
+
 local function run()
   vim.cmd.edit(repo .. '/modules/cjls/src/main.cj')
   local expected_root = repo .. '/modules/cjls'
 
-  local err = check_editor_support()
+  local err = check_editor_support() or check_install()
   if err then
     return fail(err)
   end
@@ -74,7 +124,7 @@ local function run()
 end
 
 vim.lsp.config('cjls', {
-  cmd = { vim.env.CJLS_BIN or (repo .. '/target/release/bin/cjls') },
+  cmd = { bin },
   on_exit = function(code)
     exit_code = code
   end,

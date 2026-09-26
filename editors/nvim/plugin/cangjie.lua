@@ -1,5 +1,9 @@
 -- Cangjie in Neovim, beyond the language server: the tree-sitter grammar for nvim-treesitter
 -- (D16), and the file types Neovim does not detect.
+if vim.g.loaded_cangjie then
+  return
+end
+vim.g.loaded_cangjie = true
 
 -- The compiler's macro-expansion dumps, next to the sources: the same language
 vim.filetype.add({ pattern = { ['.*%.cj%.macrocall'] = 'cangjie' } })
