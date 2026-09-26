@@ -1,17 +1,19 @@
 package loupe.vfs
 
 import std.collection.*
+import stdx.encoding.url.{URL, UrlSyntaxException}
 
 /**
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
  * editor's `untitled:` buffer), the URI it was given, as is. Two URIs spelling one path apart (a
- * `%`-escape the other does not use, a `/./`) give the one `VfsPath`.
+ * `%`-escape the other does not use, a `/./`) give the one `VfsPath`. The URI itself is stdx's
+ * `URL`: parsed, unescaped and written by it.
  *
  * A path is absolute from `/`, or from a drive (`C:\`, `c:/`): alike on every platform, so what a
  * Windows client sends reads the same wherever it is tested. A drive path keeps `/` for its
- * separator and its letter lowercase, as VS Code writes it (`file:///c%3A/src/a.cj`): clients
- * differ in both, and the letter's case never tells two drives apart. The rest keeps its case, as
- * the client got it from the file system.
+ * separator and its letter lowercase, as VS Code writes it: clients differ in both (`c%3A`,
+ * `C:`), and the letter's case never tells two drives apart. The rest keeps its case, as the
+ * client got it from the file system.
  */
 public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     private VfsPath(private let onDisk: Bool, private let value: String) {}
@@ -37,20 +39,24 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * The path a `file:` URI names, anything else a virtual path of the URI itself.
      */
     public static func fromUri(uri: String): VfsPath {
-        if (!uri.startsWith("file://")) {
+        let url = try {
+            URL.parse(uri)
+        } catch (_: UrlSyntaxException) {
+            return virtual(uri)
+        } catch (_: IllegalArgumentException) {
+            // an escape that spells no UTF-8
             return virtual(uri)
         }
-        let rest = uri["file://".size..]
-        // the authority is empty, or `localhost`, for a file on this machine
-        let path = match (rest.indexOf("/")) {
-            case Some(slash) where slash == 0 || rest[..slash] == "localhost" => rest[slash..]
-            case _ => return virtual(uri)
-        }
-        match (percentDecoded(path)) {
+        // the host is empty, or `localhost`, for a file on this machine
+        let local = url.hostName.isEmpty() || url.hostName == "localhost"
+        let path = url.path
+        if (url.scheme != "file" || !local || !path.startsWith("/")) {
+            virtual(uri)
+        } else if (startsWithDrive(path[1..])) {
             // `/c:/src`: in a URI the drive is the first segment
-            case Some(decoded) where startsWithDrive(decoded[1..]) => file(decoded[1..])
-            case Some(decoded) => file(decoded)
-            case None => virtual(uri)
+            file(path[1..])
+        } else {
+            file(path)
         }
     }
 
@@ -68,13 +74,14 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     /**
-     * A `file:` URI for a path on disk, escaped the way VS Code does, the URI given for a virtual one.
+     * A `file:` URI for a path on disk (`file:///c:/src/a.cj` for a drive), the URI given for a
+     * virtual one.
      */
     public func toUri(): String {
         if (onDisk && startsWithDrive(value)) {
-            "file:///" + percentEncoded(value)
+            URL(scheme: "file", hostName: "", path: "/" + value).toString()
         } else if (onDisk) {
-            "file://" + percentEncoded(value)
+            URL(scheme: "file", hostName: "", path: value).toString()
         } else {
             value
         }
@@ -125,68 +132,4 @@ func normalize(root: String, path: String): String {
         }
     }
     root + String.join(segments.toArray(), delimiter: "/")
-}
-
-/**
- * `None` if an escape is malformed, or what they spell is not UTF-8.
- */
-func percentDecoded(text: String): ?String {
-    if (!text.contains("%")) {
-        return text
-    }
-    let bytes = ArrayList<Byte>()
-    var i = 0
-    while (i < text.size) {
-        let b = text[i]
-        if (b == b'%') {
-            if (i + 2 >= text.size) {
-                return None
-            }
-            let high = hexValue(text[i + 1]) ?? return None
-            let low = hexValue(text[i + 2]) ?? return None
-            bytes.add(high * 16 + low)
-            i += 3
-        } else {
-            bytes.add(b)
-            i++
-        }
-    }
-    try {
-        String.fromUtf8(bytes.toArray())
-    } catch (_: IllegalArgumentException) {
-        None
-    }
-}
-
-private func hexValue(b: Byte): ?Byte {
-    if (b >= b'0' && b <= b'9') {
-        b - b'0'
-    } else if (b >= b'a' && b <= b'f') {
-        b - b'a' + 10
-    } else if (b >= b'A' && b <= b'F') {
-        b - b'A' + 10
-    } else {
-        None
-    }
-}
-
-private let HEX_DIGITS = "0123456789ABCDEF"
-
-/**
- * Every byte escaped but the unreserved ones and `/`.
- */
-func percentEncoded(path: String): String {
-    let encoded = StringBuilder()
-    for (b in path) {
-        let unreserved = b >= b'a' && b <= b'z' || b >= b'A' && b <= b'Z' || b >= b'0' && b <= b'9' ||
-            b == b'-' || b == b'.' || b == b'_' || b == b'~' || b == b'/'
-        if (unreserved) {
-            encoded.append(Rune(b))
-        } else {
-            encoded.append("%")
-            encoded.append(Rune(HEX_DIGITS[Int64(b >> 4)]))
-            encoded.append(Rune(HEX_DIGITS[Int64(b & 0xF)]))
-        }
-    }
-    encoded.toString()
 }

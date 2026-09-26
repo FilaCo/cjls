@@ -27,4 +27,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0009](0009-names-of-state-and-database.md) | `ServerState` holds the `AnalysisDatabase`; only calca says `Database` | accepted |
 | [0010](0010-generated-syntax.md) | Syntax kinds and typed views are generated from an ungrammar | accepted |
 | [0011](0011-ci-and-releases.md) | A pinned nightly toolchain, CI on three platforms, releases from `cog bump` | accepted |
-| [0012](0012-drive-paths.md) | A drive path is absolute on every platform, spelled as VS Code spells it | accepted |
+| [0012](0012-drive-paths.md) | A drive path is absolute on every platform; URIs are stdx's `URL` | accepted |

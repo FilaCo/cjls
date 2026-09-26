@@ -75,9 +75,13 @@ class VfsPathTest {
     }
 
     @TestCase
-    func aDrivePathGoesBackToAUriAsVsCodeWritesIt() {
-        // act, assert
-        @Expect(VfsPath.file("C:\\Users\\Me\\a b.cj").toUri(), "file:///c%3A/Users/Me/a%20b.cj")
+    func aDrivePathGoesBackToAUriWithTheDriveAsItsFirstSegment() {
+        // act
+        let uri = VfsPath.file("C:\\Users\\Me\\a b.cj").toUri()
+
+        // assert
+        @Expect(uri, "file:///c:/Users/Me/a%20b.cj")
+        @Expect(VfsPath.fromUri(uri), VfsPath.fromUri("file:///c%3A/Users/Me/a%20b.cj"))
     }
 }
 
