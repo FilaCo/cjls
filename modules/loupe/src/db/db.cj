@@ -1,7 +1,6 @@
 package loupe.db
 
-import std.collection.*
-import std.sync.*
+import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
 import rope.Rope
@@ -85,18 +84,13 @@ public class AnalysisDatabase <: Database {
  * The input of every file, by id, shared by a database and its snapshots.
  */
 class Files {
-    private let lock = ReadWriteLock()
-    private let byId = HashMap<FileId, SourceFile>()
+    private let byId = ConcurrentHashMap<FileId, SourceFile>()
 
     func get(fileId: FileId): ?SourceFile {
-        synchronized(lock.readLock) {
-            byId.get(fileId)
-        }
+        byId.get(fileId)
     }
 
     func add(fileId: FileId, file: SourceFile): Unit {
-        synchronized(lock.writeLock) {
-            byId.add(fileId, file)
-        }
+        byId.add(fileId, file)
     }
 }

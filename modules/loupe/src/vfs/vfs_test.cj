@@ -1,5 +1,6 @@
 package loupe.vfs
 
+import std.collection.HashSet
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.env.getTempDirectory
@@ -172,5 +173,56 @@ class VfsTest {
         // assert
         @Expect(kinds(vfs.takeChanges()), ["Create(FileId(2))", "Modify(FileId(0))", "Delete(FileId(1))", "Create(FileId(3))"])
         @Expect(vfs.takeChanges().size, 0)
+    }
+}
+
+@Test
+class PathInternerTest {
+    @TestCase
+    func idsAreGivenInTheOrderPathsAreFirstSeen() {
+        // arrange
+        let interner = PathInterner()
+        let (a, b) = (inTemp("a.cj"), inTemp("b.cj"))
+
+        // act
+        let ids = [interner.intern(a), interner.intern(b), interner.intern(a)]
+
+        // assert
+        @Expect(ids, [FileId(0), FileId(1), FileId(0)])
+        @Expect(interner.lookup(b), Some(FileId(1)))
+        @Expect(interner.path(FileId(1)), b)
+        @Expect(interner.lookup(inTemp("c.cj")), None<FileId>)
+    }
+
+    @TestCase
+    func threadsInterningThePathsAtOnceAgreeOnTheirIds() {
+        // arrange
+        let interner = PathInterner()
+        let paths = Array(100) {i => inTemp("${i}.cj")}
+
+        // act
+        let seen = Array(8) {
+            reader => spawn {
+                Array(paths.size) {i => interner.intern(paths[(i + reader * 13) % paths.size])}
+            }
+        }.map {reader => reader.get()}
+
+        // assert
+        let ids = paths.map {path => interner.lookup(path).getOrThrow()}
+        @Expect(HashSet(ids.map {id => id.index}), HashSet(Array(paths.size) {i => i}))
+        @Expect(ids.map {id => interner.path(id)}, paths)
+        for (reader in 0..seen.size) {
+            @Expect(seen[reader], Array(paths.size) {i => ids[(i + reader * 13) % paths.size]})
+        }
+    }
+
+    @TestCase
+    func aPathIsOnlyForAnIdGiven() {
+        // arrange
+        let interner = PathInterner()
+        interner.intern(inTemp("a.cj"))
+
+        // act, assert
+        @AssertThrows[IndexOutOfBoundsException](interner.path(FileId(1)))
     }
 }
