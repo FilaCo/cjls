@@ -1,8 +1,7 @@
 package cjls.handlers
 
 import rope.{Encoding, Rope}
-import loupe.{StructureKind, StructureNode}
-import loupe.diagnostics.{Diagnostic, DiagnosticSeverity}
+import loupe.*
 import cjls.lsp_types as lsp
 
 /**
@@ -51,18 +50,17 @@ func symbolKind(kind: StructureKind): lsp.SymbolKind {
     }
 }
 
-func lspDiagnostic(text: Rope, diag: Diagnostic, encoding: Encoding): lsp.Diagnostic {
-    let range = lspRange(text, diag.range.start, diag.range.end, encoding)
+func diagnostic(text: Rope, diagnostic: Diagnostic, encoding: Encoding): lsp.Diagnostic {
     lsp.Diagnostic(
-        range: range,
-        severity: lspSeverity(diag.severity),
+        range: lspRange(text, diagnostic.range.start, diagnostic.range.end, encoding),
+        severity: diagnosticSeverity(diagnostic.severity),
         source: "cjls",
-        message: lsp.StringOrMarkupContent.AsString(diag.message)
+        message: lsp.StringOrMarkupContent.AsString(diagnostic.message)
     )
 }
 
-func lspSeverity(severity: DiagnosticSeverity): lsp.DiagnosticSeverity {
+func diagnosticSeverity(severity: Severity): lsp.DiagnosticSeverity {
     match (severity) {
-        case DiagnosticSeverity.Error => lsp.DiagnosticSeverity.Error
+        case Severity.Error => lsp.DiagnosticSeverity.Error
     }
 }
