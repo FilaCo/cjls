@@ -6,7 +6,7 @@
 |---|---|---|
 | `Rope` | `rope` | immutable UTF-8 text, B-tree of chunks; edits share the rest (D1) |
 | `Vfs` | `loupe.vfs` | `FileId → ?Rope` + changes folded until `takeChanges` (D2) |
-| `PathInterner` | `loupe.vfs` | `IndexSet<VfsPath>`: `FileId` = index, for good; the only thread-safe part |
+| `PathInterner` | `loupe.vfs` | `FileId` = the path's index in the order seen, for good; two `ConcurrentHashMap`s, a `Mutex` only to give an id (C9); the only thread-safe part |
 | `SourceFile` | `loupe.db` | `@CalcaInput { fileId, text: Rope }`, one per `FileId`, never dropped |
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |

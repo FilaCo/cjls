@@ -1,9 +1,10 @@
 package loupe.vfs
 
 import std.collection.*
+import std.collection.concurrent.ConcurrentHashMap
 import std.deriving.*
 import std.sync.*
-import index_map.{IndexMap, IndexSet}
+import index_map.IndexMap
 import rope.Rope
 
 /**
@@ -22,43 +23,50 @@ public struct FileId <: ToString {
 /**
  * Every path a `Vfs` has seen, each with its `FileId`, for good: an id is its path's index in the
  * order they were seen, and never stands for another path, even once its file is gone. Safe to
- * share between threads, so a handler off the main loop can look a path up.
+ * share between threads, so a handler off the main loop can look a path up; only giving a path its
+ * id takes a lock (C9).
  */
 public class PathInterner {
-    private let lock = ReadWriteLock()
-    private let paths = IndexSet<VfsPath>()
+    private let ids = ConcurrentHashMap<VfsPath, FileId>()
+    private let paths = ConcurrentHashMap<Int64, VfsPath>()
+    // the next id to give; read and written only under `lock`
+    private let lock = Mutex()
+    private var count = 0
 
     /**
      * The id `path` has, or `None` if it was never seen.
      */
     public func lookup(path: VfsPath): ?FileId {
-        let index = synchronized(lock.readLock) {
-            paths.indexOf(path)
-        }
-        index.map {i => FileId(i)}
+        ids.get(path)
     }
 
     /**
      * The id `path` has, given it if it had none.
      */
     public func intern(path: VfsPath): FileId {
-        match (lookup(path)) {
+        match (ids.get(path)) {
             case Some(id) => id
-            // adding a path already there, as another thread may have meanwhile, keeps its index
-            case None => synchronized(lock.writeLock) {
-                FileId(paths.addWithIndex(path)[0])
+            // another thread may have given it one meanwhile
+            case None => synchronized(lock) {
+                ids.get(path) ?? give(path)
             }
         }
+    }
+
+    private func give(path: VfsPath): FileId {
+        let id = FileId(count)
+        // the path first, so whoever has the id finds it
+        paths.add(id.index, path)
+        ids.add(path, id)
+        count++
+        id
     }
 
     /**
      * @throws IndexOutOfBoundsException - if the id was not given here
      */
     public func path(id: FileId): VfsPath {
-        let path = synchronized(lock.readLock) {
-            paths.getAt(id.index)
-        }
-        path.getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
+        paths.get(id.index).getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
     }
 }
 
