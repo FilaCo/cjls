@@ -26,7 +26,7 @@
 | A6 | Offsets are UTF-8 bytes on character boundaries, as `TextRange` and `Rope`. |
 | A7 | Lines break at `\n` only, as the compiler's lexer; a line ends before the `\r` of `\r\n` (D1). |
 | A8 | `loupe` knows no LSP: no URIs, `Position`, encodings or LSP types (D5). |
-| A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`, unless its values are collected: then a `Slab` of generations (calca's interned values and memo keys, D18). `PathInterner` stays an `IndexSet`: `FileId`s are forever (A5). |
+| A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`, unless its values are collected: then a `Slab` of generations (calca's interned values and memo keys, D18), or shared between threads: then two `ConcurrentHashMap`s, value → id and id → value, a `Mutex` only to give an id (`PathInterner`, C9; its `FileId`s are forever, A5). |
 | A10 | A value a query returns is `Equatable`, so it backdates; `[noEq]` only with a reason. |
 | A11 | Diagnostics are part of the results of the queries that find them (`Parse.errors`), never accumulated on the side (D14). |
 | A12 | A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end of a file); widening it for a client is translation. |
