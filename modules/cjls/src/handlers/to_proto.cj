@@ -2,8 +2,9 @@ package cjls.handlers
 
 import rope.{Encoding, Rope}
 import loupe.{StructureKind, StructureNode}
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
+import loupe.diagnostics.{Diagnostic, DiagnosticSeverity}
+import cjls.lsp_types.{Range as LspRange, Diagnostic as LspDiagnostic, DiagnosticSeverity as LspDiagnosticSeverity, 
+    SymbolKind, Position, DocumentSymbol, StringOrMarkupContent}
 
 /**
  * `start..end`, byte offsets into `text`, as the client counts: lines and columns of `encoding`.
@@ -48,5 +49,21 @@ func symbolKind(kind: StructureKind): SymbolKind {
         case StructureKind.Field => SymbolKind.Field
         case StructureKind.Constant => SymbolKind.Constant
         case StructureKind.TypeAlias => SymbolKind.TypeParameter
+    }
+}
+
+func lspDiagnostic(text: Rope, diag: Diagnostic, encoding: Encoding): LspDiagnostic {
+    let range = lspRange(text, diag.range.start, diag.range.end, encoding)
+    LspDiagnostic(
+        range: range,
+        severity: lspSeverity(diag.severity),
+        source: "cjls",
+        message: StringOrMarkupContent.AsString(diag.message)
+    )
+}
+
+func lspSeverity(severity: DiagnosticSeverity): LspDiagnosticSeverity {
+    match (severity) {
+        case DiagnosticSeverity.Error => LspDiagnosticSeverity.Error
     }
 }
